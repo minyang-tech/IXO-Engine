@@ -55,6 +55,48 @@ npm install
 npm start
 ```
 
+## Starter Example (Default Canvas)
+
+앱을 처음 실행하면 기본적으로 다음 예제 흐름이 캔버스에 배치됩니다.
+
+- `Start` -> `Input Field` -> `If / Else` -> `String Join` -> `Add Text`
+- 입력값(`username`)을 받아 조건 분기 후 메시지를 출력하는 가장 기본적인 로직 예제입니다.
+
+## Node Library Quick Guide
+
+자주 쓰는 노드의 역할을 짧게 정리했습니다.
+
+- `Add Text`: 화면에 텍스트 출력
+- `Add Image`: 이미지 경로/URL 렌더링
+- `Input Field`: 사용자 입력을 받아 변수로 전달
+- `If / Else`: 조건식 결과에 따라 True/False 분기
+- `Loop`: 반복 실행 흐름 제어
+- `Wait`: 지정 시간(ms) 지연 후 다음 노드 실행
+- `Switch`: 여러 케이스 중 일치하는 분기로 이동
+- `HTTP Request`: 외부 API 호출
+- `String Join`: 문자열 결합/포맷 조합
+- `Math Operator`: 수식 계산
+- `Script`: 사용자 JS 코드 실행으로 커스텀 로직 작성
+- `System Info`: 시스템 정보 표시용 데이터 생성
+- `Audio Player`: 오디오 재생 트리거
+- `File Watcher`: 파일 변경 감지 트리거
+
+## Template Grammar Guide
+
+Inspector의 `Value` 또는 조건식에서 템플릿 문법을 사용해 변수 참조가 가능합니다.
+
+- 기본 문법: `{{variableName}}`
+- 예시:
+  - Input Field의 `Ref Key`를 `myInput`으로 설정
+  - Add Text의 Value를 `안녕하세요, {{myInput}}님!`으로 입력
+  - 실행 시 입력값이 문자열에 실시간으로 치환되어 출력됨
+
+조건식 체인 문법:
+
+- `AND`, `OR` 지원
+- 예시: `{{score}} > 10 AND {{role}} == admin OR {{username}} == root`
+- 왼쪽부터 `AND` 평가 후 `OR` 체인으로 분기됩니다.
+
 ## Contributers
 Made by 민양테크.  
 
