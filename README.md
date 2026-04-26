@@ -12,7 +12,9 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Platform-Electron-blue?style=flat-square&logo=electron" alt="Platform">
   <img src="https://img.shields.io/badge/Language-JavaScript/Node.js-yellow?style=flat-square&logo=javascript" alt="Language">
-  <img src="https://img.shields.io/badge/License-Standard MinyangTech EULA-green?style=flat-square" alt="License">
+  <a href="https://minyangtech.n-e.kr/eula">
+    <img src="https://img.shields.io/badge/License-EULA-red?style=flat-square" alt="EULA">
+  </a>
 </p>
 
 ---
