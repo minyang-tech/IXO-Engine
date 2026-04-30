@@ -20,11 +20,70 @@ function projectToHtml(project) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>IXO Export</title>
     <style>
-      body { margin: 0; font-family: Segoe UI, sans-serif; background: #0d0d0d; color: #fff; }
-      .wrap { padding: 20px; }
-      .card { border: 1px solid #333; background: #1a1a1a; padding: 12px; margin-bottom: 8px; }
-      .kind { color: #999; font-size: 12px; text-transform: uppercase; }
-      .input { width: 100%; padding: 8px; border: 1px solid #333; background: #101010; color: #fff; margin-bottom: 8px; }
+      body { margin: 0; font-family: Segoe UI, sans-serif; background: #08110d; color: #edf6f1; }
+      .wrap { padding: 24px; }
+      .viewer {
+        border: 1px solid rgba(128, 162, 145, 0.18);
+        border-radius: 24px;
+        background: linear-gradient(180deg, rgba(19, 33, 28, 0.96), rgba(13, 22, 18, 0.96));
+        padding: 18px;
+        box-shadow: 0 18px 44px rgba(0, 0, 0, 0.24);
+      }
+      .input-row { display: grid; gap: 8px; margin-bottom: 16px; }
+      .input {
+        width: 100%;
+        padding: 10px 12px;
+        border-radius: 14px;
+        border: 1px solid rgba(128, 162, 145, 0.18);
+        background: #101915;
+        color: #edf6f1;
+      }
+      .viewer-stage {
+        position: relative;
+        min-height: 420px;
+        border-radius: 20px;
+        border: 1px solid rgba(128, 162, 145, 0.18);
+        overflow: hidden;
+        background:
+          linear-gradient(180deg, rgba(62, 207, 142, 0.04), rgba(62, 207, 142, 0.01)),
+          linear-gradient(180deg, rgba(255, 255, 255, 0.01), rgba(255, 255, 255, 0));
+      }
+      .viewer-grid {
+        position: absolute;
+        inset: 0;
+        background:
+          linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+        background-size: 24px 24px;
+        opacity: 0.24;
+      }
+      .builder-item {
+        position: absolute;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+      }
+      .builder-copy {
+        width: 100%;
+        padding: 12px;
+        white-space: pre-wrap;
+        word-break: break-word;
+        line-height: 1.45;
+      }
+      .builder-image {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      .card {
+        border: 1px solid rgba(128, 162, 145, 0.18);
+        border-radius: 18px;
+        background: rgba(255,255,255,0.02);
+        padding: 12px;
+        margin-top: 12px;
+      }
+      .kind { color: #95ada2; font-size: 12px; text-transform: uppercase; }
     </style>
   </head>
   <body>
@@ -38,6 +97,7 @@ function projectToHtml(project) {
       const nodes = project.nodes || [];
       const edges = project.edges || [];
       const inputs = project.inputValues || {};
+      const uiElements = project.uiElements || [];
       const context = {};
       const outgoing = {};
       const indegree = {};
@@ -56,6 +116,23 @@ function projectToHtml(project) {
       function tpl(text) {
         return String(text || "").replace(/\\{\\{\\s*([^}]+)\\s*\\}\\}/g, (_, key) => String(context[key.trim()] || ""));
       }
+      function resolveUiValue(item, field) {
+        const base = field === "src" ? item.src : item.text;
+        if (item.bindingKey && context[item.bindingKey]) return String(context[item.bindingKey]);
+        return tpl(base || "");
+      }
+      const viewer = document.createElement("div");
+      viewer.className = "viewer";
+      const inputRow = document.createElement("div");
+      inputRow.className = "input-row";
+      const stage = document.createElement("div");
+      stage.className = "viewer-stage";
+      const grid = document.createElement("div");
+      grid.className = "viewer-grid";
+      stage.appendChild(grid);
+      viewer.appendChild(inputRow);
+      viewer.appendChild(stage);
+      app.appendChild(viewer);
       const inputNodes = nodes.filter((n) => (n.data?.nodeType || "") === "input");
       inputNodes.forEach((node) => {
         const input = document.createElement("input");
@@ -63,10 +140,49 @@ function projectToHtml(project) {
         input.placeholder = node.data?.value || "Input";
         input.value = inputs[node.id] || "";
         input.oninput = () => { inputs[node.id] = input.value; render(); };
-        app.appendChild(input);
+        inputRow.appendChild(input);
       });
+      function renderUi(item) {
+        const el = document.createElement("div");
+        el.className = "builder-item";
+        el.style.left = (item.x || 0) + "px";
+        el.style.top = (item.y || 0) + "px";
+        el.style.width = (item.width || 220) + "px";
+        el.style.height = (item.height || 44) + "px";
+        el.style.borderRadius = (item.radius || 0) + "px";
+        el.style.color = item.color || "#edf6f1";
+        el.style.background = item.kind === "image" ? "transparent" : (item.background || "transparent");
+        el.style.fontSize = (item.fontSize || 16) + "px";
+        el.style.textAlign = item.align || "left";
+        if (item.kind === "image") {
+          const img = document.createElement("img");
+          img.className = "builder-image";
+          img.src = resolveUiValue(item, "src");
+          img.alt = item.text || "Builder asset";
+          el.appendChild(img);
+        } else {
+          if (item.kind === "button") {
+            el.style.fontWeight = "700";
+            el.style.cursor = "pointer";
+            if (item.actionType === "open-url" && item.actionValue) {
+              el.onclick = () => window.open(item.actionValue, "_blank", "noopener,noreferrer");
+            }
+          }
+          if (item.kind === "container") {
+            el.style.border = "1px solid rgba(62, 207, 142, 0.12)";
+            el.style.alignItems = "flex-start";
+            el.style.justifyContent = "flex-start";
+          }
+          const copy = document.createElement("div");
+          copy.className = "builder-copy";
+          copy.textContent = resolveUiValue(item, "text");
+          el.appendChild(copy);
+        }
+        stage.appendChild(el);
+      }
       function render() {
         app.querySelectorAll(".card").forEach((el) => el.remove());
+        stage.querySelectorAll(".builder-item").forEach((el) => el.remove());
         Object.keys(context).forEach((k) => delete context[k]);
         topo.forEach((id) => {
           const node = nodes.find((n) => n.id === id);
@@ -87,6 +203,7 @@ function projectToHtml(project) {
             app.appendChild(card);
           }
         });
+        uiElements.forEach(renderUi);
       }
       render();
     </script>
@@ -143,6 +260,7 @@ function createMainWindow() {
     height: 1000,
     minWidth: 1024,
     minHeight: 640,
+    icon: path.join(__dirname, "../IXO Logo.png"),
     // autoHideMenuBar: true, // 만약 Alt키로 메뉴를 보고 싶다면 이 주석을 해제하세요.
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
