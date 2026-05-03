@@ -104,3 +104,7 @@ Made by 민양테크.
 
 License : Standard MinyangTech EULA (표쥰 민양테크 최종 사용자 계약)  
 Copyright 2026. MinyangTech. All rights Reserved.  
+
+> [!IMPORTANT]
+> **AI 기술 활용 고지**  
+> 본 애플리케이션은 「인공지능 산업 육성 및 신뢰 기반 조성 등에 관한 기본법」에 의거하여, 제작 과정에서 인공지능(AI) 기술이 활용되었음을 밝힙니다.
