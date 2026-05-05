@@ -15,12 +15,14 @@ import ReactFlow, {
   useReactFlow
 } from "reactflow";
 import "reactflow/dist/style.css";
+import logoImage from "../IXO Logo.png";
 
 // [앱 공통] 에디터 전역에서 반복 사용하는 상수 모음입니다.
 const ACCENT = "#3ecf8e";
 const LOGO_FALLBACKS = [
-  "/IXO Logo.png",
-  "/IXO Logo.PNG",
+  logoImage,
+  "./IXO Logo.png",
+  "./IXO Logo.PNG",
   "https://github.com/minyang-tech/IXO-Engine/blob/main/IXO%20Logo.png?raw=true"
 ];
 
@@ -68,16 +70,6 @@ const THEME_OPTIONS = {
   mint: {
     label: "Mint",
     accent: "#3ecf8e",
-    bg: "#08110d",
-    bgSoft: "#0d1712",
-    panel: "#101915",
-    panelAlt: "#13211c",
-    panelElevated: "#172923",
-    text: "#edf6f1",
-    muted: "#95ada2",
-    line: "rgba(128, 162, 145, 0.18)",
-    lineStrong: "rgba(128, 162, 145, 0.3)",
-    inputBg: "#0d1511",
     accentSoft: "rgba(62, 207, 142, 0.16)",
     accentStrong: "rgba(62, 207, 142, 0.28)",
     glow: "rgba(62, 207, 142, 0.28)"
@@ -85,16 +77,6 @@ const THEME_OPTIONS = {
   crimson: {
     label: "Dark Red",
     accent: "#c84c5d",
-    bg: "#14080b",
-    bgSoft: "#1b0b10",
-    panel: "#211116",
-    panelAlt: "#2a151b",
-    panelElevated: "#331920",
-    text: "#f6ecee",
-    muted: "#b79da3",
-    line: "rgba(175, 112, 124, 0.2)",
-    lineStrong: "rgba(175, 112, 124, 0.34)",
-    inputBg: "#190c10",
     accentSoft: "rgba(200, 76, 93, 0.16)",
     accentStrong: "rgba(200, 76, 93, 0.3)",
     glow: "rgba(200, 76, 93, 0.28)"
@@ -102,16 +84,6 @@ const THEME_OPTIONS = {
   ocean: {
     label: "Ocean Blue",
     accent: "#4aa8ff",
-    bg: "#07111a",
-    bgSoft: "#0d1722",
-    panel: "#111c28",
-    panelAlt: "#152333",
-    panelElevated: "#1a2b3c",
-    text: "#edf6ff",
-    muted: "#97aabd",
-    line: "rgba(103, 142, 180, 0.2)",
-    lineStrong: "rgba(103, 142, 180, 0.34)",
-    inputBg: "#0e1721",
     accentSoft: "rgba(74, 168, 255, 0.16)",
     accentStrong: "rgba(74, 168, 255, 0.3)",
     glow: "rgba(74, 168, 255, 0.26)"
@@ -2240,16 +2212,6 @@ function EngineEditor() {
       className={`app-shell lang-${language}`}
       style={{
         "--accent": currentTheme.accent,
-        "--bg": currentTheme.bg,
-        "--bg-soft": currentTheme.bgSoft,
-        "--panel": currentTheme.panel,
-        "--panel-alt": currentTheme.panelAlt,
-        "--panel-elevated": currentTheme.panelElevated,
-        "--text": currentTheme.text,
-        "--muted": currentTheme.muted,
-        "--line": currentTheme.line,
-        "--line-strong": currentTheme.lineStrong,
-        "--input-bg": currentTheme.inputBg,
         "--accent-soft": currentTheme.accentSoft,
         "--accent-strong": currentTheme.accentStrong,
         "--glow": currentTheme.glow

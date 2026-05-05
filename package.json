@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "concurrently \"vite\" \"wait-on tcp:5173 && electron .\"",
     "start": "electron .",
-    "build:renderer": "vite build",
+    "build:renderer": "vite build --base ./",
     "build:electron": "electron-builder --win --x64",
     "build": "npm run build:renderer && npm run build:electron",
     "preview": "vite preview"
@@ -20,13 +20,13 @@
       "output": "dist_electron"
     },
     "files": [
-      "dist/**/*",
+      "dist_new/**/*",
       "electron/**/*",
       "package.json"
     ],
     "win": {
       "target": "nsis",
-      "icon": "public/icon.ico"
+      "icon": "build/icon.ico"
     },
     "nsis": {
       "oneClick": true,

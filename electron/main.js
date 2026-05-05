@@ -260,7 +260,6 @@ function createMainWindow() {
     height: 1000,
     minWidth: 1024,
     minHeight: 640,
-    icon: path.join(__dirname, "../IXO Logo.png"),
     // autoHideMenuBar: true, // 만약 Alt키로 메뉴를 보고 싶다면 이 주석을 해제하세요.
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
@@ -318,7 +317,7 @@ function createMainWindow() {
     return;
   }
 
-  mainWindow.loadFile(path.join(__dirname, "..", "dist", "index.html"));
+  mainWindow.loadFile(path.join(__dirname, "..", "dist_new", "index.html"));
 }
 
 app.whenReady().then(() => {

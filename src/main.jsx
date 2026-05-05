@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./styles.css";
+import splashImage from "../IXO ENGINE START.png";
 
 function SplashGate() {
   const [phase, setPhase] = useState("show");
@@ -21,7 +22,7 @@ function SplashGate() {
 
   return (
     <div className={`splash-screen ${phase === "fade" ? "fade-out" : ""}`}>
-      <img src="/IXO ENGINE START.png" alt="IXO Engine Start" />
+      <img src={splashImage} alt="IXO Engine Start" />
     </div>
   );
 }
