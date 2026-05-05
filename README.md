@@ -19,6 +19,10 @@
 
 ---
 
+## Naver Connected의 [Entry](https://playentry.org/)에서 아이디어 영감을 받았습니다.
+
+---
+
 ## What is IXO Engine?
 
 **IXO Engine**은 코딩 지식이 없는 사용자도 언리얼 엔진의 블루프린트처럼 **노드를 연결하는 것만으로** 자신만의 데스크톱 애플리케이션을 제작할 수 있게 돕는 Electron 기반 노드 빌더 엔진입니다.
