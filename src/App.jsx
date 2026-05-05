@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Panel as ResizablePanel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import ReactFlow, {
   addEdge,
@@ -203,6 +203,208 @@ const UI_TEXT = {
   }
 };
 
+const NODE_TEXT = {
+  ko: {
+    start: "시작점",
+    condition: "조건 분기",
+    compare: "값 비교",
+    "merge-data": "데이터 합치기",
+    script: "스크립트",
+    loop: "반복 실행",
+    wait: "지연 대기",
+    switch: "갈림길",
+    text: "텍스트 출력",
+    image: "이미지 출력",
+    input: "입력 칸",
+    trigger: "누름 동작",
+    layout: "레이아웃 박스",
+    "ui-text": "UI 텍스트",
+    "ui-image": "UI 이미지",
+    "ui-button": "UI 버튼",
+    "ui-container": "UI 컨테이너",
+    variable: "전역 값",
+    storage: "로컬 저장",
+    constant: "고정 값",
+    http: "HTTP 요청",
+    browser: "브라우저 열기",
+    "system-info": "시스템 정보",
+    "audio-player": "오디오 재생",
+    "file-watcher": "파일 감시",
+    math: "수식 계산",
+    string: "문자 조합",
+    random: "무작위 값",
+    "signal-send": "메시지 보내기",
+    "signal-listen": "메시지 받기",
+    "scene-start": "화면 시작",
+    "repeat-times": "횟수 반복",
+    forever: "계속 반복",
+    "break-loop": "반복 끝내기",
+    "skip-cycle": "이번 반복 넘기기",
+    "wait-until": "조건까지 대기",
+    "stop-flow": "흐름 멈춤",
+    "restart-flow": "처음부터 다시",
+    "clone-spawn": "복제본 생성",
+    "clone-remove": "복제본 삭제",
+    "move-steps": "앞으로 이동",
+    "edge-bounce": "가장자리 튕김",
+    "change-x": "X 변경",
+    "change-y": "Y 변경",
+    "set-x": "X 지정",
+    "set-y": "Y 지정",
+    "go-to-point": "좌표 이동",
+    "glide-point": "부드럽게 이동",
+    "turn-angle": "각도 회전",
+    "set-heading": "방향 지정",
+    "face-target": "대상 바라보기",
+    "show-actor": "보이기",
+    "hide-actor": "숨기기",
+    "speech-bubble": "말풍선",
+    "clear-speech": "말풍선 지우기",
+    "costume-switch": "모양 바꾸기",
+    "visual-effect": "효과 조절",
+    "size-change": "크기 변경",
+    "layer-shift": "레이어 이동",
+    "flip-horizontal": "좌우 뒤집기",
+    "pen-down": "선 그리기 시작",
+    "pen-up": "선 그리기 중지",
+    "pen-color": "선 색상",
+    "pen-size": "선 굵기",
+    "fill-start": "채우기 시작",
+    "fill-stop": "채우기 중지",
+    "clear-drawing": "그림 지우기",
+    "sound-play": "소리 재생",
+    "sound-play-wait": "소리 끝까지 재생",
+    "sound-stop": "소리 모두 정지",
+    "volume-change": "음량 변경",
+    "volume-set": "음량 지정",
+    "tempo-change": "빠르기 변경",
+    "tempo-set": "빠르기 지정",
+    "bgm-play": "배경음 재생",
+    "pointer-down": "마우스 눌림?",
+    "object-clicked": "오브젝트 눌림?",
+    "key-held": "키 눌림?",
+    "pointer-over": "포인터 닿음?",
+    "number-check": "숫자 확인",
+    "logic-and": "그리고",
+    "logic-or": "또는",
+    "logic-not": "아니다",
+    "touch-screen": "터치 가능?",
+    "random-range": "범위 무작위",
+    timer: "초시계",
+    "date-part": "날짜 값",
+    "text-length": "문자 길이",
+    "text-letter": "문자 위치",
+    "text-replace": "문자 바꾸기",
+    "text-case": "대소문자 변환",
+    "rgb-hex": "RGB를 HEX로",
+    "hex-channel": "HEX 채널"
+  },
+  en: {
+    start: "Start Point",
+    condition: "Branch Check",
+    compare: "Value Compare",
+    "merge-data": "Data Merge",
+    script: "Script",
+    loop: "Loop Run",
+    wait: "Delay Wait",
+    switch: "Route Switch",
+    text: "Text Output",
+    image: "Image Output",
+    input: "Input Field",
+    trigger: "Press Action",
+    layout: "Layout Box",
+    "ui-text": "UI Text",
+    "ui-image": "UI Image",
+    "ui-button": "UI Button",
+    "ui-container": "UI Container",
+    variable: "Global Value",
+    storage: "Local Store",
+    constant: "Fixed Value",
+    http: "HTTP Request",
+    browser: "Open Browser",
+    "system-info": "System Info",
+    "audio-player": "Audio Player",
+    "file-watcher": "File Watcher",
+    math: "Math Formula",
+    string: "Text Compose",
+    random: "Random Value",
+    "signal-send": "Send Message",
+    "signal-listen": "Receive Message",
+    "scene-start": "Scene Start",
+    "repeat-times": "Repeat Count",
+    forever: "Repeat Always",
+    "break-loop": "End Loop",
+    "skip-cycle": "Skip Cycle",
+    "wait-until": "Wait Until",
+    "stop-flow": "Stop Flow",
+    "restart-flow": "Restart Flow",
+    "clone-spawn": "Create Copy",
+    "clone-remove": "Remove Copy",
+    "move-steps": "Move Forward",
+    "edge-bounce": "Bounce Edge",
+    "change-x": "Change X",
+    "change-y": "Change Y",
+    "set-x": "Set X",
+    "set-y": "Set Y",
+    "go-to-point": "Go To Point",
+    "glide-point": "Glide To Point",
+    "turn-angle": "Turn Angle",
+    "set-heading": "Set Heading",
+    "face-target": "Face Target",
+    "show-actor": "Show Actor",
+    "hide-actor": "Hide Actor",
+    "speech-bubble": "Speech Bubble",
+    "clear-speech": "Clear Speech",
+    "costume-switch": "Change Look",
+    "visual-effect": "Visual Effect",
+    "size-change": "Change Size",
+    "layer-shift": "Layer Move",
+    "flip-horizontal": "Flip Horizontal",
+    "pen-down": "Draw Start",
+    "pen-up": "Draw Stop",
+    "pen-color": "Stroke Color",
+    "pen-size": "Stroke Size",
+    "fill-start": "Fill Start",
+    "fill-stop": "Fill Stop",
+    "clear-drawing": "Clear Drawing",
+    "sound-play": "Play Sound",
+    "sound-play-wait": "Play Sound To End",
+    "sound-stop": "Stop Sounds",
+    "volume-change": "Change Volume",
+    "volume-set": "Set Volume",
+    "tempo-change": "Change Tempo",
+    "tempo-set": "Set Tempo",
+    "bgm-play": "Play BGM",
+    "pointer-down": "Pointer Down?",
+    "object-clicked": "Object Pressed?",
+    "key-held": "Key Held?",
+    "pointer-over": "Pointer Over?",
+    "number-check": "Number Check",
+    "logic-and": "And",
+    "logic-or": "Or",
+    "logic-not": "Not",
+    "touch-screen": "Touch Ready?",
+    "random-range": "Random Range",
+    timer: "Timer",
+    "date-part": "Date Part",
+    "text-length": "Text Length",
+    "text-letter": "Text Letter",
+    "text-replace": "Replace Text",
+    "text-case": "Text Case",
+    "rgb-hex": "RGB to HEX",
+    "hex-channel": "HEX Channel"
+  },
+  zh: {},
+  ja: {}
+};
+
+NODE_TEXT.zh = NODE_TEXT.en;
+NODE_TEXT.ja = NODE_TEXT.en;
+
+function getNodeLabel(nodeType, language, fallback) {
+  return NODE_TEXT[language]?.[nodeType] || NODE_TEXT.en[nodeType] || fallback || nodeType;
+}
+
 const STARTER_TEMPLATES = {
   chat: {
     label: "간단한 대화창 로직",
@@ -287,7 +489,72 @@ const LIBRARY_TABS = {
     { key: "file-watcher", label: "File Watcher", group: "system", type: "file-watcher" },
     { key: "math-operator", label: "Math Operator", group: "logic", type: "math" },
     { key: "string-join", label: "String Join", group: "utility", type: "string" },
-    { key: "random", label: "Random", group: "utility", type: "random" }
+    { key: "random", label: "Random", group: "utility", type: "random" },
+    { key: "signal-send", label: "Send Message", group: "control", type: "signal-send" },
+    { key: "signal-listen", label: "Receive Message", group: "control", type: "signal-listen" },
+    { key: "scene-start", label: "Scene Start", group: "control", type: "scene-start" },
+    { key: "repeat-times", label: "Repeat Count", group: "control", type: "repeat-times" },
+    { key: "forever", label: "Repeat Always", group: "control", type: "forever" },
+    { key: "break-loop", label: "End Loop", group: "control", type: "break-loop" },
+    { key: "skip-cycle", label: "Skip Cycle", group: "control", type: "skip-cycle" },
+    { key: "wait-until", label: "Wait Until", group: "control", type: "wait-until" },
+    { key: "stop-flow", label: "Stop Flow", group: "control", type: "stop-flow" },
+    { key: "restart-flow", label: "Restart Flow", group: "control", type: "restart-flow" },
+    { key: "clone-spawn", label: "Create Copy", group: "control", type: "clone-spawn" },
+    { key: "clone-remove", label: "Remove Copy", group: "control", type: "clone-remove" },
+    { key: "move-steps", label: "Move Forward", group: "visual", type: "move-steps" },
+    { key: "edge-bounce", label: "Bounce Edge", group: "visual", type: "edge-bounce" },
+    { key: "change-x", label: "Change X", group: "visual", type: "change-x" },
+    { key: "change-y", label: "Change Y", group: "visual", type: "change-y" },
+    { key: "set-x", label: "Set X", group: "visual", type: "set-x" },
+    { key: "set-y", label: "Set Y", group: "visual", type: "set-y" },
+    { key: "go-to-point", label: "Go To Point", group: "visual", type: "go-to-point" },
+    { key: "glide-point", label: "Glide To Point", group: "visual", type: "glide-point" },
+    { key: "turn-angle", label: "Turn Angle", group: "visual", type: "turn-angle" },
+    { key: "set-heading", label: "Set Heading", group: "visual", type: "set-heading" },
+    { key: "face-target", label: "Face Target", group: "visual", type: "face-target" },
+    { key: "show-actor", label: "Show Actor", group: "visual", type: "show-actor" },
+    { key: "hide-actor", label: "Hide Actor", group: "visual", type: "hide-actor" },
+    { key: "speech-bubble", label: "Speech Bubble", group: "visual", type: "speech-bubble" },
+    { key: "clear-speech", label: "Clear Speech", group: "visual", type: "clear-speech" },
+    { key: "costume-switch", label: "Change Look", group: "visual", type: "costume-switch" },
+    { key: "visual-effect", label: "Visual Effect", group: "visual", type: "visual-effect" },
+    { key: "size-change", label: "Change Size", group: "visual", type: "size-change" },
+    { key: "layer-shift", label: "Layer Move", group: "visual", type: "layer-shift" },
+    { key: "flip-horizontal", label: "Flip Horizontal", group: "visual", type: "flip-horizontal" },
+    { key: "pen-down", label: "Draw Start", group: "visual", type: "pen-down" },
+    { key: "pen-up", label: "Draw Stop", group: "visual", type: "pen-up" },
+    { key: "pen-color", label: "Stroke Color", group: "visual", type: "pen-color" },
+    { key: "pen-size", label: "Stroke Size", group: "visual", type: "pen-size" },
+    { key: "fill-start", label: "Fill Start", group: "visual", type: "fill-start" },
+    { key: "fill-stop", label: "Fill Stop", group: "visual", type: "fill-stop" },
+    { key: "clear-drawing", label: "Clear Drawing", group: "visual", type: "clear-drawing" },
+    { key: "sound-play", label: "Play Sound", group: "system", type: "sound-play" },
+    { key: "sound-play-wait", label: "Play Sound To End", group: "system", type: "sound-play-wait" },
+    { key: "sound-stop", label: "Stop Sounds", group: "system", type: "sound-stop" },
+    { key: "volume-change", label: "Change Volume", group: "system", type: "volume-change" },
+    { key: "volume-set", label: "Set Volume", group: "system", type: "volume-set" },
+    { key: "tempo-change", label: "Change Tempo", group: "system", type: "tempo-change" },
+    { key: "tempo-set", label: "Set Tempo", group: "system", type: "tempo-set" },
+    { key: "bgm-play", label: "Play BGM", group: "system", type: "bgm-play" },
+    { key: "pointer-down", label: "Pointer Down?", group: "logic", type: "pointer-down" },
+    { key: "object-clicked", label: "Object Pressed?", group: "logic", type: "object-clicked" },
+    { key: "key-held", label: "Key Held?", group: "logic", type: "key-held" },
+    { key: "pointer-over", label: "Pointer Over?", group: "logic", type: "pointer-over" },
+    { key: "number-check", label: "Number Check", group: "logic", type: "number-check" },
+    { key: "logic-and", label: "And", group: "logic", type: "logic-and" },
+    { key: "logic-or", label: "Or", group: "logic", type: "logic-or" },
+    { key: "logic-not", label: "Not", group: "logic", type: "logic-not" },
+    { key: "touch-screen", label: "Touch Ready?", group: "logic", type: "touch-screen" },
+    { key: "random-range", label: "Random Range", group: "utility", type: "random-range" },
+    { key: "timer", label: "Timer", group: "utility", type: "timer" },
+    { key: "date-part", label: "Date Part", group: "utility", type: "date-part" },
+    { key: "text-length", label: "Text Length", group: "utility", type: "text-length" },
+    { key: "text-letter", label: "Text Letter", group: "utility", type: "text-letter" },
+    { key: "text-replace", label: "Replace Text", group: "utility", type: "text-replace" },
+    { key: "text-case", label: "Text Case", group: "utility", type: "text-case" },
+    { key: "rgb-hex", label: "RGB to HEX", group: "utility", type: "rgb-hex" },
+    { key: "hex-channel", label: "HEX Channel", group: "utility", type: "hex-channel" }
   ]
 };
 
@@ -701,6 +968,71 @@ function getDefaultNodeValue(nodeType, label) {
     "system-info": "Engine runtime ready",
     "audio-player": "sound.mp3",
     "file-watcher": ".",
+    "signal-send": "game-ready",
+    "signal-listen": "game-ready",
+    "scene-start": "main",
+    "repeat-times": "10",
+    forever: "running",
+    "break-loop": "break",
+    "skip-cycle": "continue",
+    "wait-until": "{{ready}} == true",
+    "stop-flow": "stop",
+    "restart-flow": "restart",
+    "clone-spawn": "actor",
+    "clone-remove": "clone",
+    "move-steps": "10",
+    "edge-bounce": "bounce",
+    "change-x": "10",
+    "change-y": "10",
+    "set-x": "0",
+    "set-y": "0",
+    "go-to-point": "x: 0, y: 0",
+    "glide-point": "1s to x: 0, y: 0",
+    "turn-angle": "15",
+    "set-heading": "90",
+    "face-target": "pointer",
+    "show-actor": "visible",
+    "hide-actor": "hidden",
+    "speech-bubble": "Hello!",
+    "clear-speech": "clear",
+    "costume-switch": "next-look",
+    "visual-effect": "brightness 10",
+    "size-change": "10",
+    "layer-shift": "front",
+    "flip-horizontal": "horizontal",
+    "pen-down": "down",
+    "pen-up": "up",
+    "pen-color": "#3ecf8e",
+    "pen-size": "4",
+    "fill-start": "#3ecf8e",
+    "fill-stop": "fill-end",
+    "clear-drawing": "clear",
+    "sound-play": "",
+    "sound-play-wait": "",
+    "sound-stop": "all",
+    "volume-change": "10",
+    "volume-set": "80",
+    "tempo-change": "0.1",
+    "tempo-set": "1",
+    "bgm-play": "",
+    "pointer-down": "false",
+    "object-clicked": "false",
+    "key-held": "space",
+    "pointer-over": "false",
+    "number-check": "{{value}} is number",
+    "logic-and": "{{left}} AND {{right}}",
+    "logic-or": "{{left}} OR {{right}}",
+    "logic-not": "{{value}}",
+    "touch-screen": "false",
+    "random-range": "1..10",
+    timer: "seconds",
+    "date-part": "year",
+    "text-length": "{{text}}",
+    "text-letter": "1 of {{text}}",
+    "text-replace": "{{text}} | find | replace",
+    "text-case": "upper {{text}}",
+    "rgb-hex": "255, 0, 0",
+    "hex-channel": "#ff0000 R",
     "ui-text": "UI Text Binding",
     "ui-image": "UI Image Binding",
     "ui-button": "UI Button Binding",
@@ -717,6 +1049,7 @@ function runPipeline(nodes, edges, inputValues, paused) {
   const context = {};
   const outputTexts = [];
   const outputImages = [];
+  const outputSounds = [];
   const activeEdgeIds = [];
   const activeNodeIds = [];
   const liveValues = {};
@@ -785,11 +1118,36 @@ function runPipeline(nodes, edges, inputValues, paused) {
     } else if (type === "image" || type === "video-player") {
       produced = applyTemplate(value, context);
       outputImages.push({ id: node.id, src: String(produced), label: node.data?.label || "Image" });
+    } else if (type === "sound-play" || type === "sound-play-wait" || type === "bgm-play" || type === "audio-player") {
+      produced = applyTemplate(value, context);
+      if (produced) {
+        outputSounds.push({ id: node.id, src: String(produced), label: node.data?.label || "Sound" });
+      }
     } else if (type === "system-info") {
       produced = navigator.userAgent;
       outputTexts.push({ id: node.id, text: String(produced), label: node.data?.label || "System Info" });
-    } else if (type === "particle" || type === "audio-player" || type === "file-watcher" || type === "loop" || type === "wait" || type === "switch" || type === "browser" || type === "http") {
+    } else if (type === "random-range") {
+      const [min, max] = String(applyTemplate(value, context)).split("..").map((item) => Number(item.trim()));
+      produced = Math.floor((Number.isFinite(min) ? min : 1) + Math.random() * ((Number.isFinite(max) ? max : 10) - (Number.isFinite(min) ? min : 1) + 1));
+    } else if (type === "timer") {
+      produced = String(Math.round(performance.now() / 1000));
+    } else if (type === "date-part") {
+      const part = String(value || "year").toLowerCase();
+      const now = new Date();
+      produced = part.includes("month") ? now.getMonth() + 1 : part.includes("day") ? now.getDate() : part.includes("hour") ? now.getHours() : now.getFullYear();
+    } else if (type === "text-length") {
+      produced = String(applyTemplate(value, context)).length;
+    } else if (type === "rgb-hex") {
+      const channels = String(applyTemplate(value, context)).match(/\d+/g)?.slice(0, 3).map((item) => Math.max(0, Math.min(255, Number(item)))) || [255, 0, 0];
+      produced = `#${channels.map((item) => item.toString(16).padStart(2, "0")).join("")}`;
+    } else if (type === "particle" || type === "file-watcher" || type === "loop" || type === "wait" || type === "switch" || type === "browser" || type === "http") {
       produced = applyTemplate(value, context);
+    } else if (
+      type.startsWith("signal-") ||
+      ["scene-start", "repeat-times", "forever", "break-loop", "skip-cycle", "wait-until", "stop-flow", "restart-flow", "clone-spawn", "clone-remove", "move-steps", "edge-bounce", "change-x", "change-y", "set-x", "set-y", "go-to-point", "glide-point", "turn-angle", "set-heading", "face-target", "show-actor", "hide-actor", "speech-bubble", "clear-speech", "costume-switch", "visual-effect", "size-change", "layer-shift", "flip-horizontal", "pen-down", "pen-up", "pen-color", "pen-size", "fill-start", "fill-stop", "clear-drawing", "sound-stop", "volume-change", "volume-set", "tempo-change", "tempo-set", "pointer-down", "object-clicked", "key-held", "pointer-over", "number-check", "logic-and", "logic-or", "logic-not", "touch-screen", "text-letter", "text-replace", "text-case", "hex-channel"].includes(type)
+    ) {
+      produced = applyTemplate(value, context);
+      outputTexts.push({ id: node.id, text: String(produced || node.data?.label || ""), label: node.data?.label || "Node" });
     } else {
       produced = applyTemplate(value, context);
     }
@@ -829,6 +1187,7 @@ function runPipeline(nodes, edges, inputValues, paused) {
     context,
     outputTexts,
     outputImages,
+    outputSounds,
     activeEdgeIds,
     activeNodeIds,
     focusedNodeId: activeNodeIds[activeNodeIds.length - 1] || null,
@@ -849,7 +1208,7 @@ function resolveUiValue(element, runtime, field) {
 }
 
 // [UI 컴포넌트] 런타임/빌더 화면에서 공통으로 쓰는 요소 렌더러입니다.
-function BuilderElement({
+const BuilderElement = memo(function BuilderElement({
   element,
   runtime,
   editable,
@@ -903,10 +1262,10 @@ function BuilderElement({
       {editable ? <span className="builder-badge">{element.kind.toUpperCase()}</span> : null}
     </div>
   );
-}
+});
 
 // [노드 렌더링] 실행 상태와 그룹 라벨, 연결 점을 한 번에 보여주는 기본 노드입니다.
-function IXONode({ data, selected }) {
+const IXONode = memo(function IXONode({ data, selected }) {
   const color = NODE_COLOR[data.kind] || ACCENT;
   const isCondition = data.nodeType === "condition";
   const isSwitch = data.nodeType === "switch";
@@ -922,7 +1281,7 @@ function IXONode({ data, selected }) {
         <span>{data.category || "Node"}</span>
       </div>
       <div className="ixo-node-title-row">
-        <div className="ixo-node-title">{data.label}</div>
+        <div className="ixo-node-title">{data.displayLabel || data.label}</div>
         <div className="node-title-meta">
           {typeof data.executionOrder === "number" ? <span className="node-order-pill">{data.executionOrder}</span> : null}
           <span className="node-link-dot" aria-hidden="true" />
@@ -948,17 +1307,17 @@ function IXONode({ data, selected }) {
       )}
     </div>
   );
-}
+});
 
 // [그룹 노드] 실제 그룹화 로직의 기반이 되는 시각적 구획 노드입니다.
-function IXOGroupNode({ data, selected }) {
+const IXOGroupNode = memo(function IXOGroupNode({ data, selected }) {
   return (
     <div className={`ixo-group-node ${selected ? "selected" : ""}`}>
       <div className="ixo-group-title">{data.label || "Group"}</div>
       <div className="ixo-group-copy">{data.value || "Drag nodes around this group to keep related logic together."}</div>
     </div>
   );
-}
+});
 
 // [런타임 화면] Preview, Viewer, Builder 모드에서 공통으로 사용하는 화면 구성입니다.
 function RuntimePanel({
@@ -1025,7 +1384,7 @@ function RuntimePanel({
                   event.dataTransfer.effectAllowed = "copy";
                 }}
               >
-                {item.label}
+                {getNodeLabel(item.type, language, item.label)}
               </button>
             ))}
           </div>
@@ -1040,7 +1399,7 @@ function RuntimePanel({
           <div className="viewer-inputs">
             {inputNodes.map((node) => (
               <label key={node.id} className="viewer-input-field">
-                <span>{node.data?.label}</span>
+                <span>{node.data?.displayLabel || node.data?.label}</span>
                 <input
                   className="runtime-input"
                   value={inputValues[node.id] || ""}
@@ -1094,7 +1453,7 @@ function RuntimePanel({
           </div>
         ) : null}
 
-        {(runtime.outputTexts.length || runtime.outputImages.length) ? (
+        {(runtime.outputTexts.length || runtime.outputImages.length || runtime.outputSounds.length) ? (
           <div className="auto-output-stack">
             <div className="auto-output-title">Node Output Feed</div>
             {runtime.outputTexts.map((item) => (
@@ -1107,6 +1466,12 @@ function RuntimePanel({
               <div key={item.id} className="runtime-image-row">
                 <strong>{item.label}</strong>
                 {item.src ? <img className="runtime-image" src={item.src} alt={item.label} /> : null}
+              </div>
+            ))}
+            {runtime.outputSounds.map((item) => (
+              <div key={item.id} className="runtime-text-row">
+                <strong>{item.label}</strong>
+                {item.src ? <audio className="runtime-audio" controls src={item.src} /> : null}
               </div>
             ))}
           </div>
@@ -1306,13 +1671,14 @@ function EngineEditor() {
         ...node,
         data: {
           ...node.data,
+          displayLabel: getNodeLabel(node.data?.nodeType, language, node.data?.label),
           liveValue: runtime.liveValues[node.id] ?? "",
           isActive: runtime.activeNodeIds.includes(node.id),
           isFocused: runtime.focusedNodeId === node.id,
           executionOrder: runtime.topo.indexOf(node.id) >= 0 ? runtime.topo.indexOf(node.id) + 1 : null
         }
       })),
-    [nodes, runtime.activeNodeIds, runtime.focusedNodeId, runtime.liveValues, runtime.topo]
+    [language, nodes, runtime.activeNodeIds, runtime.focusedNodeId, runtime.liveValues, runtime.topo]
   );
 
   const flowJson = useMemo(
@@ -1340,8 +1706,8 @@ function EngineEditor() {
     () =>
       Object.values(LIBRARY_TABS)
         .flat()
-        .filter((item) => item.label.toLowerCase().includes(searchTerm.toLowerCase())),
-    [searchTerm]
+        .filter((item) => getNodeLabel(item.type, language, item.label).toLowerCase().includes(searchTerm.toLowerCase())),
+    [language, searchTerm]
   );
 
   const nodeTypes = useMemo(() => ({ ixoNode: IXONode, ixoGroup: IXOGroupNode }), []);
@@ -1937,6 +2303,24 @@ function EngineEditor() {
     setIsDirty(true);
   };
 
+  const updateNodeSoundFile = (file) => {
+    if (!selectedNode || !file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      snapshot();
+      setNodes((current) =>
+        current.map((node) => (
+          node.id === selectedNode.id
+            ? { ...node, data: { ...node.data, value: String(reader.result || ""), soundName: file.name } }
+            : node
+        ))
+      );
+      setStatus(`Sound loaded: ${file.name}`);
+      setIsDirty(true);
+    };
+    reader.readAsDataURL(file);
+  };
+
   const updateNodeField = (field, value) => {
     if (!selectedNode) return;
     snapshot();
@@ -2094,6 +2478,7 @@ function EngineEditor() {
         edges={edgeView}
         nodeTypes={nodeTypes}
         multiSelectionKeyCode={["Control", "Meta"]}
+        onlyRenderVisibleElements
         onNodesChange={handleNodesChange}
         onEdgesChange={handleEdgesChange}
         onConnect={onConnect}
@@ -2197,7 +2582,7 @@ function EngineEditor() {
             <div className="quick-search-list">
               {searchCandidates.slice(0, 8).map((item) => (
                 <button key={item.key} onClick={() => addNodeFromSearch(item, "center")}>
-                  {item.label}
+                  {getNodeLabel(item.type, language, item.label)}
                 </button>
               ))}
             </div>
@@ -2312,7 +2697,7 @@ function EngineEditor() {
                       className="node-chip"
                     >
                       <span className="node-chip-dot" style={{ background: NODE_COLOR[item.group] }} />
-                      {item.label}
+                      {getNodeLabel(item.type, language, item.label)}
                     </button>
                   ))}
                 </div>
@@ -2334,7 +2719,7 @@ function EngineEditor() {
                     viewMode={viewMode}
                     setViewMode={setViewMode}
                     runtime={runtime}
-                    nodes={nodes}
+                    nodes={nodesWithTrace}
                     inputValues={inputValues}
                     onInputChange={updateInputValue}
                     uiElements={uiElements}
@@ -2508,8 +2893,20 @@ function EngineEditor() {
                   <input type="color" value={selectedNode.data.colorValue || ACCENT} onChange={(event) => updateNodeField("colorValue", event.target.value)} />
                 </label>
                 <label>
-                  File Path
-                  <input type="file" onChange={(event) => updateNodeField("value", event.target.files?.[0]?.name || "")} />
+                  {["audio-player", "sound-play", "sound-play-wait", "bgm-play"].includes(selectedNode.data.nodeType) ? "Sound Upload" : "File Path"}
+                  <input
+                    type="file"
+                    accept={["audio-player", "sound-play", "sound-play-wait", "bgm-play"].includes(selectedNode.data.nodeType) ? "audio/*" : undefined}
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      if (["audio-player", "sound-play", "sound-play-wait", "bgm-play"].includes(selectedNode.data.nodeType)) {
+                        updateNodeSoundFile(file);
+                        return;
+                      }
+                      updateNodeField("value", file?.name || "");
+                    }}
+                  />
+                  {selectedNode.data.soundName ? <span className="field-hint">{selectedNode.data.soundName}</span> : null}
                 </label>
                 <div className="selected-id">Selected ID: {selectedNode.id}</div>
                 <button className="ghost-btn" onClick={() => createUiElementFromPalette("text")}>Create Linked UI Text</button>

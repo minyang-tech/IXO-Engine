@@ -317,7 +317,7 @@ function createMainWindow() {
     return;
   }
 
-  mainWindow.loadFile(path.join(__dirname, "..", "dist_new", "index.html"));
+  mainWindow.loadFile(path.join(__dirname, "..", "dist_ship", "index.html"));
 }
 
 app.whenReady().then(() => {

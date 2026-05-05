@@ -8,7 +8,8 @@ export default defineConfig({
     port: 5173
   },
   build: {
-    outDir: "dist_new",
-    emptyOutDir: true
+    outDir: "dist_ship",
+    emptyOutDir: true,
+    minify: false
   }
 });
