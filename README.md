@@ -19,7 +19,7 @@
 
 ---
 
-## Naver Connected의 [Entry](https://playentry.org/)에서 아이디어 영감을 받았습니다.
+## Naver Connect의 [Entry](https://playentry.org/)에서 아이디어 영감을 받았습니다.
 
 ---
 
