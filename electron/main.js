@@ -222,6 +222,106 @@ function ensureTempExport(project) {
   return tempRoot;
 }
 
+function getRuntimePlatformInfo() {
+  if (process.platform === "win32") {
+    return {
+      key: "windows",
+      label: "Windows",
+      folderName: "IXO-Engine-Windows",
+      executableName: "IXO Engine.exe",
+      devRuntimePath: path.join(__dirname, "..", "dist_release_final", "win-unpacked")
+    };
+  }
+
+  if (process.platform === "linux") {
+    return {
+      key: "linux",
+      label: "Linux",
+      folderName: "IXO-Engine-Linux",
+      executableName: "ixo-engine",
+      devRuntimePath: path.join(__dirname, "..", "dist_release_linux_final", "linux-unpacked")
+    };
+  }
+
+  if (process.platform === "darwin") {
+    return {
+      key: "macos",
+      label: "macOS",
+      folderName: "IXO-Engine-macOS",
+      executableName: "IXO Engine.app",
+      devRuntimePath: path.join(__dirname, "..", "dist_release_mac_final", "mac")
+    };
+  }
+
+  throw new Error(`Export runtime is not supported on ${process.platform}.`);
+}
+
+function getPackagedRuntimeRoot() {
+  if (process.platform === "darwin") {
+    return path.resolve(process.execPath, "..", "..", "..");
+  }
+  return path.dirname(process.execPath);
+}
+
+function findRuntimeSource(platformInfo) {
+  const packagedPath = app.isPackaged ? getPackagedRuntimeRoot() : "";
+  if (packagedPath && fs.existsSync(packagedPath)) {
+    return packagedPath;
+  }
+
+  if (fs.existsSync(platformInfo.devRuntimePath)) {
+    return platformInfo.devRuntimePath;
+  }
+
+  throw new Error(
+    `${platformInfo.label} runtime was not found. Run the platform build first, then export again.`
+  );
+}
+
+function writeExportReadme(targetDir, platformInfo) {
+  const launchLine = platformInfo.key === "windows"
+    ? `IXO-Engine-Windows\\${platformInfo.executableName}`
+    : platformInfo.key === "linux"
+      ? `chmod +x IXO-Engine-Linux/${platformInfo.executableName} && ./IXO-Engine-Linux/${platformInfo.executableName}`
+      : `open IXO-Engine-macOS/${platformInfo.executableName}`;
+
+  fs.writeFileSync(
+    path.join(targetDir, "README.txt"),
+    [
+      "IXO Engine Export",
+      "",
+      `Platform: ${platformInfo.label}`,
+      `Run: ${launchLine}`,
+      "",
+      "project.ixo contains the editable IXO project data.",
+      "preview.html is a browser-readable preview of the exported project.",
+      "The runtime folder contains a ready-to-run IXO Engine build for this platform."
+    ].join("\n"),
+    "utf-8"
+  );
+}
+
+function ensureRuntimeExport(project) {
+  const tempRoot = ensureTempExport(project);
+  const platformInfo = getRuntimePlatformInfo();
+  const runtimeSource = findRuntimeSource(platformInfo);
+  const runtimeTarget = path.join(tempRoot, platformInfo.folderName);
+
+  fs.cpSync(runtimeSource, runtimeTarget, { recursive: true });
+
+  const exportDir = path.join(
+    runtimeTarget,
+    process.platform === "darwin" ? path.join("Contents", "Resources") : "resources",
+    "export"
+  );
+  fs.mkdirSync(exportDir, { recursive: true });
+  fs.writeFileSync(path.join(exportDir, "project.ixo"), JSON.stringify(project, null, 2), "utf-8");
+  fs.writeFileSync(path.join(exportDir, "preview.html"), projectToHtml(project), "utf-8");
+  writeExportReadme(tempRoot, platformInfo);
+
+  return tempRoot;
+}
+
 function createZip(sourceDir, outputFile) {
   return new Promise((resolve, reject) => {
     const output = fs.createWriteStream(outputFile);
@@ -317,6 +417,12 @@ function createMainWindow() {
     return;
   }
 
+  const exportedPreviewPath = path.join(process.resourcesPath, "export", "preview.html");
+  if (fs.existsSync(exportedPreviewPath)) {
+    mainWindow.loadFile(exportedPreviewPath);
+    return;
+  }
+
   mainWindow.loadFile(path.join(__dirname, "..", "dist_ship", "index.html"));
 }
 
@@ -372,7 +478,7 @@ app.whenReady().then(() => {
     if (target.canceled || !target.filePath) {
       return { ok: false, canceled: true };
     }
-    const tempDir = ensureTempExport(payload);
+    const tempDir = ensureRuntimeExport(payload);
     try {
       if (target.filePath.toLowerCase().endsWith(".7z")) {
         await create7z(tempDir, target.filePath);
