@@ -1215,6 +1215,7 @@ const BuilderElement = memo(function BuilderElement({
   selected,
   onSelect,
   onPointerDown,
+  onPointerUp,
   onAction
 }) {
   const textValue = resolveUiValue(element, runtime, "text");
@@ -1250,6 +1251,14 @@ const BuilderElement = memo(function BuilderElement({
         event.stopPropagation();
         onSelect?.(element.id);
         onPointerDown?.(event, element.id);
+      }}
+      onPointerUp={(event) => {
+        event.stopPropagation();
+        onPointerUp?.();
+      }}
+      onPointerCancel={(event) => {
+        event.stopPropagation();
+        onPointerUp?.();
       }}
     >
       {element.kind === "image" ? (
@@ -1333,6 +1342,7 @@ function RuntimePanel({
   onBuilderDrop,
   onBuilderDragOver,
   onBuilderPointerDown,
+  onBuilderPointerUp,
   builderCanvasRef,
   debugOverlay,
   flowJson,
@@ -1384,7 +1394,7 @@ function RuntimePanel({
                   event.dataTransfer.effectAllowed = "copy";
                 }}
               >
-                {getNodeLabel(item.type, language, item.label)}
+                {item.label}
               </button>
             ))}
           </div>
@@ -1443,6 +1453,7 @@ function RuntimePanel({
                   selected={selectedUiElementId === element.id}
                   onSelect={onUiElementSelect}
                   onPointerDown={editable ? onBuilderPointerDown : undefined}
+                  onPointerUp={editable ? onBuilderPointerUp : undefined}
                   onAction={async (url) => {
                     await onUiAction(url);
                     appendLog(makeLog("info", "UI Viewer", `버튼 액션이 실행되었습니다: ${url}`));
@@ -2379,6 +2390,7 @@ function EngineEditor() {
   }, [createUiElementFromPalette]);
 
   const handleBuilderPointerDown = useCallback((event, id) => {
+    if (typeof event.button === "number" && event.button !== 0) return;
     if (viewMode !== "builder" || !builderCanvasRef.current) return;
 
     const rect = builderCanvasRef.current.getBoundingClientRect();
@@ -2391,6 +2403,10 @@ function EngineEditor() {
       offsetY: event.clientY - rect.top - target.y
     });
   }, [uiElements, viewMode]);
+
+  const handleBuilderPointerUp = useCallback(() => {
+    setDragState(null);
+  }, []);
 
   const openUiAction = useCallback(async (url) => {
     if (!url) return;
@@ -2728,6 +2744,7 @@ function EngineEditor() {
                     onBuilderDrop={handleBuilderDrop}
                     onBuilderDragOver={handleBuilderDragOver}
                     onBuilderPointerDown={handleBuilderPointerDown}
+                    onBuilderPointerUp={handleBuilderPointerUp}
                     builderCanvasRef={builderCanvasRef}
                     debugOverlay={debugOverlay}
                     flowJson={flowJson}

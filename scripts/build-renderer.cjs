@@ -3,7 +3,7 @@ const fs = require("fs");
 const path = require("path");
 
 const root = path.resolve(__dirname, "..");
-const outputDir = path.join(root, "dist_ship");
+const outputDir = path.join(root, "dist_hotfix");
 const indexFile = path.join(outputDir, "index.html");
 const command = process.execPath;
 const args = [
@@ -12,7 +12,7 @@ const args = [
   "--base",
   "./",
   "--outDir",
-  "dist_ship",
+  "dist_hotfix",
   "--emptyOutDir",
   "--minify",
   "false"

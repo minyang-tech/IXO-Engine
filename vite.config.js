@@ -8,7 +8,7 @@ export default defineConfig({
     port: 5173
   },
   build: {
-    outDir: "dist_ship",
+    outDir: "dist_hotfix",
     emptyOutDir: true,
     minify: false
   }

@@ -23,7 +23,7 @@
       "output": "dist_electron"
     },
     "files": [
-      "dist_ship/**/*",
+      "dist_hotfix/**/*",
       "electron/**/*",
       "package.json"
     ],
