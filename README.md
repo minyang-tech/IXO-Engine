@@ -154,6 +154,7 @@ Made by 민양테크.
 **Original Dev** : [@Whoasked](https://minyangtech.n-e.kr/@whoasked)
 
 License : MIT LICENSE   
+*첫 릴리즈된 베타버전 V1.0.0은 민양테크 표준 최종 사용자 라이선스 계약이 적용받고 그 이후 버전부터 MIT라이선스가 적용받습니다.  
 Copyright 2026. MinyangTech. All rights Reserved.  
 
 > [!IMPORTANT]
