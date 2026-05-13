@@ -144,7 +144,7 @@ npm run dev
 - UI/UX 개선
 - 버그 수정
 - 성능 최적화
-- [문서화](https://minyangtech.n-e.kr/docs/ixo/index)
+- [문서화](https://minyangtech.n-e.kr/docs/ixo/index)에 기여를 원하실 경우, [여기](https://github.com/minyang-tech/minyangtech.github.io) 저장소에 ../Docs/ixo/.. 를 Pull Request를 통해 수정해주세요.
 **참고**  
 현재 프로젝트는 구조 리팩토링이 진행 중이며, 일부 코드 구조가 정리되지 않았을 수 있습니다.
 
