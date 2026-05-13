@@ -105,10 +105,53 @@ Inspector의 `Value` 또는 조건식에서 템플릿 문법을 사용해 변수
 - 예시: `{{score}} > 10 AND {{role}} == admin OR {{username}} == root`
 - 왼쪽부터 `AND` 평가 후 `OR` 체인으로 분기됩니다.
 
-## Contributers
+# 기여방침
+## 프로젝트 목표
+
+- 가볍고 확장 가능한 노드 기반 앱 제작 툴
+- 로컬 중심 구조 지향
+- 플러그인 기반 확장 지원 예정
+
+## 필독
+본 프로젝트는 오픈소스 프로젝트이며,  
+누구나 Pull Request를 통해 기여할 수 있습니다.  
+
+다만 아래 항목은 Merge가 거부될 수 있습니다.  
+
+- 악성 코드
+- 난독화 코드
+- 프로젝트 방향성과 무관한 기능
+- 과도한 의존성 추가
+- 라이선스 충돌 가능 코드
+
+# 기여방법
+```bash
+npm install
+npm run dev
+```   
+
+1. 저장소 Fork.  
+2. 브랜치 생성.  
+3. 수정 후 Commit.  
+4. Pull Request 생성.  
+## 권장 사항
+- 큰 기능 추가 전 Issue 생성 권장
+- 가능한 기존 코드 스타일 유지
+- 불필요한 라이브러리 추가 지양
+- 실험적 기능은 설명 포함 권장
+## 기여 가능 분야
+- 새 노드 추가
+- UI/UX 개선
+- 버그 수정
+- 성능 최적화
+- (문서화)[https://minyangtech.n-e.kr/docs/ixo/index]
+**참고**  
+현재 프로젝트는 구조 리팩토링이 진행 중이며, 일부 코드 구조가 정리되지 않았을 수 있습니다.
+
+## Anothers 
 Made by 민양테크.  
 
-**Main Contributer** : [@Whoasked](https://minyangtech.n-e.kr/@whoasked)
+**Original Dev** : [@Whoasked](https://minyangtech.n-e.kr/@whoasked)
 
 License : MIT LICENSE   
 Copyright 2026. MinyangTech. All rights Reserved.  
