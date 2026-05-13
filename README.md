@@ -1,3 +1,7 @@
+# 파일 수정이 진행중입니다.  
+현재 누구나 기여가 가능하게 파일 구조를 정리하고 단순화중입니다.  
+
+
 <p align="center">
   <img src="https://github.com/minyang-tech/IXO-Engine/blob/main/IXO%20Logo.png?raw=true" alt="IXO Engine Logo" width="300">
 </p>
@@ -106,7 +110,7 @@ Made by 민양테크.
 
 **Main Contributer** : [@Whoasked](https://minyangtech.n-e.kr/@whoasked)
 
-License : Standard MinyangTech EULA (표쥰 민양테크 최종 사용자 계약)  
+License : MIT LICENSE   
 Copyright 2026. MinyangTech. All rights Reserved.  
 
 > [!IMPORTANT]
