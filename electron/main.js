@@ -1,11 +1,17 @@
-const { app, BrowserWindow, Menu, ipcMain, dialog, shell } = require("electron");
+const { app, BrowserWindow, Menu, ipcMain, dialog, shell, net: electronNet } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const originalFs = require("original-fs");
 const os = require("os");
+const dns = require("dns").promises;
+const nodeNet = require("net");
 const { spawn } = require("child_process");
 const { path7za } = require("7zip-bin");
 const { checkForUpdates, downloadReleaseAsset } = require("./updateService");
+const EXTERNAL_REQUEST_TIMEOUT_MS = 8000;
+const MAX_EXTERNAL_REDIRECTS = 3;
+const trustedWebContentsIds = new Set();
+const securityApprovalsByWebContents = new Map();
 const windowState = {
   isDirty: false,
   latestProject: null,
@@ -272,6 +278,192 @@ function getRuntimePlatformInfo() {
   throw new Error(`Export runtime is not supported on ${process.platform}.`);
 }
 
+function getSecurityApprovals(webContentsId) {
+  if (!securityApprovalsByWebContents.has(webContentsId)) {
+    securityApprovalsByWebContents.set(webContentsId, {
+      external: false,
+      script: false
+    });
+  }
+  return securityApprovalsByWebContents.get(webContentsId);
+}
+
+function resetSecurityApprovals(webContentsId) {
+  securityApprovalsByWebContents.set(webContentsId, {
+    external: false,
+    script: false
+  });
+}
+
+function assertTrustedSender(event) {
+  if (!trustedWebContentsIds.has(event.sender.id)) {
+    throw new Error("Blocked IPC call from an untrusted renderer.");
+  }
+}
+
+function normalizeHostname(hostname) {
+  return String(hostname || "").replace(/^\[|\]$/g, "").toLowerCase();
+}
+
+function isPrivateIpv4(address) {
+  const parts = address.split(".").map((part) => Number(part));
+  if (parts.length !== 4 || parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) {
+    return false;
+  }
+
+  const [first, second] = parts;
+  return (
+    first === 0
+    || first === 10
+    || first === 127
+    || (first === 100 && second >= 64 && second <= 127)
+    || (first === 169 && second === 254)
+    || (first === 172 && second >= 16 && second <= 31)
+    || (first === 192 && second === 168)
+    || (first === 198 && (second === 18 || second === 19))
+  );
+}
+
+function isPrivateIpv6(address) {
+  const normalized = address.toLowerCase();
+  return (
+    normalized === "::"
+    || normalized === "::1"
+    || normalized.startsWith("fc")
+    || normalized.startsWith("fd")
+    || normalized.startsWith("fe8")
+    || normalized.startsWith("fe9")
+    || normalized.startsWith("fea")
+    || normalized.startsWith("feb")
+    || normalized.startsWith("::ffff:127.")
+    || normalized.startsWith("::ffff:10.")
+    || normalized.startsWith("::ffff:192.168.")
+  );
+}
+
+function isPrivateIpAddress(address) {
+  const ipVersion = nodeNet.isIP(address);
+  if (ipVersion === 4) {
+    return isPrivateIpv4(address);
+  }
+  if (ipVersion === 6) {
+    return isPrivateIpv6(address);
+  }
+  return false;
+}
+
+function isBlockedHostname(hostname) {
+  const normalized = normalizeHostname(hostname);
+  return (
+    !normalized
+    || normalized === "localhost"
+    || normalized.endsWith(".localhost")
+    || normalized.endsWith(".local")
+    || isPrivateIpAddress(normalized)
+  );
+}
+
+async function validatePublicHttpsUrl(rawUrl) {
+  let parsed;
+  try {
+    parsed = new URL(String(rawUrl || "").trim());
+  } catch {
+    throw new Error("Invalid URL.");
+  }
+
+  if (parsed.protocol !== "https:") {
+    throw new Error("Only HTTPS URLs are allowed.");
+  }
+
+  if (isBlockedHostname(parsed.hostname)) {
+    throw new Error("Local or private network hosts are blocked.");
+  }
+
+  const resolvedAddresses = await dns.lookup(parsed.hostname, {
+    all: true,
+    verbatim: true
+  });
+
+  if (!resolvedAddresses.length || resolvedAddresses.some(({ address }) => isPrivateIpAddress(address))) {
+    throw new Error("Local or private network destinations are blocked.");
+  }
+
+  return parsed;
+}
+
+async function fetchValidatedHttpsUrl(rawUrl, remainingRedirects = MAX_EXTERNAL_REDIRECTS) {
+  const parsed = await validatePublicHttpsUrl(rawUrl);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), EXTERNAL_REQUEST_TIMEOUT_MS);
+
+  try {
+    const response = await electronNet.fetch(parsed.toString(), {
+      method: "GET",
+      redirect: "manual",
+      cache: "no-store",
+      credentials: "omit",
+      signal: controller.signal
+    });
+
+    if (response.status >= 300 && response.status < 400) {
+      const location = response.headers.get("location");
+      if (!location) {
+        return { ok: response.ok, status: response.status, url: parsed.toString() };
+      }
+      if (remainingRedirects <= 0) {
+        throw new Error("Too many redirects.");
+      }
+      return fetchValidatedHttpsUrl(new URL(location, parsed).toString(), remainingRedirects - 1);
+    }
+
+    return {
+      ok: response.ok,
+      status: response.status,
+      url: parsed.toString()
+    };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function requestSecurityApproval(event, scope) {
+  assertTrustedSender(event);
+  if (!["external", "script"].includes(scope)) {
+    throw new Error("Unknown security approval scope.");
+  }
+
+  const approvals = getSecurityApprovals(event.sender.id);
+  if (approvals[scope]) {
+    return { approved: true, alreadyApproved: true };
+  }
+
+  const copy = scope === "external"
+    ? {
+        title: "External Action Approval",
+        message: "This project wants to use HTTPS requests or open an external browser.",
+        detail: "Allow external actions for this project session?"
+      }
+    : {
+        title: "Script Execution Approval",
+        message: "This project contains script nodes that can run custom code.",
+        detail: "Allow script nodes for this project session?"
+      };
+
+  const result = await dialog.showMessageBox(BrowserWindow.fromWebContents(event.sender), {
+    type: "warning",
+    title: copy.title,
+    message: copy.message,
+    detail: copy.detail,
+    buttons: ["Allow", "Block"],
+    defaultId: 1,
+    cancelId: 1,
+    noLink: true
+  });
+
+  approvals[scope] = result.response === 0;
+  return { approved: approvals[scope], alreadyApproved: false };
+}
+
 function getPackagedRuntimeRoot() {
   if (process.platform === "darwin") {
     return path.resolve(process.execPath, "..", "..", "..");
@@ -433,6 +625,13 @@ function createMainWindow() {
     }
   });
 
+  trustedWebContentsIds.add(mainWindow.webContents.id);
+  resetSecurityApprovals(mainWindow.webContents.id);
+  mainWindow.on("closed", () => {
+    trustedWebContentsIds.delete(mainWindow.webContents.id);
+    securityApprovalsByWebContents.delete(mainWindow.webContents.id);
+  });
+
   // 2. 상단 메뉴바(File, Edit 등)를 완전히 제거
   Menu.setApplicationMenu(null); 
   mainWindow.maximize();
@@ -492,7 +691,8 @@ function createMainWindow() {
 }
 
 app.whenReady().then(() => {
-  ipcMain.handle("app:setDirtyState", (_, payload) => {
+  ipcMain.handle("app:setDirtyState", (event, payload) => {
+    assertTrustedSender(event);
     windowState.isDirty = Boolean(payload?.isDirty);
     if (payload?.project) {
       windowState.latestProject = payload.project;
@@ -500,16 +700,34 @@ app.whenReady().then(() => {
     return { ok: true };
   });
 
-  ipcMain.handle("app:getInfo", () => ({
+  ipcMain.handle("app:getInfo", (event) => {
+    assertTrustedSender(event);
+    return {
     version: app.getVersion(),
     platform: process.platform
-  }));
+    };
+  });
 
-  ipcMain.handle("app:checkForUpdates", async () => checkForUpdates());
+  ipcMain.handle("app:checkForUpdates", async (event) => {
+    assertTrustedSender(event);
+    return checkForUpdates();
+  });
 
-  ipcMain.handle("app:downloadUpdate", async (_, asset) => downloadReleaseAsset(asset));
+  ipcMain.handle("app:downloadUpdate", async (event, asset) => {
+    assertTrustedSender(event);
+    return downloadReleaseAsset(asset);
+  });
 
-  ipcMain.handle("project:save", async (_, payload) => {
+  ipcMain.handle("security:requestApproval", async (event, scope) => requestSecurityApproval(event, scope));
+
+  ipcMain.handle("security:resetApprovals", async (event) => {
+    assertTrustedSender(event);
+    resetSecurityApprovals(event.sender.id);
+    return { ok: true };
+  });
+
+  ipcMain.handle("project:save", async (event, payload) => {
+    assertTrustedSender(event);
     const target = await dialog.showSaveDialog({
       title: "Save IXO Project",
       filters: [{ name: "IXO Project", extensions: ["ixo"] }],
@@ -524,7 +742,8 @@ app.whenReady().then(() => {
     return { ok: true, path: target.filePath };
   });
 
-  ipcMain.handle("project:load", async () => {
+  ipcMain.handle("project:load", async (event) => {
+    assertTrustedSender(event);
     const target = await dialog.showOpenDialog({
       title: "Load IXO Project",
       filters: [{ name: "IXO Project", extensions: ["ixo"] }],
@@ -537,10 +756,12 @@ app.whenReady().then(() => {
     const data = JSON.parse(content);
     windowState.isDirty = false;
     windowState.latestProject = data;
+    resetSecurityApprovals(event.sender.id);
     return { ok: true, path: target.filePaths[0], data };
   });
 
-  ipcMain.handle("project:export", async (_, payload) => {
+  ipcMain.handle("project:export", async (event, payload) => {
+    assertTrustedSender(event);
     let tempDir = null;
     try {
       const target = await dialog.showSaveDialog({
@@ -575,9 +796,22 @@ app.whenReady().then(() => {
     }
   });
 
-  ipcMain.handle("shell:openExternal", async (_, url) => {
-    await shell.openExternal(url);
-    return { ok: true };
+  ipcMain.handle("net:httpsRequest", async (event, url) => {
+    assertTrustedSender(event);
+    if (!getSecurityApprovals(event.sender.id).external) {
+      throw new Error("External actions require approval.");
+    }
+    return fetchValidatedHttpsUrl(url);
+  });
+
+  ipcMain.handle("shell:openExternal", async (event, url) => {
+    assertTrustedSender(event);
+    if (!getSecurityApprovals(event.sender.id).external) {
+      throw new Error("External actions require approval.");
+    }
+    const parsed = await validatePublicHttpsUrl(url);
+    await shell.openExternal(parsed.toString());
+    return { ok: true, url: parsed.toString() };
   });
 
   createMainWindow();

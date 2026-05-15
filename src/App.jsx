@@ -285,7 +285,7 @@ const NODE_TEXT = {
     variable: "전역 값",
     storage: "로컬 저장",
     constant: "고정 값",
-    http: "HTTP 요청",
+    http: "HTTPS 요청",
     browser: "브라우저 열기",
     "system-info": "시스템 정보",
     "audio-player": "오디오 재생",
@@ -380,7 +380,7 @@ const NODE_TEXT = {
     variable: "Global Value",
     storage: "Local Store",
     constant: "Fixed Value",
-    http: "HTTP Request",
+    http: "HTTPS Request",
     browser: "Open Browser",
     "system-info": "System Info",
     "audio-player": "Audio Player",
@@ -542,7 +542,7 @@ const LIBRARY_TABS = {
     { key: "global-variable", label: "Global Variable", group: "data", type: "variable" },
     { key: "local-storage", label: "Local Storage", group: "data", type: "storage" },
     { key: "constant", label: "Constant", group: "data", type: "constant" },
-    { key: "http-request", label: "HTTP Request", group: "network", type: "http" },
+    { key: "http-request", label: "HTTPS Request", group: "network", type: "http" },
     { key: "browser-open", label: "Browser Open", group: "network", type: "browser" },
     { key: "system-info", label: "System Info", group: "system", type: "system-info" },
     { key: "audio-player", label: "Audio Player", group: "system", type: "audio-player" },
@@ -926,6 +926,101 @@ function applyTemplate(text, context) {
   return String(text || "").replace(/\{\{\s*([^}]+)\s*\}\}/g, (_, key) => String(context[key.trim()] ?? ""));
 }
 
+function normalizeClientHostname(hostname) {
+  return String(hostname || "").replace(/^\[|\]$/g, "").toLowerCase();
+}
+
+function isPrivateClientIpv4(address) {
+  const parts = address.split(".").map((part) => Number(part));
+  if (parts.length !== 4 || parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) {
+    return false;
+  }
+
+  const [first, second] = parts;
+  return (
+    first === 0
+    || first === 10
+    || first === 127
+    || (first === 100 && second >= 64 && second <= 127)
+    || (first === 169 && second === 254)
+    || (first === 172 && second >= 16 && second <= 31)
+    || (first === 192 && second === 168)
+    || (first === 198 && (second === 18 || second === 19))
+  );
+}
+
+function isPrivateClientIpv6(address) {
+  const normalized = address.toLowerCase();
+  return (
+    normalized === "::"
+    || normalized === "::1"
+    || normalized.startsWith("fc")
+    || normalized.startsWith("fd")
+    || normalized.startsWith("fe8")
+    || normalized.startsWith("fe9")
+    || normalized.startsWith("fea")
+    || normalized.startsWith("feb")
+  );
+}
+
+function isBlockedClientHostname(hostname) {
+  const normalized = normalizeClientHostname(hostname);
+  return (
+    !normalized
+    || normalized === "localhost"
+    || normalized.endsWith(".localhost")
+    || normalized.endsWith(".local")
+    || isPrivateClientIpv4(normalized)
+    || isPrivateClientIpv6(normalized)
+  );
+}
+
+function validateClientHttpsUrl(rawUrl) {
+  let parsed;
+  try {
+    parsed = new URL(String(rawUrl || "").trim());
+  } catch {
+    return { ok: false, error: "Invalid URL." };
+  }
+
+  if (parsed.protocol !== "https:") {
+    return { ok: false, error: "Only HTTPS URLs are allowed." };
+  }
+
+  if (isBlockedClientHostname(parsed.hostname)) {
+    return { ok: false, error: "Local or private network hosts are blocked." };
+  }
+
+  return {
+    ok: true,
+    url: parsed.toString(),
+    parsed
+  };
+}
+
+function maskUrlForLog(rawUrl) {
+  try {
+    const parsed = new URL(rawUrl);
+    return `${parsed.origin}${parsed.pathname}${parsed.search ? "?[redacted]" : ""}`;
+  } catch {
+    return "[invalid url]";
+  }
+}
+
+async function fetchWithTimeout(url, timeoutMs = 8000) {
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, {
+      credentials: "omit",
+      redirect: "error",
+      signal: controller.signal
+    });
+  } finally {
+    window.clearTimeout(timer);
+  }
+}
+
 // [조건 비교] 간단한 비교식을 파싱해 Boolean 결과를 반환합니다.
 function compareExpression(expression) {
   const match = expression.match(/^(.+?)\s*(==|!=|>=|<=|>|<)\s*(.+)$/);
@@ -1103,7 +1198,7 @@ function getDefaultNodeValue(nodeType, label) {
 }
 
 // [런타임] 노드 그래프를 실제로 계산하고 실행 하이라이트 및 로그 이벤트를 생성합니다.
-function runPipeline(nodes, edges, inputValues, paused) {
+function runPipeline(nodes, edges, inputValues, paused, allowScripts = false) {
   const nodeMap = Object.fromEntries(nodes.map((node) => [node.id, node]));
   const outgoing = {};
   const context = {};
@@ -1156,16 +1251,21 @@ function runPipeline(nodes, edges, inputValues, paused) {
         produced = rendered;
       }
     } else if (type === "script") {
-      try {
-        // [스크립트 노드] 사용자 코드 실행 결과를 받아 콘솔에도 남깁니다.
-        // eslint-disable-next-line no-new-func
-        const fn = new Function("context", "inputValues", String(value || "return context;"));
-        const result = fn(context, inputValues);
-        produced = typeof result === "undefined" ? "" : result;
-        events.push(makeLog("info", node.data?.label || "Script", `스크립트가 실행되었습니다. 결과: ${String(produced)}`));
-      } catch (error) {
-        produced = `Script Error: ${error.message}`;
-        events.push(makeLog("error", node.data?.label || "Script", produced));
+      if (!allowScripts) {
+        produced = "";
+        events.push(makeLog("info", node.data?.label || "Script", "스크립트 실행이 승인될 때까지 차단되었습니다."));
+      } else {
+        try {
+          // [스크립트 노드] 사용자 코드 실행 결과를 받아 콘솔에도 남깁니다.
+          // eslint-disable-next-line no-new-func
+          const fn = new Function("context", "inputValues", String(value || "return context;"));
+          const result = fn(context, inputValues);
+          produced = typeof result === "undefined" ? "" : result;
+          events.push(makeLog("info", node.data?.label || "Script", `스크립트가 실행되었습니다. 결과: ${String(produced)}`));
+        } catch (error) {
+          produced = `Script Error: ${error.message}`;
+          events.push(makeLog("error", node.data?.label || "Script", produced));
+        }
       }
     } else if (type === "condition") {
       const pass = evaluateConditionChain(value, context);
@@ -1519,8 +1619,12 @@ function RuntimePanel({
                   onPointerDown={editable ? onBuilderPointerDown : undefined}
                   onPointerUp={editable ? onBuilderPointerUp : undefined}
                   onAction={async (url) => {
-                    await onUiAction(url);
-                    appendLog(makeLog("info", "UI Viewer", `버튼 액션이 실행되었습니다: ${url}`));
+                    try {
+                      const openedUrl = await onUiAction(url);
+                      appendLog(makeLog("info", "UI Viewer", `버튼 액션이 실행되었습니다: ${maskUrlForLog(openedUrl || url)}`));
+                    } catch (error) {
+                      appendLog(makeLog("error", "UI Viewer", `버튼 액션이 차단되었습니다: ${maskUrlForLog(url)}`, String(error.message || error)));
+                    }
                   }}
                 />
               ))}
@@ -1779,6 +1883,7 @@ function EngineEditor() {
   const [appInfo, setAppInfo] = useState({ version: "1.0.0", platform: "browser" });
   const [updateInfo, setUpdateInfo] = useState(null);
   const [updateState, setUpdateState] = useState("idle");
+  const [scriptExecutionAllowed, setScriptExecutionAllowed] = useState(false);
 
   const builderCanvasRef = useRef(null);
   const librarySearchInputRef = useRef(null);
@@ -1787,6 +1892,9 @@ function EngineEditor() {
   const lastExecutionKeyRef = useRef("");
   const lastActionSignatureRef = useRef("");
   const autoSaveTimerRef = useRef(null);
+  const securityDecisionRef = useRef({ external: "pending", script: "pending" });
+  const securityApprovalPromiseRef = useRef({});
+  const inFlightExternalActionsRef = useRef(new Set());
 
   useEffect(() => {
     nodeCounterRef.current = nodeCounter;
@@ -1804,7 +1912,99 @@ function EngineEditor() {
     setLogs((current) => [...current.slice(-(DEFAULT_LOG_LIMIT - 1)), entry]);
   }, []);
 
-  const runtime = useMemo(() => runPipeline(nodes, edges, inputValues, paused), [nodes, edges, inputValues, paused]);
+  const resetSecurityState = useCallback(async () => {
+    securityDecisionRef.current = { external: "pending", script: "pending" };
+    securityApprovalPromiseRef.current = {};
+    inFlightExternalActionsRef.current.clear();
+    setScriptExecutionAllowed(false);
+    await window.ixo?.resetSecurityApprovals?.();
+  }, []);
+
+  const requestSecurityApproval = useCallback(async (scope) => {
+    const currentDecision = securityDecisionRef.current[scope];
+    if (currentDecision === "approved") {
+      return true;
+    }
+    if (currentDecision === "denied") {
+      return false;
+    }
+    if (securityApprovalPromiseRef.current[scope]) {
+      return securityApprovalPromiseRef.current[scope];
+    }
+
+    const approvalPromise = (async () => {
+      const result = window.ixo?.requestSecurityApproval
+        ? await window.ixo.requestSecurityApproval(scope)
+        : {
+            approved: window.confirm(
+              scope === "external"
+                ? "This project wants to use HTTPS requests or open an external browser. Allow for this session?"
+                : "This project contains script nodes that can run custom code. Allow for this session?"
+            )
+          };
+      const approved = Boolean(result?.approved);
+      securityDecisionRef.current[scope] = approved ? "approved" : "denied";
+      if (scope === "script") {
+        setScriptExecutionAllowed(approved);
+      }
+      return approved;
+    })();
+
+    securityApprovalPromiseRef.current[scope] = approvalPromise;
+    try {
+      return await approvalPromise;
+    } finally {
+      delete securityApprovalPromiseRef.current[scope];
+    }
+  }, []);
+
+  const requestSecureHttps = useCallback(async (rawUrl) => {
+    const validation = validateClientHttpsUrl(rawUrl);
+    if (!validation.ok) {
+      throw new Error(validation.error);
+    }
+
+    const approved = await requestSecurityApproval("external");
+    if (!approved) {
+      throw new Error("External actions were blocked by the user.");
+    }
+
+    if (window.ixo?.requestHttps) {
+      return window.ixo.requestHttps(validation.url);
+    }
+
+    const response = await fetchWithTimeout(validation.url);
+    return {
+      ok: response.ok,
+      status: response.status,
+      url: validation.url
+    };
+  }, [requestSecurityApproval]);
+
+  const openSecureExternalUrl = useCallback(async (rawUrl) => {
+    const validation = validateClientHttpsUrl(rawUrl);
+    if (!validation.ok) {
+      throw new Error(validation.error);
+    }
+
+    const approved = await requestSecurityApproval("external");
+    if (!approved) {
+      throw new Error("External actions were blocked by the user.");
+    }
+
+    if (window.ixo?.openExternal) {
+      await window.ixo.openExternal(validation.url);
+      return validation.url;
+    }
+
+    window.open(validation.url, "_blank", "noopener,noreferrer");
+    return validation.url;
+  }, [requestSecurityApproval]);
+
+  const runtime = useMemo(
+    () => runPipeline(nodes, edges, inputValues, paused, scriptExecutionAllowed),
+    [edges, inputValues, nodes, paused, scriptExecutionAllowed]
+  );
   const runtimeExecutionKey = useMemo(
     () => JSON.stringify({ activeNodeIds: runtime.activeNodeIds, activeEdgeIds: runtime.activeEdgeIds, liveValues: runtime.liveValues, paused }),
     [paused, runtime.activeEdgeIds, runtime.activeNodeIds, runtime.liveValues]
@@ -1973,7 +2173,21 @@ function EngineEditor() {
     runtime.events.forEach((entry) => appendLog(entry));
   }, [appendLog, runtime.events, runtimeExecutionKey]);
 
-  // [외부 액션] HTTP 요청과 브라우저 열기 노드가 활성화된 경우 한 번만 실행합니다.
+  useEffect(() => {
+    if (paused || scriptExecutionAllowed) return;
+    const activeScriptNode = nodes.find(
+      (node) => runtime.activeNodeIds.includes(node.id) && node.data?.nodeType === "script"
+    );
+    if (!activeScriptNode) return;
+
+    requestSecurityApproval("script").then((approved) => {
+      if (!approved) {
+        appendLog(makeLog("error", activeScriptNode.data?.label || "Script", "스크립트 실행이 차단되었습니다."));
+      }
+    });
+  }, [appendLog, nodes, paused, requestSecurityApproval, runtime.activeNodeIds, scriptExecutionAllowed]);
+
+  // [외부 액션] HTTPS 요청과 브라우저 열기 노드가 활성화된 경우 한 번만 실행합니다.
   useEffect(() => {
     if (paused) return;
 
@@ -1988,29 +2202,59 @@ function EngineEditor() {
       for (const node of nodes) {
         if (!activeTargets.has(node.id)) continue;
         if (node.data?.nodeType === "http" && node.data?.value) {
-          const url = applyTemplate(node.data.value, runtime.context);
-          signatures.push(`http:${node.id}:${url}`);
-          if (lastActionSignatureRef.current.includes(`|http:${node.id}:${url}|`)) continue;
+          const rawUrl = applyTemplate(node.data.value, runtime.context);
+          const validation = validateClientHttpsUrl(rawUrl);
+          const signatureUrl = validation.ok ? validation.url : rawUrl;
+          const signature = `https:${node.id}:${signatureUrl}`;
+          signatures.push(signature);
+          if (lastActionSignatureRef.current.includes(`|${signature}|`)) continue;
+          if (inFlightExternalActionsRef.current.has(signature)) continue;
 
+          inFlightExternalActionsRef.current.add(signature);
           try {
-            await fetch(url);
-            setStatus(`HTTP request OK: ${url}`);
-            appendLog(makeLog("info", node.data?.label || "HTTP Request", `요청 성공: ${url}`));
+            if (!validation.ok) {
+              throw new Error(validation.error);
+            }
+            const result = await requestSecureHttps(validation.url);
+            if (!result.ok) {
+              throw new Error(`HTTPS request failed with status ${result.status}.`);
+            }
+            const maskedUrl = maskUrlForLog(validation.url);
+            setStatus(`HTTPS request OK: ${maskedUrl}`);
+            appendLog(makeLog("info", node.data?.label || "HTTPS Request", `요청 성공: ${maskedUrl}`));
           } catch (error) {
-            setStatus(`HTTP request failed: ${url}`);
-            appendLog(makeLog("error", node.data?.label || "HTTP Request", `요청 실패: ${url}`, String(error.message || error)));
+            const maskedUrl = validation.ok ? maskUrlForLog(validation.url) : "[blocked url]";
+            setStatus(`HTTPS request blocked: ${maskedUrl}`);
+            appendLog(makeLog("error", node.data?.label || "HTTPS Request", `요청 차단: ${maskedUrl}`, String(error.message || error)));
+          } finally {
+            inFlightExternalActionsRef.current.delete(signature);
           }
         }
 
         if (node.data?.nodeType === "browser" && node.data?.value) {
-          const url = applyTemplate(node.data.value, runtime.context);
-          signatures.push(`browser:${node.id}:${url}`);
-          if (lastActionSignatureRef.current.includes(`|browser:${node.id}:${url}|`)) continue;
+          const rawUrl = applyTemplate(node.data.value, runtime.context);
+          const validation = validateClientHttpsUrl(rawUrl);
+          const signatureUrl = validation.ok ? validation.url : rawUrl;
+          const signature = `browser:${node.id}:${signatureUrl}`;
+          signatures.push(signature);
+          if (lastActionSignatureRef.current.includes(`|${signature}|`)) continue;
+          if (inFlightExternalActionsRef.current.has(signature)) continue;
 
-          if (window.ixo?.openExternal) {
-            await window.ixo.openExternal(url);
-            setStatus(`Opened browser: ${url}`);
-            appendLog(makeLog("info", node.data?.label || "Browser Open", `외부 브라우저 열기: ${url}`));
+          inFlightExternalActionsRef.current.add(signature);
+          try {
+            if (!validation.ok) {
+              throw new Error(validation.error);
+            }
+            const openedUrl = await openSecureExternalUrl(validation.url);
+            const maskedUrl = maskUrlForLog(openedUrl);
+            setStatus(`Opened browser: ${maskedUrl}`);
+            appendLog(makeLog("info", node.data?.label || "Browser Open", `외부 브라우저 열기: ${maskedUrl}`));
+          } catch (error) {
+            const maskedUrl = validation.ok ? maskUrlForLog(validation.url) : "[blocked url]";
+            setStatus(`Browser open blocked: ${maskedUrl}`);
+            appendLog(makeLog("error", node.data?.label || "Browser Open", `외부 브라우저 열기 차단: ${maskedUrl}`, String(error.message || error)));
+          } finally {
+            inFlightExternalActionsRef.current.delete(signature);
           }
         }
       }
@@ -2019,7 +2263,7 @@ function EngineEditor() {
     };
 
     runActions();
-  }, [appendLog, edges, nodes, paused, runtime.activeEdgeIds, runtime.context]);
+  }, [appendLog, edges, nodes, openSecureExternalUrl, paused, requestSecureHttps, runtime.activeEdgeIds, runtime.context]);
 
   // [Builder 드래그 이동] 선택된 UI 요소를 캔버스 안에서 직접 옮길 수 있게 합니다.
   useEffect(() => {
@@ -2242,6 +2486,7 @@ function EngineEditor() {
 
     const result = await window.ixo.loadProject();
     if (result.ok && result.data) {
+      await resetSecurityState();
       snapshot();
       setNodes(applyNodeSelectionState(result.data.nodes || [], []));
       setEdges((result.data.edges || []).map((edge) => ({ ...edge, selected: false })));
@@ -2257,7 +2502,7 @@ function EngineEditor() {
       setStatus(`Loaded .ixo: ${result.path}`);
       setIsDirty(false);
     }
-  }, [setEdges, setNodes, snapshot]);
+  }, [resetSecurityState, setEdges, setNodes, snapshot]);
 
   const exportProject = useCallback(async () => {
     if (!window.ixo?.exportProject) {
@@ -2653,12 +2898,8 @@ function EngineEditor() {
 
   const openUiAction = useCallback(async (url) => {
     if (!url) return;
-    if (window.ixo?.openExternal) {
-      await window.ixo.openExternal(url);
-      return;
-    }
-    window.open(url, "_blank", "noopener,noreferrer");
-  }, []);
+    return openSecureExternalUrl(url);
+  }, [openSecureExternalUrl]);
 
   const handleUiElementSelect = useCallback((id) => {
     setSelectedUiElementId(id);
@@ -2679,6 +2920,7 @@ function EngineEditor() {
       if (template) {
         snapshot();
         const next = template.build();
+        resetSecurityState();
         applyState(next);
         setViewMode(next.viewMode || "viewer");
         setLogs([makeLog("info", "Templates", `${template.label} 템플릿을 불러왔습니다.`)]);
@@ -2688,7 +2930,7 @@ function EngineEditor() {
     }
 
     setToastMessage((UI_TEXT[draftLanguage] || UI_TEXT.ko).applied);
-  }, [applyState, draftLanguage, draftPreviewDevice, draftTemplateKey, draftThemeKey, snapshot]);
+  }, [applyState, draftLanguage, draftPreviewDevice, draftTemplateKey, draftThemeKey, resetSecurityState, snapshot]);
 
   const cancelSettings = useCallback(() => {
     setDraftLanguage(language);
@@ -2925,7 +3167,13 @@ function EngineEditor() {
                   </label>
                   <button
                     className="menu-btn docs-btn"
-                    onClick={() => window.ixo?.openExternal?.("https://minyangtech.n-e.kr/docs/ixo/index")}
+                    onClick={async () => {
+                      try {
+                        await openSecureExternalUrl("https://minyangtech.n-e.kr/docs/ixo/index");
+                      } catch (error) {
+                        appendLog(makeLog("error", "Docs", "문서 열기가 차단되었습니다.", String(error.message || error)));
+                      }
+                    }}
                   >
                     {uiText.docs}
                   </button>
