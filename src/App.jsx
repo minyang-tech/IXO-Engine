@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+﻿import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Panel as ResizablePanel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import ReactFlow, {
   addEdge,
@@ -1751,6 +1751,7 @@ function EngineEditor() {
   const [contextMenu, setContextMenu] = useState(null);
   const [quickSearchOpen, setQuickSearchOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [librarySearchTerm, setLibrarySearchTerm] = useState("");
   const [status, setStatus] = useState("Ready");
   const [debugOverlay, setDebugOverlay] = useState(false);
   const [showFileMenu, setShowFileMenu] = useState(false);
@@ -1780,6 +1781,7 @@ function EngineEditor() {
   const [updateState, setUpdateState] = useState("idle");
 
   const builderCanvasRef = useRef(null);
+  const librarySearchInputRef = useRef(null);
   const sidebarRef = useRef(null);
   const nodeCounterRef = useRef(nodeCounter);
   const lastExecutionKeyRef = useRef("");
@@ -1837,13 +1839,33 @@ function EngineEditor() {
   const currentTheme = THEME_OPTIONS[themeKey] || THEME_OPTIONS.mint;
   const uiText = UI_TEXT[language] || UI_TEXT.ko;
 
+  const normalizedLibrarySearchTerm = librarySearchTerm.trim().toLowerCase();
+
+  const visibleLibraryItems = useMemo(() => {
+    const source = normalizedLibrarySearchTerm
+      ? Object.values(LIBRARY_TABS).flat()
+      : LIBRARY_TABS[libraryTab];
+
+    if (!normalizedLibrarySearchTerm) {
+      return source;
+    }
+
+    return source.filter((item) => {
+      const translatedLabel = getNodeLabel(item.type, language, item.label);
+      return [translatedLabel, item.label, item.type, item.group]
+        .some((value) => String(value || "").toLowerCase().includes(normalizedLibrarySearchTerm));
+    });
+  }, [language, libraryTab, normalizedLibrarySearchTerm]);
+
   const sidebarGroups = useMemo(() => {
-    const list = LIBRARY_TABS[libraryTab];
+    const list = visibleLibraryItems;
     return list.reduce((acc, item) => {
       acc[item.group] = [...(acc[item.group] || []), item];
       return acc;
     }, {});
-  }, [libraryTab]);
+  }, [visibleLibraryItems]);
+
+  const visibleLibraryNodeCount = visibleLibraryItems.length;
 
   const searchCandidates = useMemo(
     () =>
@@ -2340,6 +2362,12 @@ function EngineEditor() {
         setQuickSearchOpen(true);
       }
 
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "f") {
+        event.preventDefault();
+        librarySearchInputRef.current?.focus();
+        librarySearchInputRef.current?.select();
+      }
+
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
         event.preventDefault();
         saveProject();
@@ -2762,8 +2790,19 @@ function EngineEditor() {
         <MiniMap nodeColor={(node) => NODE_COLOR[node.data?.kind] || ACCENT} pannable zoomable />
         <Controls />
         <Background color="#1d2a24" gap={24} size={1.1} variant="dots" />
-        <Panel position="top-right" className="hint-panel">
-          Space: Quick Search | G: Group | Ctrl+S/Z/Y/D | Delete
+        <Panel position="top-right" className="canvas-command-panel">
+          <label className="canvas-search">
+            <span>Find node</span>
+            <input
+              value={librarySearchTerm}
+              onChange={(event) => setLibrarySearchTerm(event.target.value)}
+              placeholder="Search all nodes..."
+            />
+          </label>
+          <div className="canvas-command-meta">
+            <span>{visibleLibraryNodeCount} result{visibleLibraryNodeCount === 1 ? "" : "s"}</span>
+            <kbd>Ctrl+F</kbd>
+          </div>
         </Panel>
       </ReactFlow>
 
@@ -2891,6 +2930,21 @@ function EngineEditor() {
             <button className="ghost-btn" onClick={createGroupBox}>Group Selected</button>
           </div>
 
+          <label className="library-search">
+            <span>Find node</span>
+            <div className="library-search-field">
+              <input
+                ref={librarySearchInputRef}
+                value={librarySearchTerm}
+                onChange={(event) => setLibrarySearchTerm(event.target.value)}
+                placeholder="Ctrl+F or type a node name..."
+              />
+              {librarySearchTerm ? (
+                <button type="button" onClick={() => setLibrarySearchTerm("")}>Clear</button>
+              ) : null}
+            </div>
+          </label>
+
           <div className="drop-hint-card">
             <strong>{uiText.deleteZone}</strong>
             <span>{uiText.deleteZoneCopy}</span>
@@ -2901,30 +2955,37 @@ function EngineEditor() {
             <button className={libraryTab === "pro" ? "active" : ""} onClick={() => setLibraryTab("pro")}>Pro</button>
           </div>
 
-          {Object.entries(sidebarGroups).map(([group, items]) => (
-            <section key={group} className="library-section">
-              <button className="section-toggle" onClick={() => toggleSection(group)}>
-                <span className="section-label">{GROUP_ICON[group] || "•"} {group.toUpperCase()}</span>
-                <span>{collapsed[group] ? "+" : "-"}</span>
-              </button>
+          {visibleLibraryNodeCount ? (
+            Object.entries(sidebarGroups).map(([group, items]) => (
+              <section key={group} className="library-section">
+                <button className="section-toggle" onClick={() => toggleSection(group)}>
+                  <span className="section-label">{GROUP_ICON[group] || "•"} {group.toUpperCase()}</span>
+                  <span>{normalizedLibrarySearchTerm ? "-" : collapsed[group] ? "+" : "-"}</span>
+                </button>
 
-              {!collapsed[group] ? (
-                <div className="node-list">
-                  {items.map((item) => (
-                    <button
-                      key={item.key}
-                      draggable
-                      onDragStart={(event) => onDragStartNode(event, item)}
-                      className="node-chip"
-                    >
-                      <span className="node-chip-dot" style={{ background: NODE_COLOR[item.group] }} />
-                      {getNodeLabel(item.type, language, item.label)}
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-            </section>
-          ))}
+                {normalizedLibrarySearchTerm || !collapsed[group] ? (
+                  <div className="node-list">
+                    {items.map((item) => (
+                      <button
+                        key={item.key}
+                        draggable
+                        onDragStart={(event) => onDragStartNode(event, item)}
+                        className="node-chip"
+                      >
+                        <span className="node-chip-dot" style={{ background: NODE_COLOR[item.group] }} />
+                        {getNodeLabel(item.type, language, item.label)}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </section>
+            ))
+          ) : (
+            <div className="library-empty-state">
+              <strong>No matching nodes</strong>
+              <span>Try another keyword or clear the search.</span>
+            </div>
+          )}
         </aside>
 
         <section className="canvas-zone">

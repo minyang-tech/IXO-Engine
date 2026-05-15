@@ -490,6 +490,59 @@ img {
   margin-bottom: 14px;
 }
 
+.library-search {
+  display: grid;
+  gap: 7px;
+  margin-bottom: 14px;
+}
+
+.library-search span,
+.canvas-search span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.library-search-field {
+  position: relative;
+}
+
+.library-search input,
+.canvas-search input {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.015));
+  color: var(--text);
+  padding: 11px 14px;
+  outline: none;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background 0.2s ease;
+}
+
+.library-search input {
+  padding-right: 70px;
+}
+
+.library-search-field button {
+  position: absolute;
+  top: 50%;
+  right: 7px;
+  transform: translateY(-50%);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--muted);
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.library-search-field button:hover {
+  border-color: var(--accent-strong);
+  color: var(--text);
+}
+
 .sidebar-tabs button.active,
 .viewer-tabs button.active {
   color: #03110a;
@@ -553,14 +606,54 @@ img {
   --trace-duration: 0.9s;
 }
 
-.hint-panel {
-  border-radius: 999px;
+.canvas-command-panel {
+  width: min(320px, calc(100vw - 40px));
+  display: grid;
+  gap: 8px;
+  border-radius: 20px;
   border: 1px solid var(--line);
   background: rgba(13, 23, 18, 0.88);
   color: var(--muted);
-  padding: 8px 12px;
+  padding: 12px;
   font-size: 12px;
   box-shadow: var(--shadow-soft);
+  backdrop-filter: blur(18px);
+}
+
+.canvas-search {
+  display: grid;
+  gap: 6px;
+}
+
+.canvas-command-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.canvas-command-meta kbd {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text);
+  padding: 4px 8px;
+  font: inherit;
+}
+
+.library-empty-state {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px dashed var(--line);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.library-empty-state span {
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .resize-handle {
@@ -1226,6 +1319,8 @@ img {
 
 .context-menu input:focus,
 .quick-search-card input:focus,
+.library-search input:focus,
+.canvas-search input:focus,
 .property-form input:focus,
 .property-form textarea:focus,
 .property-form select:focus,
