@@ -1,9 +1,9 @@
 const { app, BrowserWindow, Menu, ipcMain, dialog, shell } = require("electron");
 const path = require("path");
 const fs = require("fs");
+const originalFs = require("original-fs");
 const os = require("os");
 const { spawn } = require("child_process");
-const archiver = require("archiver");
 const { path7za } = require("7zip-bin");
 const { checkForUpdates, downloadReleaseAsset } = require("./updateService");
 const windowState = {
@@ -115,11 +115,13 @@ function projectToHtml(project) {
         });
       }
       function tpl(text) {
-        return String(text || "").replace(/\\{\\{\\s*([^}]+)\\s*\\}\\}/g, (_, key) => String(context[key.trim()] || ""));
+        return String(text || "").replace(/\\{\\{\\s*([^}]+)\\s*\\}\\}/g, (_, key) => String(context[key.trim()] ?? ""));
       }
       function resolveUiValue(item, field) {
         const base = field === "src" ? item.src : item.text;
-        if (item.bindingKey && context[item.bindingKey]) return String(context[item.bindingKey]);
+        if (item.bindingKey && typeof context[item.bindingKey] !== "undefined" && context[item.bindingKey] !== "") {
+          return String(context[item.bindingKey]);
+        }
         return tpl(base || "");
       }
       const viewer = document.createElement("div");
@@ -139,7 +141,7 @@ function projectToHtml(project) {
         const input = document.createElement("input");
         input.className = "input";
         input.placeholder = node.data?.value || "Input";
-        input.value = inputs[node.id] || "";
+        input.value = inputs[node.id] ?? "";
         input.oninput = () => { inputs[node.id] = input.value; render(); };
         inputRow.appendChild(input);
       });
@@ -191,7 +193,7 @@ function projectToHtml(project) {
           const t = node.data?.nodeType || "";
           const key = node.data?.refKey || node.id;
           let produced = "";
-          if (t === "input") produced = inputs[node.id] || "";
+          if (t === "input") produced = inputs[node.id] ?? "";
           else if (t === "string" || t === "text" || t === "math" || t === "script") produced = tpl(node.data?.value || "");
           else produced = tpl(node.data?.value || "");
           context[key] = produced;
@@ -230,7 +232,12 @@ function getRuntimePlatformInfo() {
       label: "Windows",
       folderName: "IXO-Engine-Windows",
       executableName: "IXO Engine.exe",
-      devRuntimePath: path.join(__dirname, "..", "release", "windows", "win-unpacked")
+      devRuntimePaths: [
+        path.join(__dirname, "..", "dist_electron_final", "win-unpacked"),
+        path.join(__dirname, "..", "release", "windows", "win-unpacked"),
+        path.join(__dirname, "..", "dist_release_final", "win-unpacked"),
+        path.join(__dirname, "..", "dist_electron", "win-unpacked")
+      ]
     };
   }
 
@@ -240,7 +247,11 @@ function getRuntimePlatformInfo() {
       label: "Linux",
       folderName: "IXO-Engine-Linux",
       executableName: "ixo-engine",
-      devRuntimePath: path.join(__dirname, "..", "release", "linux", "linux-unpacked")
+      devRuntimePaths: [
+        path.join(__dirname, "..", "dist_electron_final", "linux-unpacked"),
+        path.join(__dirname, "..", "release", "linux", "linux-unpacked"),
+        path.join(__dirname, "..", "dist_release_linux_final", "linux-unpacked")
+      ]
     };
   }
 
@@ -250,7 +261,11 @@ function getRuntimePlatformInfo() {
       label: "macOS",
       folderName: "IXO-Engine-macOS",
       executableName: "IXO Engine.app",
-      devRuntimePath: path.join(__dirname, "..", "release", "macos", "mac")
+      devRuntimePaths: [
+        path.join(__dirname, "..", "dist_electron_final", "mac"),
+        path.join(__dirname, "..", "release", "macos", "mac"),
+        path.join(__dirname, "..", "dist_release_mac_final", "mac")
+      ]
     };
   }
 
@@ -266,12 +281,15 @@ function getPackagedRuntimeRoot() {
 
 function findRuntimeSource(platformInfo) {
   const packagedPath = app.isPackaged ? getPackagedRuntimeRoot() : "";
-  if (packagedPath && fs.existsSync(packagedPath)) {
+  if (packagedPath && fs.existsSync(packagedPath) && fs.statSync(packagedPath).isDirectory()) {
     return packagedPath;
   }
 
-  if (fs.existsSync(platformInfo.devRuntimePath)) {
-    return platformInfo.devRuntimePath;
+  const developmentRuntimePath = platformInfo.devRuntimePaths.find((candidate) => (
+    fs.existsSync(candidate) && fs.statSync(candidate).isDirectory()
+  ));
+  if (developmentRuntimePath) {
+    return developmentRuntimePath;
   }
 
   throw new Error(
@@ -305,39 +323,53 @@ function writeExportReadme(targetDir, platformInfo) {
 function ensureRuntimeExport(project) {
   const tempRoot = ensureTempExport(project);
   const platformInfo = getRuntimePlatformInfo();
-  const runtimeSource = findRuntimeSource(platformInfo);
-  const runtimeTarget = path.join(tempRoot, platformInfo.folderName);
+  try {
+    const runtimeSource = findRuntimeSource(platformInfo);
+    const runtimeTarget = path.join(tempRoot, platformInfo.folderName);
+    const runtimeFs = app.isPackaged ? originalFs : fs;
+    const resourcesDir = process.platform === "darwin"
+      ? path.join("Contents", "Resources")
+      : "resources";
 
-  fs.cpSync(runtimeSource, runtimeTarget, { recursive: true });
+    // Electron's patched fs treats app.asar like a directory; original-fs keeps it as a file.
+    runtimeFs.cpSync(runtimeSource, runtimeTarget, { recursive: true });
 
-  const exportDir = path.join(
-    runtimeTarget,
-    process.platform === "darwin" ? path.join("Contents", "Resources") : "resources",
-    "export"
-  );
-  fs.mkdirSync(exportDir, { recursive: true });
-  fs.writeFileSync(path.join(exportDir, "project.ixo"), JSON.stringify(project, null, 2), "utf-8");
-  fs.writeFileSync(path.join(exportDir, "preview.html"), projectToHtml(project), "utf-8");
-  writeExportReadme(tempRoot, platformInfo);
+    const exportDir = path.join(
+      runtimeTarget,
+      resourcesDir,
+      "export"
+    );
+    fs.mkdirSync(exportDir, { recursive: true });
+    fs.writeFileSync(path.join(exportDir, "project.ixo"), JSON.stringify(project, null, 2), "utf-8");
+    fs.writeFileSync(path.join(exportDir, "preview.html"), projectToHtml(project), "utf-8");
+    writeExportReadme(tempRoot, platformInfo);
 
-  return tempRoot;
+    return tempRoot;
+  } catch (error) {
+    const cleanupFs = app.isPackaged ? originalFs : fs;
+    cleanupFs.rmSync(tempRoot, { recursive: true, force: true });
+    throw error;
+  }
 }
 
-function createZip(sourceDir, outputFile) {
-  return new Promise((resolve, reject) => {
-    const output = fs.createWriteStream(outputFile);
-    const archive = archiver("zip", { zlib: { level: 9 } });
-    output.on("close", resolve);
-    archive.on("error", reject);
-    archive.pipe(output);
-    archive.directory(sourceDir, false);
-    archive.finalize();
-  });
+function get7zipExecutablePath() {
+  if (!app.isPackaged) {
+    return path7za;
+  }
+
+  const packagedSegment = `${path.sep}app.asar${path.sep}`;
+  const unpackedSegment = `${path.sep}app.asar.unpacked${path.sep}`;
+  const unpackedPath = path7za.includes(packagedSegment)
+    ? path7za.replace(packagedSegment, unpackedSegment)
+    : path7za;
+
+  return fs.existsSync(unpackedPath) ? unpackedPath : path7za;
 }
 
-function create7z(sourceDir, outputFile) {
+function createArchiveWith7zip(sourceDir, outputFile, format) {
   return new Promise((resolve, reject) => {
-    const child = spawn(path7za, ["a", "-t7z", outputFile, path.join(sourceDir, "*")], {
+    const child = spawn(get7zipExecutablePath(), ["a", `-t${format}`, outputFile, "."], {
+      cwd: sourceDir,
       windowsHide: true
     });
     let errorText = "";
@@ -349,10 +381,42 @@ function create7z(sourceDir, outputFile) {
       if (code === 0) {
         resolve();
       } else {
-        reject(new Error(errorText || "7z archive failed."));
+        reject(new Error(errorText || `${format.toUpperCase()} archive failed.`));
       }
     });
   });
+}
+
+async function removeDirectoryWithRetry(targetDir) {
+  const cleanupFs = app.isPackaged ? originalFs : fs;
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    try {
+      cleanupFs.rmSync(targetDir, { recursive: true, force: true });
+      return;
+    } catch (error) {
+      if (attempt === 4) {
+        console.warn(`Failed to remove temporary export directory: ${targetDir}`, error);
+        return;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 150));
+    }
+  }
+}
+
+function createZip(sourceDir, outputFile) {
+  return createArchiveWith7zip(sourceDir, outputFile, "zip");
+}
+
+function create7z(sourceDir, outputFile) {
+  return createArchiveWith7zip(sourceDir, outputFile, "7z");
+}
+
+function normalizeArchivePath(filePath) {
+  const lower = filePath.toLowerCase();
+  if (lower.endsWith(".zip") || lower.endsWith(".7z")) {
+    return filePath;
+  }
+  return `${filePath}.zip`;
 }
 
 function createMainWindow() {
@@ -477,27 +541,37 @@ app.whenReady().then(() => {
   });
 
   ipcMain.handle("project:export", async (_, payload) => {
-    const target = await dialog.showSaveDialog({
-      title: "Export Project",
-      filters: [
-        { name: "Zip Archive", extensions: ["zip"] },
-        { name: "7z Archive", extensions: ["7z"] }
-      ],
-      defaultPath: "ixo-export.zip"
-    });
-    if (target.canceled || !target.filePath) {
-      return { ok: false, canceled: true };
-    }
-    const tempDir = ensureRuntimeExport(payload);
+    let tempDir = null;
     try {
-      if (target.filePath.toLowerCase().endsWith(".7z")) {
-        await create7z(tempDir, target.filePath);
-      } else {
-        await createZip(tempDir, target.filePath);
+      const target = await dialog.showSaveDialog({
+        title: "Export Project",
+        filters: [
+          { name: "Zip Archive", extensions: ["zip"] },
+          { name: "7z Archive", extensions: ["7z"] }
+        ],
+        defaultPath: "ixo-export.zip"
+      });
+      if (target.canceled || !target.filePath) {
+        return { ok: false, canceled: true };
       }
-      return { ok: true, path: target.filePath };
+
+      const outputPath = normalizeArchivePath(target.filePath);
+      tempDir = ensureRuntimeExport(payload);
+
+      if (outputPath.toLowerCase().endsWith(".7z")) {
+        await create7z(tempDir, outputPath);
+      } else {
+        await createZip(tempDir, outputPath);
+      }
+
+      shell.showItemInFolder(outputPath);
+      return { ok: true, path: outputPath };
+    } catch (error) {
+      return { ok: false, error: error.message || "Export failed." };
     } finally {
-      fs.rmSync(tempDir, { recursive: true, force: true });
+      if (tempDir) {
+        await removeDirectoryWithRetry(tempDir);
+      }
     }
   });
 

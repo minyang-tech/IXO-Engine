@@ -35,6 +35,9 @@
       "electron/**/*",
       "package.json"
     ],
+    "asarUnpack": [
+      "node_modules/7zip-bin/**/*"
+    ],
     "win": {
       "target": "nsis",
       "icon": "build/icon.ico"

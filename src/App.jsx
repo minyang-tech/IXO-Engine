@@ -2265,18 +2265,27 @@ function EngineEditor() {
       return;
     }
 
-    const result = await window.ixo.exportProject({
-      nodes,
-      edges,
-      nodeCounter: nodeCounterRef.current,
-      inputValues,
-      uiElements
-    });
+    try {
+      const result = await window.ixo.exportProject({
+        nodes,
+        edges,
+        nodeCounter: nodeCounterRef.current,
+        inputValues,
+        uiElements
+      });
 
-    if (result.ok) {
-      setStatus(`Exported archive: ${result.path}`);
+      if (result.ok) {
+        setStatus(`Exported archive: ${result.path}`);
+        appendLog(makeLog("info", "Export", `Archive created: ${result.path}`));
+      } else if (!result.canceled) {
+        setStatus(`Export failed: ${result.error || "Unknown error"}`);
+        appendLog(makeLog("error", "Export", result.error || "Export failed."));
+      }
+    } catch (error) {
+      setStatus(`Export failed: ${error.message}`);
+      appendLog(makeLog("error", "Export", error.message || "Export failed."));
     }
-  }, [edges, inputValues, nodes, uiElements]);
+  }, [appendLog, edges, inputValues, nodes, uiElements]);
 
   const checkForUpdates = useCallback(async ({ silent = false } = {}) => {
     if (!window.ixo?.checkForUpdates) {
