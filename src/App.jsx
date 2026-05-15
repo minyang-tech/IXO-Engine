@@ -117,6 +117,21 @@ const UI_TEXT = {
     builderToolbarCopy: "\uD314\uB808\uD2B8\uC5D0\uC11C \uC694\uC18C\uB97C \uB04C\uC5B4\uB2E4 \uB193\uC73C\uBA74 UI Viewer\uC640 \uB3D9\uC77C\uD55C \uD654\uBA74\uC5D0 \uC989\uC2DC \uBC18\uC601\uB429\uB2C8\uB2E4.",
     loadTemplate: "\uD15C\uD50C\uB9BF \uBD88\uB7EC\uC624\uAE30",
     clearAutosave: "\uC790\uB3D9 \uC800\uC7A5 \uCD08\uAE30\uD654",
+    updates: "\uC5C5\uB370\uC774\uD2B8",
+    updateDescription: "GitHub Release\uC5D0\uC11C \uC0C8 \uBC84\uC804\uC744 \uD655\uC778\uD569\uB2C8\uB2E4.",
+    currentVersion: "\uD604\uC7AC \uBC84\uC804",
+    latestVersion: "\uCD5C\uC2E0 \uBC84\uC804",
+    checkUpdates: "\uC5C5\uB370\uC774\uD2B8 \uD655\uC778",
+    checkingUpdates: "\uD655\uC778 \uC911...",
+    downloadUpdate: "\uC5C5\uB370\uC774\uD2B8 \uB2E4\uC6B4\uB85C\uB4DC",
+    downloadingUpdate: "\uB2E4\uC6B4\uB85C\uB4DC \uC911...",
+    upToDate: "\uCD5C\uC2E0 \uBC84\uC804\uC785\uB2C8\uB2E4.",
+    updateAvailable: "\uC0C8 \uBC84\uC804\uC774 \uC788\uC2B5\uB2C8\uB2E4.",
+    updateUnavailable: "\uC5C5\uB370\uC774\uD2B8 \uC815\uBCF4\uB97C \uD655\uC778\uD560 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4.",
+    noReleasePublished: "\uC544\uC9C1 \uACF5\uAC1C\uB41C GitHub Release\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.",
+    noPlatformAsset: "\uC774 \uD50C\uB7AB\uD3FC\uC6A9 \uBC30\uD3EC \uD30C\uC77C\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.",
+    releaseNotes: "\uB9B4\uB9AC\uC2A4 \uB178\uD2B8",
+    downloadReady: "\uB2E4\uC6B4\uB85C\uB4DC \uC644\uB8CC",
     apply: "Apply",
     cancel: "Cancel",
     applied: "\uC801\uC6A9\uB418\uC5C8\uC2B5\uB2C8\uB2E4!",
@@ -143,6 +158,21 @@ const UI_TEXT = {
     builderToolbarCopy: "Drop palette items here and reflect the same design in UI Viewer instantly.",
     loadTemplate: "Load Template",
     clearAutosave: "Clear Auto-Save",
+    updates: "Updates",
+    updateDescription: "Check GitHub Releases for a newer version.",
+    currentVersion: "Current version",
+    latestVersion: "Latest version",
+    checkUpdates: "Check Updates",
+    checkingUpdates: "Checking...",
+    downloadUpdate: "Download Update",
+    downloadingUpdate: "Downloading...",
+    upToDate: "You are up to date.",
+    updateAvailable: "A newer version is available.",
+    updateUnavailable: "Update information is unavailable.",
+    noReleasePublished: "No public GitHub Release has been published yet.",
+    noPlatformAsset: "No release file is available for this platform.",
+    releaseNotes: "Release notes",
+    downloadReady: "Download ready",
     apply: "Apply",
     cancel: "Cancel",
     applied: "Applied!",
@@ -169,6 +199,21 @@ const UI_TEXT = {
     builderToolbarCopy: "\u628A\u7D20\u6750\u62D6\u5230\u8FD9\u91CC\u540E\uff0cUI Viewer \u4F1A\u7ACB\u5373\u540C\u6B65\u663E\u793A\u3002",
     loadTemplate: "\u52A0\u8F7D\u6A21\u677F",
     clearAutosave: "\u6E05\u9664\u81EA\u52A8\u4FDD\u5B58",
+    updates: "\u66F4\u65B0",
+    updateDescription: "\u4ECE GitHub Release \u68C0\u67E5\u65B0\u7248\u672C\u3002",
+    currentVersion: "\u5F53\u524D\u7248\u672C",
+    latestVersion: "\u6700\u65B0\u7248\u672C",
+    checkUpdates: "\u68C0\u67E5\u66F4\u65B0",
+    checkingUpdates: "\u68C0\u67E5\u4E2D...",
+    downloadUpdate: "\u4E0B\u8F7D\u66F4\u65B0",
+    downloadingUpdate: "\u4E0B\u8F7D\u4E2D...",
+    upToDate: "\u5DF2\u662F\u6700\u65B0\u7248\u672C\u3002",
+    updateAvailable: "\u6709\u53EF\u7528\u7684\u65B0\u7248\u672C\u3002",
+    updateUnavailable: "\u65E0\u6CD5\u83B7\u53D6\u66F4\u65B0\u4FE1\u606F\u3002",
+    noReleasePublished: "\u5C1A\u672A\u53D1\u5E03\u516C\u5F00\u7684 GitHub Release\u3002",
+    noPlatformAsset: "\u6CA1\u6709\u9002\u7528\u4E8E\u6B64\u5E73\u53F0\u7684\u53D1\u5E03\u6587\u4EF6\u3002",
+    releaseNotes: "\u53D1\u5E03\u8BF4\u660E",
+    downloadReady: "\u4E0B\u8F7D\u5B8C\u6210",
     apply: "\u5E94\u7528",
     cancel: "\u53D6\u6D88",
     applied: "\u5DF2\u5E94\u7528\uff01",
@@ -195,6 +240,21 @@ const UI_TEXT = {
     builderToolbarCopy: "\u30D1\u30EC\u30C3\u30C8\u306E\u8981\u7D20\u3092\u3053\u3053\u306B\u7F6E\u304F\u3068\u3001UI Viewer \u306B\u5373\u6642\u53CD\u6620\u3055\u308C\u307E\u3059\u3002",
     loadTemplate: "\u30C6\u30F3\u30D7\u30EC\u30FC\u30C8\u8AAD\u307F\u8FBC\u307F",
     clearAutosave: "\u81EA\u52D5\u4FDD\u5B58\u3092\u524A\u9664",
+    updates: "\u30A2\u30C3\u30D7\u30C7\u30FC\u30C8",
+    updateDescription: "GitHub Release \u304B\u3089\u65B0\u3057\u3044\u30D0\u30FC\u30B8\u30E7\u30F3\u3092\u78BA\u8A8D\u3057\u307E\u3059\u3002",
+    currentVersion: "\u73FE\u5728\u306E\u30D0\u30FC\u30B8\u30E7\u30F3",
+    latestVersion: "\u6700\u65B0\u30D0\u30FC\u30B8\u30E7\u30F3",
+    checkUpdates: "\u66F4\u65B0\u3092\u78BA\u8A8D",
+    checkingUpdates: "\u78BA\u8A8D\u4E2D...",
+    downloadUpdate: "\u66F4\u65B0\u3092\u30C0\u30A6\u30F3\u30ED\u30FC\u30C9",
+    downloadingUpdate: "\u30C0\u30A6\u30F3\u30ED\u30FC\u30C9\u4E2D...",
+    upToDate: "\u6700\u65B0\u30D0\u30FC\u30B8\u30E7\u30F3\u3067\u3059\u3002",
+    updateAvailable: "\u65B0\u3057\u3044\u30D0\u30FC\u30B8\u30E7\u30F3\u304C\u3042\u308A\u307E\u3059\u3002",
+    updateUnavailable: "\u66F4\u65B0\u60C5\u5831\u3092\u53D6\u5F97\u3067\u304D\u307E\u305B\u3093\u3002",
+    noReleasePublished: "\u516C\u958B\u3055\u308C\u305F GitHub Release \u306F\u307E\u3060\u3042\u308A\u307E\u305B\u3093\u3002",
+    noPlatformAsset: "\u3053\u306E\u30D7\u30E9\u30C3\u30C8\u30D5\u30A9\u30FC\u30E0\u7528\u306E\u914D\u5E03\u30D5\u30A1\u30A4\u30EB\u304C\u3042\u308A\u307E\u305B\u3093\u3002",
+    releaseNotes: "\u30EA\u30EA\u30FC\u30B9\u30CE\u30FC\u30C8",
+    downloadReady: "\u30C0\u30A6\u30F3\u30ED\u30FC\u30C9\u5B8C\u4E86",
     apply: "\u9069\u7528",
     cancel: "\u30AD\u30E3\u30F3\u30BB\u30EB",
     applied: "\u9069\u7528\u3055\u308C\u307E\u3057\u305F\uff01",
@@ -1403,7 +1463,6 @@ function RuntimePanel({
 
       <div
         className={`runtime-screen viewer-screen ${editable ? "builder-mode" : ""} ${viewMode === "preview" ? "preview-mode" : ""}`}
-        onClick={() => editable && setSelectedUiElementId(null)}
       >
         {inputNodes.length ? (
           <div className="viewer-inputs">
@@ -1442,6 +1501,11 @@ function RuntimePanel({
               style={{ width: PREVIEW_DEVICE_OPTIONS[previewDevice]?.width || "100%" }}
               onDragOver={onBuilderDragOver}
               onDrop={onBuilderDrop}
+              onClick={(event) => {
+                if (editable && event.target === event.currentTarget) {
+                  setSelectedUiElementId(null);
+                }
+              }}
             >
               <div className="viewer-stage-grid" />
               {uiElements.map((element) => (
@@ -1542,6 +1606,11 @@ function SettingsModal({
   setDraftPreviewDevice,
   draftTemplateKey,
   setDraftTemplateKey,
+  appInfo,
+  updateInfo,
+  updateState,
+  onCheckForUpdates,
+  onDownloadUpdate,
   onApply,
   onCancel,
   onClearAutosave
@@ -1593,6 +1662,66 @@ function SettingsModal({
               ))}
             </select>
           </label>
+
+          <section className="update-card">
+            <div className="update-card-heading">
+              <strong>{uiText.updates}</strong>
+              <span>{uiText.updateDescription}</span>
+            </div>
+
+            <div className="update-version-grid">
+              <span>{uiText.currentVersion}</span>
+              <strong>{appInfo?.version || "-"}</strong>
+              <span>{uiText.latestVersion}</span>
+              <strong>{updateInfo?.latestVersion || "-"}</strong>
+            </div>
+
+            <p className={`update-status state-${updateState}`}>
+              {updateState === "checking"
+                ? uiText.checkingUpdates
+                : updateState === "available"
+                  ? uiText.updateAvailable
+                  : updateState === "current"
+                    ? uiText.upToDate
+                    : updateState === "no-release"
+                      ? uiText.noReleasePublished
+                    : updateState === "downloaded"
+                      ? uiText.downloadReady
+                      : updateState === "error"
+                        ? uiText.updateUnavailable
+                        : uiText.updateDescription}
+            </p>
+
+            {updateInfo?.available && !updateInfo?.asset ? (
+              <p className="update-muted">{uiText.noPlatformAsset}</p>
+            ) : null}
+
+            {updateInfo?.releaseNotes ? (
+              <details className="update-release-notes">
+                <summary>{uiText.releaseNotes}</summary>
+                <pre>{updateInfo.releaseNotes}</pre>
+              </details>
+            ) : null}
+
+            <div className="update-actions">
+              <button
+                className="ghost-btn"
+                onClick={onCheckForUpdates}
+                disabled={updateState === "checking" || updateState === "downloading"}
+              >
+                {updateState === "checking" ? uiText.checkingUpdates : uiText.checkUpdates}
+              </button>
+              {updateInfo?.available && updateInfo?.asset ? (
+                <button
+                  className="menu-btn docs-btn"
+                  onClick={onDownloadUpdate}
+                  disabled={updateState === "downloading"}
+                >
+                  {updateState === "downloading" ? uiText.downloadingUpdate : uiText.downloadUpdate}
+                </button>
+              ) : null}
+            </div>
+          </section>
         </div>
 
         <div className="settings-modal-actions">
@@ -1646,6 +1775,9 @@ function EngineEditor() {
   const [draftPreviewDevice, setDraftPreviewDevice] = useState("desktop");
   const [draftTemplateKey, setDraftTemplateKey] = useState("");
   const [toastMessage, setToastMessage] = useState("");
+  const [appInfo, setAppInfo] = useState({ version: "1.0.0", platform: "browser" });
+  const [updateInfo, setUpdateInfo] = useState(null);
+  const [updateState, setUpdateState] = useState("idle");
 
   const builderCanvasRef = useRef(null);
   const sidebarRef = useRef(null);
@@ -2124,6 +2256,80 @@ function EngineEditor() {
     }
   }, [edges, inputValues, nodes, uiElements]);
 
+  const checkForUpdates = useCallback(async ({ silent = false } = {}) => {
+    if (!window.ixo?.checkForUpdates) {
+      if (!silent) {
+        setStatus("Update checks are available in the desktop app.");
+      }
+      return null;
+    }
+
+    setUpdateState("checking");
+    try {
+      const result = await window.ixo.checkForUpdates();
+      setUpdateInfo(result);
+      setUpdateState(result.releasePublished === false ? "no-release" : result.available ? "available" : "current");
+      if (!silent) {
+        setStatus(
+          result.releasePublished === false
+            ? "No public GitHub Release has been published yet."
+            : result.available
+              ? `Update available: ${result.latestVersion}`
+              : "Already up to date."
+        );
+      }
+      if (result.available) {
+        appendLog(makeLog("info", "Updates", `New release detected: ${result.latestVersion}`));
+      }
+      return result;
+    } catch (error) {
+      setUpdateState("error");
+      if (!silent) {
+        setStatus(`Update check failed: ${error.message}`);
+      }
+      appendLog(makeLog("error", "Updates", error.message || "Update check failed."));
+      return null;
+    }
+  }, [appendLog]);
+
+  const downloadUpdate = useCallback(async () => {
+    if (!window.ixo?.downloadUpdate || !updateInfo?.asset) {
+      return;
+    }
+
+    setUpdateState("downloading");
+    try {
+      const result = await window.ixo.downloadUpdate(updateInfo.asset);
+      setUpdateState("downloaded");
+      setStatus(`Update downloaded: ${result.path}`);
+      appendLog(makeLog("info", "Updates", `Update downloaded: ${result.path}`));
+    } catch (error) {
+      setUpdateState("error");
+      setStatus(`Update download failed: ${error.message}`);
+      appendLog(makeLog("error", "Updates", error.message || "Update download failed."));
+    }
+  }, [appendLog, updateInfo]);
+
+  useEffect(() => {
+    if (!window.ixo?.getAppInfo) return undefined;
+
+    let mounted = true;
+    window.ixo.getAppInfo().then((info) => {
+      if (mounted && info) {
+        setAppInfo(info);
+      }
+    });
+
+    const timer = window.setTimeout(() => {
+      checkForUpdates({ silent: true });
+    }, 2500);
+
+    return () => {
+      mounted = false;
+      window.clearTimeout(timer);
+    };
+  }, [checkForUpdates]);
+
   useEffect(() => {
     const onKeyDown = (event) => {
       const tag = (event.target?.tagName || "").toLowerCase();
@@ -2513,7 +2719,6 @@ function EngineEditor() {
           setSelectedNodeIds([]);
           setSelectedEdgeIds([]);
           setSelectedNodeId(null);
-          setSelectedUiElementId(null);
         }}
         onNodeDragStart={() => snapshot()}
         onNodeDragStop={(event, node) => {
@@ -2957,6 +3162,11 @@ function EngineEditor() {
         setDraftPreviewDevice={setDraftPreviewDevice}
         draftTemplateKey={draftTemplateKey}
         setDraftTemplateKey={setDraftTemplateKey}
+        appInfo={appInfo}
+        updateInfo={updateInfo}
+        updateState={updateState}
+        onCheckForUpdates={() => checkForUpdates()}
+        onDownloadUpdate={downloadUpdate}
         onApply={applySettings}
         onCancel={cancelSettings}
         onClearAutosave={clearLocalAutosave}

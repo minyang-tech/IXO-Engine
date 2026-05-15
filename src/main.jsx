@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
+import AppErrorBoundary from "./components/AppErrorBoundary";
 import "./styles.css";
 import splashImage from "../IXO ENGINE START.png";
 
@@ -29,6 +30,8 @@ function SplashGate() {
 
 createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    <SplashGate />
+    <AppErrorBoundary>
+      <SplashGate />
+    </AppErrorBoundary>
   </React.StrictMode>
 );

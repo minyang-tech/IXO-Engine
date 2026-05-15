@@ -1,38 +1,31 @@
-const { spawn } = require("child_process");
+const { execFileSync } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 
 const root = path.resolve(__dirname, "..");
-const outputDir = path.join(root, "dist_hotfix");
-const indexFile = path.join(outputDir, "index.html");
-const command = process.execPath;
-const args = [
-  path.join(root, "node_modules", "vite", "bin", "vite.js"),
-  "build",
-  "--base",
-  "./",
-  "--outDir",
-  "dist_hotfix",
-  "--emptyOutDir",
-  "--minify",
-  "false"
-];
+const outputDir = path.join(root, "dist", "renderer");
+const viteCli = path.join(root, "node_modules", "vite", "bin", "vite.js");
 
-const child = spawn(command, args, {
-  cwd: root,
-  stdio: "inherit",
-  shell: false
-});
+function cleanRendererOutput() {
+  if (!fs.existsSync(outputDir)) return;
 
-child.on("close", (code) => {
-  const hasBundle = fs.existsSync(indexFile) && fs.existsSync(path.join(outputDir, "assets"));
-  if (code === 0 || hasBundle) {
-    process.exit(0);
+  if (process.platform === "win32") {
+    const escapedPath = outputDir.replace(/'/g, "''");
+    execFileSync(
+      "powershell.exe",
+      ["-NoProfile", "-Command", `Remove-Item -LiteralPath '${escapedPath}' -Recurse -Force`],
+      { cwd: root, stdio: "inherit" }
+    );
+    return;
   }
-  process.exit(code || 1);
-});
 
-child.on("error", (error) => {
-  console.error(error);
-  process.exit(1);
-});
+  fs.rmSync(outputDir, { recursive: true, force: true });
+}
+
+cleanRendererOutput();
+
+execFileSync(
+  process.execPath,
+  [viteCli, "build", "--base", "./", "--outDir", "dist/renderer", "--emptyOutDir", "--minify", "false"],
+  { cwd: root, stdio: "inherit" }
+);

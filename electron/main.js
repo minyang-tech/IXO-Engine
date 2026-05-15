@@ -5,6 +5,7 @@ const os = require("os");
 const { spawn } = require("child_process");
 const archiver = require("archiver");
 const { path7za } = require("7zip-bin");
+const { checkForUpdates, downloadReleaseAsset } = require("./updateService");
 const windowState = {
   isDirty: false,
   latestProject: null,
@@ -229,7 +230,7 @@ function getRuntimePlatformInfo() {
       label: "Windows",
       folderName: "IXO-Engine-Windows",
       executableName: "IXO Engine.exe",
-      devRuntimePath: path.join(__dirname, "..", "dist_release_final", "win-unpacked")
+      devRuntimePath: path.join(__dirname, "..", "release", "windows", "win-unpacked")
     };
   }
 
@@ -239,7 +240,7 @@ function getRuntimePlatformInfo() {
       label: "Linux",
       folderName: "IXO-Engine-Linux",
       executableName: "ixo-engine",
-      devRuntimePath: path.join(__dirname, "..", "dist_release_linux_final", "linux-unpacked")
+      devRuntimePath: path.join(__dirname, "..", "release", "linux", "linux-unpacked")
     };
   }
 
@@ -249,7 +250,7 @@ function getRuntimePlatformInfo() {
       label: "macOS",
       folderName: "IXO-Engine-macOS",
       executableName: "IXO Engine.app",
-      devRuntimePath: path.join(__dirname, "..", "dist_release_mac_final", "mac")
+      devRuntimePath: path.join(__dirname, "..", "release", "macos", "mac")
     };
   }
 
@@ -423,7 +424,7 @@ function createMainWindow() {
     return;
   }
 
-  mainWindow.loadFile(path.join(__dirname, "..", "dist_hotfix", "index.html"));
+  mainWindow.loadFile(path.join(__dirname, "..", "dist", "renderer", "index.html"));
 }
 
 app.whenReady().then(() => {
@@ -434,6 +435,15 @@ app.whenReady().then(() => {
     }
     return { ok: true };
   });
+
+  ipcMain.handle("app:getInfo", () => ({
+    version: app.getVersion(),
+    platform: process.platform
+  }));
+
+  ipcMain.handle("app:checkForUpdates", async () => checkForUpdates());
+
+  ipcMain.handle("app:downloadUpdate", async (_, asset) => downloadReleaseAsset(asset));
 
   ipcMain.handle("project:save", async (_, payload) => {
     const target = await dialog.showSaveDialog({

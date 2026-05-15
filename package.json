@@ -4,15 +4,23 @@
   "description": "IXO Engine - Developed by Minyang Tech",
   "author": "Whoasked (Minyang Tech)",
   "main": "electron/main.js",
-  "license": "MYT Standard EULA",
+  "license": "SEE LICENSE IN LICENSE.md",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/minyang-tech/IXO-Engine.git"
+  },
+  "bugs": {
+    "url": "https://github.com/minyang-tech/IXO-Engine/issues"
+  },
+  "homepage": "https://github.com/minyang-tech/IXO-Engine#readme",
   "scripts": {
     "dev": "concurrently \"vite\" \"wait-on tcp:5173 && electron .\"",
     "start": "electron .",
     "build:renderer": "node scripts/build-renderer.cjs",
-    "build:electron": "electron-builder --win --x64 --config.directories.output=dist_release_final",
-    "build:linux": "electron-builder --linux zip --x64 --config.directories.output=dist_release_linux_final",
-    "build:mac": "electron-builder --mac dmg zip --x64 --arm64 --config.directories.output=dist_release_mac_final",
-    "build:all": "npm run build:renderer && electron-builder --win --linux zip --x64 --config.directories.output=dist_release_all",
+    "build:electron": "electron-builder --win --x64 --config.directories.output=release/windows",
+    "build:linux": "electron-builder --linux zip --x64 --config.directories.output=release/linux",
+    "build:mac": "electron-builder --mac dmg zip --x64 --arm64 --config.directories.output=release/macos",
+    "build:all": "npm run build:renderer && electron-builder --win --linux zip --x64 --config.directories.output=release/all",
     "build": "npm run build:renderer && npm run build:electron",
     "preview": "vite preview"
   },
@@ -23,7 +31,7 @@
       "output": "dist_electron"
     },
     "files": [
-      "dist_hotfix/**/*",
+      "dist/renderer/**/*",
       "electron/**/*",
       "package.json"
     ],
