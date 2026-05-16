@@ -6,26 +6,39 @@ const os = require("os");
 const dns = require("dns").promises;
 const nodeNet = require("net");
 const { spawn } = require("child_process");
-const { path7za } = require("7zip-bin");
 const { checkForUpdates, downloadReleaseAsset } = require("./updateService");
 const EXTERNAL_REQUEST_TIMEOUT_MS = 8000;
 const MAX_EXTERNAL_REDIRECTS = 3;
+const DEFAULT_EXPORT_APP_STEM = "myt-ixo";
+const SECURITY_PREFERENCES_FILE = "security-preferences.json";
 const trustedWebContentsIds = new Set();
 const securityApprovalsByWebContents = new Map();
+const fileWatchersByWebContents = new Map();
+let startupHttpsPreferencePromise = null;
 const windowState = {
   isDirty: false,
   latestProject: null,
   allowClose: false
 };
 
-function projectToHtml(project) {
+function escapeHtml(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function projectToHtml(project, appName = DEFAULT_EXPORT_APP_STEM) {
   const safeJson = JSON.stringify(project).replace(/</g, "\\u003c");
+  const safeAppName = escapeHtml(appName);
   return `<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>IXO Export</title>
+    <title>${safeAppName}</title>
     <style>
       body { margin: 0; font-family: Segoe UI, sans-serif; background: #08110d; color: #edf6f1; }
       .wrap { padding: 24px; }
@@ -83,19 +96,11 @@ function projectToHtml(project) {
         height: 100%;
         object-fit: cover;
       }
-      .card {
-        border: 1px solid rgba(128, 162, 145, 0.18);
-        border-radius: 18px;
-        background: rgba(255,255,255,0.02);
-        padding: 12px;
-        margin-top: 12px;
-      }
-      .kind { color: #95ada2; font-size: 12px; text-transform: uppercase; }
     </style>
   </head>
   <body>
     <div class="wrap">
-      <h1>IXO Runtime Export</h1>
+      <h1>${safeAppName}</h1>
       <div id="app"></div>
     </div>
     <script>
@@ -122,6 +127,53 @@ function projectToHtml(project) {
       }
       function tpl(text) {
         return String(text || "").replace(/\\{\\{\\s*([^}]+)\\s*\\}\\}/g, (_, key) => String(context[key.trim()] ?? ""));
+      }
+      function cast(raw) {
+        const stripped = String(raw ?? "").trim().replace(/^['"]|['"]$/g, "");
+        const numeric = Number(stripped);
+        return Number.isNaN(numeric) ? stripped : numeric;
+      }
+      function compare(expression) {
+        const match = String(expression || "").match(/^(.+?)\\s*(==|!=|>=|<=|>|<)\\s*(.+)$/);
+        if (!match) return Boolean(String(expression || "").trim());
+        const left = cast(match[1]);
+        const right = cast(match[3]);
+        if (match[2] === "==") return left == right;
+        if (match[2] === "!=") return left != right;
+        if (match[2] === ">") return left > right;
+        if (match[2] === "<") return left < right;
+        if (match[2] === ">=") return left >= right;
+        if (match[2] === "<=") return left <= right;
+        return false;
+      }
+      function condition(expression) {
+        return tpl(expression || "")
+          .split(/\\s+OR\\s+/i)
+          .filter(Boolean)
+          .some((part) => part.split(/\\s+AND\\s+/i).filter(Boolean).every(compare));
+      }
+      function math(expression) {
+        const rendered = tpl(expression || "");
+        const match = rendered.match(/^(-?\\d+(?:\\.\\d+)?)\\s*([\\+\\-\\*\\/])\\s*(-?\\d+(?:\\.\\d+)?)$/);
+        if (!match) return rendered;
+        const left = Number(match[1]);
+        const right = Number(match[3]);
+        if (match[2] === "+") return left + right;
+        if (match[2] === "-") return left - right;
+        if (match[2] === "*") return left * right;
+        return right === 0 ? 0 : left / right;
+      }
+      function letter(value) {
+        const match = String(value || "").match(/^(\\d+)\\s+of\\s+(.+)$/i);
+        return match ? String(match[2]).charAt(Math.max(0, Number(match[1]) - 1)) : "";
+      }
+      function replaceText(value) {
+        const parts = String(value || "").split("|").map((part) => part.trim());
+        return String(parts[0] || "").split(parts[1] || "").join(parts[2] || "");
+      }
+      function textCase(value) {
+        const match = String(value || "").match(/^(upper|lower)\\s+(.+)$/i);
+        return !match ? String(value || "") : match[1].toLowerCase() === "upper" ? match[2].toUpperCase() : match[2].toLowerCase();
       }
       function resolveUiValue(item, field) {
         const base = field === "src" ? item.src : item.text;
@@ -190,7 +242,6 @@ function projectToHtml(project) {
         stage.appendChild(el);
       }
       function render() {
-        app.querySelectorAll(".card").forEach((el) => el.remove());
         stage.querySelectorAll(".builder-item").forEach((el) => el.remove());
         Object.keys(context).forEach((k) => delete context[k]);
         topo.forEach((id) => {
@@ -200,17 +251,29 @@ function projectToHtml(project) {
           const key = node.data?.refKey || node.id;
           let produced = "";
           if (t === "input") produced = inputs[node.id] ?? "";
-          else if (t === "string" || t === "text" || t === "math" || t === "script") produced = tpl(node.data?.value || "");
+          else if (t === "math") produced = math(node.data?.value || "");
+          else if (t === "condition" || t === "compare") produced = condition(node.data?.value || "") ? "true" : "false";
+          else if (t === "random") produced = Math.floor(Math.random() * (Number(tpl(node.data?.value || "")) || 100));
+          else if (t === "random-range") {
+            const [min, max] = tpl(node.data?.value || "").split("..").map((part) => Number(part.trim()));
+            produced = Math.floor((Number.isFinite(min) ? min : 1) + Math.random() * ((Number.isFinite(max) ? max : 10) - (Number.isFinite(min) ? min : 1) + 1));
+          }
+          else if (t === "timer") produced = String(Math.round(performance.now() / 1000));
+          else if (t === "date-part") {
+            const part = String(node.data?.value || "year").toLowerCase();
+            const now = new Date();
+            produced = part.includes("month") ? now.getMonth() + 1 : part.includes("day") ? now.getDate() : part.includes("hour") ? now.getHours() : now.getFullYear();
+          }
+          else if (t === "text-length") produced = String(tpl(node.data?.value || "")).length;
+          else if (t === "text-letter") produced = letter(tpl(node.data?.value || ""));
+          else if (t === "text-replace") produced = replaceText(tpl(node.data?.value || ""));
+          else if (t === "text-case") produced = textCase(tpl(node.data?.value || ""));
+          else if (t === "rgb-hex") {
+            const channels = String(tpl(node.data?.value || "")).match(/\\d+/g)?.slice(0, 3).map((item) => Math.max(0, Math.min(255, Number(item)))) || [255, 0, 0];
+            produced = "#" + channels.map((item) => item.toString(16).padStart(2, "0")).join("");
+          }
           else produced = tpl(node.data?.value || "");
           context[key] = produced;
-          if (t === "text" || t === "image" || t === "system-info" || t === "particle" || t === "layout") {
-            const card = document.createElement("div");
-            card.className = "card";
-            card.innerHTML = "<div><strong>" + (node.data?.label || "Node") + "</strong></div>" +
-              "<div class='kind'>" + (node.data?.kind || "unknown") + "</div>" +
-              (t === "image" ? "<img src='" + produced + "' style='max-width:100%;max-height:180px;border:1px solid #333;margin-top:6px'/>" : "<div>" + produced + "</div>");
-            app.appendChild(card);
-          }
         });
         uiElements.forEach(renderUi);
       }
@@ -220,19 +283,29 @@ function projectToHtml(project) {
 </html>`;
 }
 
-function ensureTempExport(project) {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ixo-export-"));
-  fs.writeFileSync(
-    path.join(tempRoot, "project.ixo"),
-    JSON.stringify(project, null, 2),
-    "utf-8"
-  );
-  fs.writeFileSync(path.join(tempRoot, "preview.html"), projectToHtml(project), "utf-8");
-  return tempRoot;
+function ensureTempExport() {
+  return fs.mkdtempSync(path.join(os.tmpdir(), "ixo-export-"));
 }
 
-function getRuntimePlatformInfo() {
-  if (process.platform === "win32") {
+function getSecurityPreferencesPath() {
+  return path.join(app.getPath("userData"), SECURITY_PREFERENCES_FILE);
+}
+
+function readSecurityPreferences() {
+  try {
+    return JSON.parse(fs.readFileSync(getSecurityPreferencesPath(), "utf-8"));
+  } catch {
+    return {};
+  }
+}
+
+function writeSecurityPreferences(next) {
+  fs.mkdirSync(path.dirname(getSecurityPreferencesPath()), { recursive: true });
+  fs.writeFileSync(getSecurityPreferencesPath(), JSON.stringify(next, null, 2), "utf-8");
+}
+
+function getRuntimePlatformInfo(targetPlatform = process.platform) {
+  if (targetPlatform === "win32" || targetPlatform === "windows") {
     return {
       key: "windows",
       label: "Windows",
@@ -247,7 +320,7 @@ function getRuntimePlatformInfo() {
     };
   }
 
-  if (process.platform === "linux") {
+  if (targetPlatform === "linux") {
     return {
       key: "linux",
       label: "Linux",
@@ -261,7 +334,7 @@ function getRuntimePlatformInfo() {
     };
   }
 
-  if (process.platform === "darwin") {
+  if (targetPlatform === "darwin" || targetPlatform === "macos") {
     return {
       key: "macos",
       label: "macOS",
@@ -275,13 +348,14 @@ function getRuntimePlatformInfo() {
     };
   }
 
-  throw new Error(`Export runtime is not supported on ${process.platform}.`);
+  throw new Error(`Export runtime is not supported on ${targetPlatform}.`);
 }
 
 function getSecurityApprovals(webContentsId) {
   if (!securityApprovalsByWebContents.has(webContentsId)) {
     securityApprovalsByWebContents.set(webContentsId, {
       external: false,
+      httpsNode: false,
       script: false
     });
   }
@@ -291,8 +365,23 @@ function getSecurityApprovals(webContentsId) {
 function resetSecurityApprovals(webContentsId) {
   securityApprovalsByWebContents.set(webContentsId, {
     external: false,
+    httpsNode: false,
     script: false
   });
+}
+
+function getWatcherBucket(webContentsId) {
+  if (!fileWatchersByWebContents.has(webContentsId)) {
+    fileWatchersByWebContents.set(webContentsId, new Map());
+  }
+  return fileWatchersByWebContents.get(webContentsId);
+}
+
+function closeWatchers(webContentsId) {
+  const bucket = fileWatchersByWebContents.get(webContentsId);
+  if (!bucket) return;
+  bucket.forEach((watcher) => watcher.close());
+  fileWatchersByWebContents.delete(webContentsId);
 }
 
 function assertTrustedSender(event) {
@@ -426,9 +515,9 @@ async function fetchValidatedHttpsUrl(rawUrl, remainingRedirects = MAX_EXTERNAL_
   }
 }
 
-async function requestSecurityApproval(event, scope) {
+async function requestSecurityApproval(event, scope, context = {}) {
   assertTrustedSender(event);
-  if (!["external", "script"].includes(scope)) {
+  if (!["external", "httpsNode", "script"].includes(scope)) {
     throw new Error("Unknown security approval scope.");
   }
 
@@ -437,13 +526,19 @@ async function requestSecurityApproval(event, scope) {
     return { approved: true, alreadyApproved: true };
   }
 
-  const copy = scope === "external"
+  const copy = scope === "httpsNode"
     ? {
-        title: "External Action Approval",
-        message: "This project wants to use HTTPS requests or open an external browser.",
-        detail: "Allow external actions for this project session?"
+        title: "HTTPS Node Approval",
+        message: "https:// 통신 노드의 사용을 원하십니까?",
+        detail: "승인하면 이 프로젝트 세션에서 HTTPS 요청 노드를 연결하고 실행할 수 있습니다."
       }
-    : {
+    : scope === "external"
+      ? {
+          title: "External Action Approval",
+          message: "This project wants to use HTTPS requests or open an external browser.",
+          detail: "Allow external actions for this project session?"
+        }
+      : {
         title: "Script Execution Approval",
         message: "This project contains script nodes that can run custom code.",
         detail: "Allow script nodes for this project session?"
@@ -461,7 +556,43 @@ async function requestSecurityApproval(event, scope) {
   });
 
   approvals[scope] = result.response === 0;
+  if (scope === "httpsNode" && approvals[scope]) {
+    approvals.external = true;
+  }
   return { approved: approvals[scope], alreadyApproved: false };
+}
+
+async function ensureStartupHttpsPreference(parentWindow) {
+  const preferences = readSecurityPreferences();
+  if (typeof preferences.httpsNodesEnabled === "boolean") {
+    return preferences.httpsNodesEnabled;
+  }
+
+  if (!startupHttpsPreferencePromise) {
+    startupHttpsPreferencePromise = (async () => {
+      const result = await dialog.showMessageBox(parentWindow, {
+        type: "question",
+        title: "HTTPS Node Permission",
+        message: "https:// 통신 노드의 사용을 원하십니까?",
+        detail: "허용하면 프로젝트에서 HTTPS 요청 노드를 사용할 수 있습니다. 나중에 설정에서 언제든 켜거나 끌 수 있습니다.",
+        buttons: ["허용", "거부"],
+        defaultId: 0,
+        cancelId: 1,
+        noLink: true
+      });
+
+      const httpsNodesEnabled = result.response === 0;
+      writeSecurityPreferences({
+        ...preferences,
+        httpsNodesEnabled
+      });
+      return httpsNodesEnabled;
+    })().finally(() => {
+      startupHttpsPreferencePromise = null;
+    });
+  }
+
+  return startupHttpsPreferencePromise;
 }
 
 function getPackagedRuntimeRoot() {
@@ -489,81 +620,111 @@ function findRuntimeSource(platformInfo) {
   );
 }
 
-function writeExportReadme(targetDir, platformInfo) {
-  const launchLine = platformInfo.key === "windows"
-    ? `IXO-Engine-Windows\\${platformInfo.executableName}`
-    : platformInfo.key === "linux"
-      ? `chmod +x IXO-Engine-Linux/${platformInfo.executableName} && ./IXO-Engine-Linux/${platformInfo.executableName}`
-      : `open IXO-Engine-macOS/${platformInfo.executableName}`;
-
-  fs.writeFileSync(
-    path.join(targetDir, "README.txt"),
-    [
-      "IXO Engine Export",
-      "",
-      `Platform: ${platformInfo.label}`,
-      `Run: ${launchLine}`,
-      "",
-      "project.ixo contains the editable IXO project data.",
-      "preview.html is a browser-readable preview of the exported project.",
-      "The runtime folder contains a ready-to-run IXO Engine build for this platform."
-    ].join("\n"),
-    "utf-8"
-  );
+function sanitizeExportAppStem(rawName) {
+  const withoutExtension = String(rawName || "")
+    .trim()
+    .replace(/\.(exe|app)$/i, "");
+  const cleaned = withoutExtension
+    .replace(/[<>:"/\\|?*\u0000-\u001f]/g, "-")
+    .replace(/\s+/g, " ")
+    .replace(/[. ]+$/g, "")
+    .trim();
+  return cleaned || DEFAULT_EXPORT_APP_STEM;
 }
 
-function ensureRuntimeExport(project) {
-  const tempRoot = ensureTempExport(project);
-  const platformInfo = getRuntimePlatformInfo();
-  try {
-    const runtimeSource = findRuntimeSource(platformInfo);
-    const runtimeTarget = path.join(tempRoot, platformInfo.folderName);
-    const runtimeFs = app.isPackaged ? originalFs : fs;
-    const resourcesDir = process.platform === "darwin"
-      ? path.join("Contents", "Resources")
-      : "resources";
+function getExportExecutableName(platformInfo, appStem) {
+  if (platformInfo.key === "windows") {
+    return `${appStem}.exe`;
+  }
+  if (platformInfo.key === "macos") {
+    return `${appStem}.app`;
+  }
+  return appStem;
+}
 
-    // Electron's patched fs treats app.asar like a directory; original-fs keeps it as a file.
-    runtimeFs.cpSync(runtimeSource, runtimeTarget, { recursive: true });
+function normalizeExportOptions(options, platformInfo) {
+  const appStem = sanitizeExportAppStem(options?.appName);
+  return {
+    appStem,
+    executableName: getExportExecutableName(platformInfo, appStem),
+    icon: options?.icon || null
+  };
+}
 
-    const exportDir = path.join(
-      runtimeTarget,
-      resourcesDir,
-      "export"
+function copyRuntimeIntoExportRoot(runtimeSource, tempRoot, platformInfo, runtimeFs) {
+  if (platformInfo.key === "macos") {
+    const sourceAppBundle = runtimeSource.endsWith(".app")
+      ? runtimeSource
+      : path.join(runtimeSource, platformInfo.executableName);
+    const targetAppBundle = path.join(tempRoot, platformInfo.executableName);
+    runtimeFs.cpSync(sourceAppBundle, targetAppBundle, { recursive: true });
+    return targetAppBundle;
+  }
+
+  runtimeFs.readdirSync(runtimeSource).forEach((entry) => {
+    runtimeFs.cpSync(
+      path.join(runtimeSource, entry),
+      path.join(tempRoot, entry),
+      { recursive: true }
     );
-    fs.mkdirSync(exportDir, { recursive: true });
-    fs.writeFileSync(path.join(exportDir, "project.ixo"), JSON.stringify(project, null, 2), "utf-8");
-    fs.writeFileSync(path.join(exportDir, "preview.html"), projectToHtml(project), "utf-8");
-    writeExportReadme(tempRoot, platformInfo);
-
-    return tempRoot;
-  } catch (error) {
-    const cleanupFs = app.isPackaged ? originalFs : fs;
-    cleanupFs.rmSync(tempRoot, { recursive: true, force: true });
-    throw error;
-  }
+  });
+  return tempRoot;
 }
 
-function get7zipExecutablePath() {
+function decodeIconDataUrl(icon) {
+  if (!icon?.dataUrl || typeof icon.dataUrl !== "string") {
+    return null;
+  }
+
+  const match = icon.dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+  if (!match) {
+    throw new Error("Export icon data is invalid.");
+  }
+
+  return {
+    mime: match[1],
+    buffer: Buffer.from(match[2], "base64"),
+    originalName: String(icon.name || "")
+  };
+}
+
+async function materializeWindowsIcon(icon, tempRoot) {
+  const decoded = decodeIconDataUrl(icon);
+  if (!decoded) {
+    return null;
+  }
+
+  const extension = path.extname(decoded.originalName).toLowerCase();
+  if (extension === ".ico" || decoded.mime === "image/x-icon" || decoded.mime === "image/vnd.microsoft.icon") {
+    const iconPath = path.join(tempRoot, "export-icon.ico");
+    fs.writeFileSync(iconPath, decoded.buffer);
+    return iconPath;
+  }
+
+  if (extension === ".png" || decoded.mime === "image/png") {
+    const pngPath = path.join(tempRoot, "export-icon.png");
+    const icoPath = path.join(tempRoot, "export-icon.ico");
+    fs.writeFileSync(pngPath, decoded.buffer);
+    const { default: pngToIco } = await import("png-to-ico");
+    const icoBuffer = await pngToIco(pngPath);
+    fs.writeFileSync(icoPath, icoBuffer);
+    return icoPath;
+  }
+
+  throw new Error("Export icon must be a PNG or ICO file.");
+}
+
+function getRceditExecutablePath() {
+  const executableName = process.arch === "x64" ? "rcedit-x64.exe" : "rcedit.exe";
   if (!app.isPackaged) {
-    return path7za;
+    return path.join(__dirname, "..", "node_modules", "rcedit", "bin", executableName);
   }
-
-  const packagedSegment = `${path.sep}app.asar${path.sep}`;
-  const unpackedSegment = `${path.sep}app.asar.unpacked${path.sep}`;
-  const unpackedPath = path7za.includes(packagedSegment)
-    ? path7za.replace(packagedSegment, unpackedSegment)
-    : path7za;
-
-  return fs.existsSync(unpackedPath) ? unpackedPath : path7za;
+  return path.join(process.resourcesPath, "app.asar.unpacked", "node_modules", "rcedit", "bin", executableName);
 }
 
-function createArchiveWith7zip(sourceDir, outputFile, format) {
+function runRcedit(executablePath, args) {
   return new Promise((resolve, reject) => {
-    const child = spawn(get7zipExecutablePath(), ["a", `-t${format}`, outputFile, "."], {
-      cwd: sourceDir,
-      windowsHide: true
-    });
+    const child = spawn(executablePath, args, { windowsHide: true });
     let errorText = "";
     child.stderr.on("data", (chunk) => {
       errorText += String(chunk);
@@ -573,14 +734,94 @@ function createArchiveWith7zip(sourceDir, outputFile, format) {
       if (code === 0) {
         resolve();
       } else {
-        reject(new Error(errorText || `${format.toUpperCase()} archive failed.`));
+        reject(new Error(errorText || "Failed to customize exported executable."));
       }
     });
   });
 }
 
+async function customizeWindowsExecutable(executablePath, exportOptions, tempRoot) {
+  if (process.platform !== "win32") {
+    return;
+  }
+
+  const args = [
+    executablePath,
+    "--set-version-string",
+    "ProductName",
+    exportOptions.appStem,
+    "--set-version-string",
+    "FileDescription",
+    exportOptions.appStem,
+    "--set-version-string",
+    "InternalName",
+    exportOptions.executableName,
+    "--set-version-string",
+    "OriginalFilename",
+    exportOptions.executableName
+  ];
+
+  const iconPath = await materializeWindowsIcon(exportOptions.icon, tempRoot);
+  if (iconPath) {
+    args.push("--set-icon", iconPath);
+  }
+
+  await runRcedit(getRceditExecutablePath(), args);
+}
+
+async function renameExportExecutable(runtimeTarget, platformInfo, exportOptions, runtimeFs) {
+  if (platformInfo.key === "macos") {
+    const renamedBundlePath = path.join(path.dirname(runtimeTarget), exportOptions.executableName);
+    if (runtimeTarget !== renamedBundlePath) {
+      runtimeFs.renameSync(runtimeTarget, renamedBundlePath);
+    }
+    return renamedBundlePath;
+  }
+
+  const originalExecutablePath = path.join(runtimeTarget, platformInfo.executableName);
+  const renamedExecutablePath = path.join(runtimeTarget, exportOptions.executableName);
+
+  if (originalExecutablePath !== renamedExecutablePath) {
+    runtimeFs.renameSync(originalExecutablePath, renamedExecutablePath);
+  }
+
+  await customizeWindowsExecutable(renamedExecutablePath, exportOptions, runtimeTarget);
+  return runtimeTarget;
+}
+
+async function ensureRuntimeExport(project, options = {}) {
+  const tempRoot = ensureTempExport();
+  const platformInfo = getRuntimePlatformInfo(options?.targetPlatform);
+  try {
+    const exportOptions = normalizeExportOptions(options, platformInfo);
+    const runtimeSource = findRuntimeSource(platformInfo);
+    const runtimeFs = originalFs;
+    const resourcesDir = process.platform === "darwin"
+      ? path.join("Contents", "Resources")
+      : "resources";
+
+    // Electron's patched fs treats app.asar like a directory; original-fs keeps it as a file.
+    const copiedRuntimeTarget = copyRuntimeIntoExportRoot(runtimeSource, tempRoot, platformInfo, runtimeFs);
+    const runtimeTarget = await renameExportExecutable(copiedRuntimeTarget, platformInfo, exportOptions, runtimeFs);
+
+    const exportDir = path.join(
+      runtimeTarget,
+      resourcesDir,
+      "export"
+    );
+    fs.mkdirSync(exportDir, { recursive: true });
+    fs.writeFileSync(path.join(exportDir, "runtime.html"), projectToHtml(project, exportOptions.appStem), "utf-8");
+
+    return tempRoot;
+  } catch (error) {
+    const cleanupFs = originalFs;
+    cleanupFs.rmSync(tempRoot, { recursive: true, force: true });
+    throw error;
+  }
+}
+
 async function removeDirectoryWithRetry(targetDir) {
-  const cleanupFs = app.isPackaged ? originalFs : fs;
+  const cleanupFs = originalFs;
   for (let attempt = 0; attempt < 5; attempt += 1) {
     try {
       cleanupFs.rmSync(targetDir, { recursive: true, force: true });
@@ -595,20 +836,80 @@ async function removeDirectoryWithRetry(targetDir) {
   }
 }
 
-function createZip(sourceDir, outputFile) {
-  return createArchiveWith7zip(sourceDir, outputFile, "zip");
+function normalizeOutputDirectory(dirPath) {
+  return String(dirPath || "").trim();
 }
 
-function create7z(sourceDir, outputFile) {
-  return createArchiveWith7zip(sourceDir, outputFile, "7z");
+function getDefaultExportDirectoryPath(appName) {
+  const appStem = sanitizeExportAppStem(appName);
+  return path.join(app.getPath("downloads"), appStem);
 }
 
-function normalizeArchivePath(filePath) {
-  const lower = filePath.toLowerCase();
-  if (lower.endsWith(".zip") || lower.endsWith(".7z")) {
-    return filePath;
+const EXPORT_TARGETS = {
+  "windows-portable": {
+    platform: "windows",
+    folderSuffix: "windows-portable",
+    kind: "runtime-folder"
+  },
+  "mac-app": {
+    platform: "macos",
+    folderSuffix: "macos-app",
+    kind: "runtime-folder"
+  },
+  "linux-bundle": {
+    platform: "linux",
+    folderSuffix: "linux-bundle",
+    kind: "runtime-folder"
   }
-  return `${filePath}.zip`;
+};
+
+function validateExportTargets(targets) {
+  if (!Array.isArray(targets) || targets.length === 0) {
+    throw new Error("Select at least one export format.");
+  }
+
+  const unsupported = targets.filter((target) => !EXPORT_TARGETS[target]);
+  if (unsupported.length) {
+    throw new Error(`These targets need a separate packaging pipeline: ${unsupported.join(", ")}`);
+  }
+
+  return [...new Set(targets)];
+}
+
+function getExportCapabilities() {
+  return Object.entries(EXPORT_TARGETS).map(([key, target]) => {
+    try {
+      const platformInfo = getRuntimePlatformInfo(target.platform);
+      findRuntimeSource(platformInfo);
+      return { key, available: true };
+    } catch (error) {
+      return {
+        key,
+        available: false,
+        reason: String(error.message || error)
+      };
+    }
+  });
+}
+
+async function exportRuntimeTarget(project, options, targetKey, outputDir) {
+  const target = EXPORT_TARGETS[targetKey];
+  const tempDir = await ensureRuntimeExport(project, {
+    ...options,
+    targetPlatform: target.platform
+  });
+  try {
+    const destination = path.join(
+      outputDir,
+      `${sanitizeExportAppStem(options?.appName)}-${target.folderSuffix}`
+    );
+    originalFs.rmSync(destination, { recursive: true, force: true });
+    originalFs.mkdirSync(path.dirname(destination), { recursive: true });
+    originalFs.cpSync(tempDir, destination, { recursive: true });
+    return destination;
+  } finally {
+    await removeDirectoryWithRetry(tempDir);
+  }
 }
 
 function createMainWindow() {
@@ -625,11 +926,16 @@ function createMainWindow() {
     }
   });
 
-  trustedWebContentsIds.add(mainWindow.webContents.id);
-  resetSecurityApprovals(mainWindow.webContents.id);
+  const webContentsId = mainWindow.webContents.id;
+  trustedWebContentsIds.add(webContentsId);
+  resetSecurityApprovals(webContentsId);
   mainWindow.on("closed", () => {
-    trustedWebContentsIds.delete(mainWindow.webContents.id);
-    securityApprovalsByWebContents.delete(mainWindow.webContents.id);
+    trustedWebContentsIds.delete(webContentsId);
+    securityApprovalsByWebContents.delete(webContentsId);
+    closeWatchers(webContentsId);
+    if (process.platform !== "darwin") {
+      app.quit();
+    }
   });
 
   // 2. 상단 메뉴바(File, Edit 등)를 완전히 제거
@@ -681,9 +987,9 @@ function createMainWindow() {
     return;
   }
 
-  const exportedPreviewPath = path.join(process.resourcesPath, "export", "preview.html");
-  if (fs.existsSync(exportedPreviewPath)) {
-    mainWindow.loadFile(exportedPreviewPath);
+  const exportedRuntimePath = path.join(process.resourcesPath, "export", "runtime.html");
+  if (fs.existsSync(exportedRuntimePath)) {
+    mainWindow.loadFile(exportedRuntimePath);
     return;
   }
 
@@ -718,7 +1024,71 @@ app.whenReady().then(() => {
     return downloadReleaseAsset(asset);
   });
 
-  ipcMain.handle("security:requestApproval", async (event, scope) => requestSecurityApproval(event, scope));
+  ipcMain.handle("security:requestApproval", async (event, scope, context) => requestSecurityApproval(event, scope, context));
+
+  ipcMain.handle("security:getPreferences", (event) => {
+    assertTrustedSender(event);
+    return readSecurityPreferences();
+  });
+
+  ipcMain.handle("security:setHttpsNodesEnabled", (event, enabled) => {
+    assertTrustedSender(event);
+    const next = {
+      ...readSecurityPreferences(),
+      httpsNodesEnabled: Boolean(enabled)
+    };
+    writeSecurityPreferences(next);
+    return next;
+  });
+
+  ipcMain.handle("security:promptStartupHttpsPreference", async (event) => {
+    assertTrustedSender(event);
+    const parentWindow = BrowserWindow.fromWebContents(event.sender);
+    return {
+      httpsNodesEnabled: await ensureStartupHttpsPreference(parentWindow)
+    };
+  });
+
+  ipcMain.handle("fs:watchPath", async (event, rawPath) => {
+    assertTrustedSender(event);
+    const requestedPath = String(rawPath || "").trim();
+    if (!requestedPath) {
+      throw new Error("A file or folder path is required.");
+    }
+
+    const targetPath = path.resolve(requestedPath);
+    if (!fs.existsSync(targetPath)) {
+      throw new Error("The selected file or folder does not exist.");
+    }
+
+    const bucket = getWatcherBucket(event.sender.id);
+    if (bucket.has(targetPath)) {
+      return { ok: true, path: targetPath, alreadyWatching: true };
+    }
+
+    const watcher = fs.watch(targetPath, { persistent: false }, (eventType, filename) => {
+      if (!event.sender.isDestroyed()) {
+        event.sender.send("fs:watchEvent", {
+          path: targetPath,
+          requestedPath,
+          eventType,
+          filename: filename ? String(filename) : "",
+          at: Date.now()
+        });
+      }
+    });
+    bucket.set(targetPath, watcher);
+    return { ok: true, path: targetPath, alreadyWatching: false };
+  });
+
+  ipcMain.handle("fs:unwatchPath", async (event, rawPath) => {
+    assertTrustedSender(event);
+    const targetPath = path.resolve(String(rawPath || "").trim());
+    const bucket = getWatcherBucket(event.sender.id);
+    bucket.get(targetPath)?.close();
+    bucket.delete(targetPath);
+    return { ok: true, path: targetPath };
+  });
 
   ipcMain.handle("security:resetApprovals", async (event) => {
     assertTrustedSender(event);
@@ -760,39 +1130,43 @@ app.whenReady().then(() => {
     return { ok: true, path: target.filePaths[0], data };
   });
 
-  ipcMain.handle("project:export", async (event, payload) => {
+  ipcMain.handle("project:chooseExportPath", async (event, options = {}) => {
     assertTrustedSender(event);
-    let tempDir = null;
+    const target = await dialog.showOpenDialog({
+      title: "Choose Export Folder",
+      defaultPath: getDefaultExportDirectoryPath(options?.appName),
+      properties: ["openDirectory", "createDirectory"]
+    });
+    if (target.canceled || !target.filePaths[0]) {
+      return { ok: false, canceled: true };
+    }
+    return { ok: true, path: normalizeOutputDirectory(target.filePaths[0]) };
+  });
+
+  ipcMain.handle("project:getExportCapabilities", (event) => {
+    assertTrustedSender(event);
+    return getExportCapabilities();
+  });
+
+  ipcMain.handle("project:export", async (event, payload, options = {}) => {
+    assertTrustedSender(event);
     try {
-      const target = await dialog.showSaveDialog({
-        title: "Export Project",
-        filters: [
-          { name: "Zip Archive", extensions: ["zip"] },
-          { name: "7z Archive", extensions: ["7z"] }
-        ],
-        defaultPath: "ixo-export.zip"
-      });
-      if (target.canceled || !target.filePath) {
-        return { ok: false, canceled: true };
+      const outputDir = normalizeOutputDirectory(options?.outputDir);
+      if (!outputDir) {
+        throw new Error("Choose an export folder before exporting.");
+      }
+      const targets = validateExportTargets(options?.targets);
+      originalFs.mkdirSync(outputDir, { recursive: true });
+
+      const outputs = [];
+      for (const target of targets) {
+        outputs.push(await exportRuntimeTarget(payload, options, target, outputDir));
       }
 
-      const outputPath = normalizeArchivePath(target.filePath);
-      tempDir = ensureRuntimeExport(payload);
-
-      if (outputPath.toLowerCase().endsWith(".7z")) {
-        await create7z(tempDir, outputPath);
-      } else {
-        await createZip(tempDir, outputPath);
-      }
-
-      shell.showItemInFolder(outputPath);
-      return { ok: true, path: outputPath };
+      shell.showItemInFolder(outputs[0]);
+      return { ok: true, path: outputDir, outputs };
     } catch (error) {
       return { ok: false, error: error.message || "Export failed." };
-    } finally {
-      if (tempDir) {
-        await removeDirectoryWithRetry(tempDir);
-      }
     }
   });
 

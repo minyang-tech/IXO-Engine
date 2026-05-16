@@ -96,6 +96,62 @@ const PREVIEW_DEVICE_OPTIONS = {
   mobile: { label: "Mobile", width: "390px" }
 };
 
+const EXPORT_TARGET_OPTIONS = [
+  {
+    key: "windows-portable",
+    label: ".exe",
+    platform: "PC, Windows",
+    detail: "즉시 실행형",
+    supported: true
+  },
+  {
+    key: "windows-installer",
+    label: ".exe",
+    platform: "PC, Windows",
+    detail: "설치형",
+    supported: false,
+    note: "설치형은 별도 패키징 단계가 필요한 배포 산출물입니다."
+  },
+  {
+    key: "windows-msi",
+    label: ".msi",
+    platform: "PC, Windows",
+    detail: "설치 패키지",
+    supported: false,
+    note: "MSI는 별도 패키징 단계가 필요한 배포 산출물입니다."
+  },
+  {
+    key: "mac-app",
+    label: ".app",
+    platform: "PC, Mac",
+    detail: "앱 번들",
+    supported: true
+  },
+  {
+    key: "android-apk",
+    label: ".apk",
+    platform: "Mobile, Android",
+    detail: "모바일 앱",
+    supported: false,
+    note: "별도 Android 앱 빌드 체인이 필요합니다."
+  },
+  {
+    key: "ios-ipa",
+    label: ".ipa",
+    platform: "Mobile, iPhone / iPad",
+    detail: "모바일 앱",
+    supported: false,
+    note: "별도 iOS 앱 빌드 체인이 필요합니다."
+  },
+  {
+    key: "linux-bundle",
+    label: "Linux bundle",
+    platform: "PC, Linux",
+    detail: "실행 파일 + 필요 리소스",
+    supported: true
+  }
+];
+
 const UI_TEXT = {
   ko: {
     preview: "Preview",
@@ -107,6 +163,8 @@ const UI_TEXT = {
     theme: "\uD14C\uB9C8",
     templates: "\uD504\uB85C\uC81D\uD2B8 \uD15C\uD50C\uB9BF",
     responsivePreview: "\uBC18\uC751\uD615 \uBBF8\uB9AC\uBCF4\uAE30",
+    httpsNodes: "HTTPS \uB178\uB4DC",
+    httpsNodesDescription: "\uD5C8\uC6A9\uD558\uBA74 \uD504\uB85C\uC81D\uD2B8\uC5D0\uC11C HTTPS \uC694\uCCAD \uB178\uB4DC\uB97C \uC0AC\uC6A9\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4.",
     docs: "Docs",
     file: "File",
     deleteZone: "Delete Zone",
@@ -148,6 +206,8 @@ const UI_TEXT = {
     theme: "Theme",
     templates: "Starter Templates",
     responsivePreview: "Responsive Preview",
+    httpsNodes: "HTTPS Nodes",
+    httpsNodesDescription: "Allow projects to use HTTPS request nodes.",
     docs: "Docs",
     file: "File",
     deleteZone: "Delete Zone",
@@ -189,6 +249,8 @@ const UI_TEXT = {
     theme: "\u4E3B\u9898",
     templates: "\u9879\u76EE\u6A21\u677F",
     responsivePreview: "\u54CD\u5E94\u5F0F\u9884\u89C8",
+    httpsNodes: "HTTPS \u8282\u70B9",
+    httpsNodesDescription: "\u5141\u8BB8\u9879\u76EE\u4F7F\u7528 HTTPS \u8BF7\u6C42\u8282\u70B9\u3002",
     docs: "\u6587\u6863",
     file: "\u6587\u4EF6",
     deleteZone: "\u5220\u9664\u533A\u57DF",
@@ -230,6 +292,8 @@ const UI_TEXT = {
     theme: "\u30C6\u30FC\u30DE",
     templates: "\u30B9\u30BF\u30FC\u30BF\u30FC\u30C6\u30F3\u30D7\u30EC\u30FC\u30C8",
     responsivePreview: "\u30EC\u30B9\u30DD\u30F3\u30B7\u30D6\u78BA\u8A8D",
+    httpsNodes: "HTTPS \u30CE\u30FC\u30C9",
+    httpsNodesDescription: "\u30D7\u30ED\u30B8\u30A7\u30AF\u30C8\u3067 HTTPS \u30EA\u30AF\u30A8\u30B9\u30C8\u30CE\u30FC\u30C9\u3092\u4F7F\u7528\u3067\u304D\u308B\u3088\u3046\u306B\u3057\u307E\u3059\u3002",
     docs: "Docs",
     file: "File",
     deleteZone: "Delete Zone",
@@ -826,13 +890,22 @@ function normalizeUiElements(items = []) {
     radius: Number(item.radius ?? 14),
     align: item.align ?? "left",
     actionType: item.actionType ?? "none",
-    actionValue: item.actionValue ?? ""
+    actionValue: item.actionValue ?? "",
+    linkedNodeId: item.linkedNodeId ?? ""
   }));
 }
 
 function applyNodeSelectionState(nodes, selectedIds) {
   const selectedSet = new Set(selectedIds);
   return nodes.map((node) => ({ ...node, selected: selectedSet.has(node.id) }));
+}
+
+function hasPersistentNodeChange(changes = []) {
+  return changes.some((change) => ["position", "remove", "add", "reset"].includes(change.type));
+}
+
+function hasPersistentEdgeChange(changes = []) {
+  return changes.some((change) => ["remove", "add", "reset"].includes(change.type));
 }
 
 // [UI 요소 생성] Canvas Builder에서 새 요소를 추가할 때 기본값을 제공합니다.
@@ -855,7 +928,8 @@ function createUiElement(kind, bindingKey = "", accentColor = ACCENT) {
       radius: 18,
       align: "center",
       actionType: "none",
-      actionValue: ""
+      actionValue: "",
+      linkedNodeId: ""
     };
   }
 
@@ -876,7 +950,8 @@ function createUiElement(kind, bindingKey = "", accentColor = ACCENT) {
       radius: 14,
       align: "center",
       actionType: "open-url",
-      actionValue: "https://minyangtech.n-e.kr/docs/ixo/index"
+      actionValue: "https://minyangtech.n-e.kr/docs/ixo/index",
+      linkedNodeId: ""
     };
   }
 
@@ -897,7 +972,8 @@ function createUiElement(kind, bindingKey = "", accentColor = ACCENT) {
       radius: 18,
       align: "left",
       actionType: "none",
-      actionValue: ""
+      actionValue: "",
+      linkedNodeId: ""
     };
   }
 
@@ -917,8 +993,16 @@ function createUiElement(kind, bindingKey = "", accentColor = ACCENT) {
     radius: 0,
     align: "left",
     actionType: "none",
-    actionValue: ""
+    actionValue: "",
+    linkedNodeId: ""
   };
+}
+
+function getUiNodeTypeFromKind(kind) {
+  if (kind === "image") return "ui-image";
+  if (kind === "button") return "ui-button";
+  if (kind === "container") return "ui-container";
+  return "ui-text";
 }
 
 // [템플릿] 노드 값이나 UI 텍스트에서 {{refKey}} 문법을 치환합니다.
@@ -1198,7 +1282,7 @@ function getDefaultNodeValue(nodeType, label) {
 }
 
 // [런타임] 노드 그래프를 실제로 계산하고 실행 하이라이트 및 로그 이벤트를 생성합니다.
-function runPipeline(nodes, edges, inputValues, paused, allowScripts = false) {
+function runPipeline(nodes, edges, inputValues, paused, allowScripts = false, interactionState = {}) {
   const nodeMap = Object.fromEntries(nodes.map((node) => [node.id, node]));
   const outgoing = {};
   const context = {};
@@ -1209,6 +1293,7 @@ function runPipeline(nodes, edges, inputValues, paused, allowScripts = false) {
   const activeNodeIds = [];
   const liveValues = {};
   const events = [];
+  const runtimeState = createRuntimeState();
 
   nodes.forEach((node) => {
     outgoing[node.id] = [];
@@ -1271,8 +1356,25 @@ function runPipeline(nodes, edges, inputValues, paused, allowScripts = false) {
       const pass = evaluateConditionChain(value, context);
       produced = pass ? "true" : "false";
       events.push(makeLog("trace", node.data?.label || "Condition", `조건 분기 결과: ${produced}`));
-    } else if (type === "compare" || type === "merge-data" || type === "constant" || type === "variable" || type === "storage") {
+    } else if (type === "compare") {
+      produced = boolText(evaluateConditionChain(value, context));
+    } else if (type === "merge-data" || type === "constant" || type === "variable") {
       produced = applyTemplate(value, context);
+    } else if (type === "storage") {
+      const rendered = applyTemplate(value, context);
+      const assignment = rendered.match(/^([^=]+)=(.*)$/);
+      try {
+        if (assignment) {
+          const storageKey = assignment[1].trim();
+          const storageValue = assignment[2].trim();
+          window.localStorage?.setItem(storageKey, storageValue);
+          produced = storageValue;
+        } else {
+          produced = window.localStorage?.getItem(rendered.trim()) ?? "";
+        }
+      } catch {
+        produced = "";
+      }
     } else if (type === "random") {
       produced = Math.floor(Math.random() * ((Number(applyTemplate(value, context)) || 100)));
     } else if (type === "image" || type === "video-player") {
@@ -1282,10 +1384,207 @@ function runPipeline(nodes, edges, inputValues, paused, allowScripts = false) {
       produced = applyTemplate(value, context);
       if (produced) {
         outputSounds.push({ id: node.id, src: String(produced), label: node.data?.label || "Sound" });
+        runtimeState.audio.activeSounds.push({
+          id: node.id,
+          src: String(produced),
+          waitForEnd: type === "sound-play-wait",
+          background: type === "bgm-play"
+        });
       }
     } else if (type === "system-info") {
       produced = navigator.userAgent;
       outputTexts.push({ id: node.id, text: String(produced), label: node.data?.label || "System Info" });
+    } else if (type === "loop" || type === "repeat-times") {
+      produced = Math.max(0, Math.floor(toFiniteNumber(applyTemplate(value, context), type === "loop" ? 1 : 0)));
+      events.push(makeLog("trace", node.data?.label || "Loop", `반복 횟수: ${produced}`));
+    } else if (type === "wait") {
+      produced = Math.max(0, toFiniteNumber(applyTemplate(value, context), 0));
+      events.push(makeLog("trace", node.data?.label || "Wait", `대기 시간: ${produced}ms`));
+    } else if (type === "signal-send") {
+      produced = applyTemplate(value, context);
+      runtimeState.signals.add(String(produced));
+    } else if (type === "signal-listen") {
+      produced = boolText(runtimeState.signals.has(String(applyTemplate(value, context))));
+    } else if (type === "scene-start") {
+      produced = boolText(String(applyTemplate(value, context) || "main") === runtimeState.scene.currentScene);
+    } else if (type === "forever") {
+      produced = "true";
+    } else if (type === "break-loop") {
+      runtimeState.control.breakRequested = true;
+      produced = "break";
+    } else if (type === "skip-cycle") {
+      runtimeState.control.skipRequested = true;
+      produced = "continue";
+    } else if (type === "wait-until") {
+      produced = boolText(evaluateConditionChain(value, context));
+    } else if (type === "stop-flow") {
+      runtimeState.control.stopRequested = true;
+      produced = "stop";
+    } else if (type === "restart-flow") {
+      runtimeState.control.restartRequested = true;
+      produced = "restart";
+    } else if (type === "clone-spawn") {
+      produced = applyTemplate(value, context) || "actor";
+      runtimeState.scene.clones.push({
+        id: `${produced}-${runtimeState.scene.clones.length + 1}`,
+        source: produced
+      });
+    } else if (type === "clone-remove") {
+      const target = String(applyTemplate(value, context));
+      const index = runtimeState.scene.clones.findIndex((clone) => clone.id === target || clone.source === target);
+      if (index >= 0) {
+        runtimeState.scene.clones.splice(index, 1);
+      }
+      produced = target;
+    } else if (type === "move-steps") {
+      const actor = getDefaultActor(runtimeState);
+      const distance = toFiniteNumber(applyTemplate(value, context), 0);
+      const radians = (actor.heading * Math.PI) / 180;
+      actor.x += Math.cos(radians) * distance;
+      actor.y += Math.sin(radians) * distance;
+      produced = `${Math.round(actor.x)},${Math.round(actor.y)}`;
+    } else if (type === "edge-bounce") {
+      const actor = getDefaultActor(runtimeState);
+      const bounced = actor.x < 0 || actor.y < 0 || actor.x > 100 || actor.y > 100;
+      if (bounced) actor.heading = (actor.heading + 180) % 360;
+      actor.x = Math.max(0, Math.min(100, actor.x));
+      actor.y = Math.max(0, Math.min(100, actor.y));
+      produced = boolText(bounced);
+    } else if (type === "change-x") {
+      const actor = getDefaultActor(runtimeState);
+      actor.x += toFiniteNumber(applyTemplate(value, context), 0);
+      produced = actor.x;
+    } else if (type === "change-y") {
+      const actor = getDefaultActor(runtimeState);
+      actor.y += toFiniteNumber(applyTemplate(value, context), 0);
+      produced = actor.y;
+    } else if (type === "set-x") {
+      const actor = getDefaultActor(runtimeState);
+      actor.x = toFiniteNumber(applyTemplate(value, context), actor.x);
+      produced = actor.x;
+    } else if (type === "set-y") {
+      const actor = getDefaultActor(runtimeState);
+      actor.y = toFiniteNumber(applyTemplate(value, context), actor.y);
+      produced = actor.y;
+    } else if (type === "go-to-point" || type === "glide-point") {
+      const actor = getDefaultActor(runtimeState);
+      const point = parsePointValue(applyTemplate(value, context), actor);
+      actor.x = point.x;
+      actor.y = point.y;
+      produced = `${actor.x},${actor.y}`;
+    } else if (type === "turn-angle") {
+      const actor = getDefaultActor(runtimeState);
+      actor.heading = (actor.heading + toFiniteNumber(applyTemplate(value, context), 0)) % 360;
+      produced = actor.heading;
+    } else if (type === "set-heading") {
+      const actor = getDefaultActor(runtimeState);
+      actor.heading = toFiniteNumber(applyTemplate(value, context), actor.heading) % 360;
+      produced = actor.heading;
+    } else if (type === "face-target") {
+      const actor = getDefaultActor(runtimeState);
+      if (String(value).toLowerCase().includes("pointer")) {
+        const pointerX = toFiniteNumber(interactionState.pointerX, actor.x);
+        const pointerY = toFiniteNumber(interactionState.pointerY, actor.y);
+        actor.heading = (Math.atan2(pointerY - actor.y, pointerX - actor.x) * 180) / Math.PI;
+      }
+      produced = actor.heading;
+    } else if (type === "show-actor") {
+      const actor = getDefaultActor(runtimeState);
+      actor.visible = true;
+      produced = "visible";
+    } else if (type === "hide-actor") {
+      const actor = getDefaultActor(runtimeState);
+      actor.visible = false;
+      produced = "hidden";
+    } else if (type === "speech-bubble") {
+      const actor = getDefaultActor(runtimeState);
+      actor.speech = applyTemplate(value, context);
+      produced = actor.speech;
+    } else if (type === "clear-speech") {
+      const actor = getDefaultActor(runtimeState);
+      actor.speech = "";
+      produced = "";
+    } else if (type === "costume-switch") {
+      const actor = getDefaultActor(runtimeState);
+      actor.costume = applyTemplate(value, context) || "default";
+      produced = actor.costume;
+    } else if (type === "visual-effect") {
+      const actor = getDefaultActor(runtimeState);
+      const [effect = "brightness", amount = "0"] = String(applyTemplate(value, context)).split(/\s+/);
+      actor.effects[effect] = toFiniteNumber(amount, 0);
+      produced = `${effect}:${actor.effects[effect]}`;
+    } else if (type === "size-change") {
+      const actor = getDefaultActor(runtimeState);
+      actor.size += toFiniteNumber(applyTemplate(value, context), 0);
+      produced = actor.size;
+    } else if (type === "layer-shift") {
+      const actor = getDefaultActor(runtimeState);
+      const rendered = String(applyTemplate(value, context)).toLowerCase();
+      actor.layer += rendered.includes("back") ? -1 : 1;
+      produced = actor.layer;
+    } else if (type === "flip-horizontal") {
+      const actor = getDefaultActor(runtimeState);
+      actor.flipped = !actor.flipped;
+      produced = boolText(actor.flipped);
+    } else if (type === "pen-down") {
+      runtimeState.pen.down = true;
+      produced = "down";
+    } else if (type === "pen-up") {
+      runtimeState.pen.down = false;
+      produced = "up";
+    } else if (type === "pen-color") {
+      runtimeState.pen.color = normalizeHexColor(applyTemplate(value, context));
+      produced = runtimeState.pen.color;
+    } else if (type === "pen-size") {
+      runtimeState.pen.size = Math.max(1, toFiniteNumber(applyTemplate(value, context), runtimeState.pen.size));
+      produced = runtimeState.pen.size;
+    } else if (type === "fill-start") {
+      runtimeState.pen.fill = normalizeHexColor(applyTemplate(value, context));
+      produced = runtimeState.pen.fill;
+    } else if (type === "fill-stop") {
+      runtimeState.pen.fill = null;
+      produced = "fill-end";
+    } else if (type === "clear-drawing") {
+      runtimeState.pen.strokes = [];
+      produced = "clear";
+    } else if (type === "sound-stop") {
+      runtimeState.audio.activeSounds = [];
+      produced = "all";
+    } else if (type === "volume-change") {
+      runtimeState.audio.volume = Math.max(0, Math.min(100, runtimeState.audio.volume + toFiniteNumber(applyTemplate(value, context), 0)));
+      produced = runtimeState.audio.volume;
+    } else if (type === "volume-set") {
+      runtimeState.audio.volume = Math.max(0, Math.min(100, toFiniteNumber(applyTemplate(value, context), runtimeState.audio.volume)));
+      produced = runtimeState.audio.volume;
+    } else if (type === "tempo-change") {
+      runtimeState.audio.tempo = Math.max(0.1, runtimeState.audio.tempo + toFiniteNumber(applyTemplate(value, context), 0));
+      produced = runtimeState.audio.tempo;
+    } else if (type === "tempo-set") {
+      runtimeState.audio.tempo = Math.max(0.1, toFiniteNumber(applyTemplate(value, context), runtimeState.audio.tempo));
+      produced = runtimeState.audio.tempo;
+    } else if (type === "pointer-down") {
+      produced = boolText(Boolean(interactionState.pointerDown));
+    } else if (type === "trigger") {
+      produced = boolText((interactionState.clickedIds || []).length > 0);
+    } else if (type === "object-clicked") {
+      produced = boolText((interactionState.clickedIds || []).includes(String(applyTemplate(value, context))));
+    } else if (type === "key-held") {
+      produced = boolText((interactionState.keysDown || []).includes(String(applyTemplate(value, context)).toLowerCase()));
+    } else if (type === "pointer-over") {
+      produced = boolText(interactionState.pointerOverId === String(applyTemplate(value, context)));
+    } else if (type === "number-check") {
+      const rendered = applyTemplate(value, context).replace(/\s+is\s+number$/i, "");
+      produced = boolText(rendered.trim() !== "" && !Number.isNaN(Number(rendered)));
+    } else if (type === "logic-and") {
+      const [left = "", right = ""] = applyTemplate(value, context).split(/\s+AND\s+/i);
+      produced = boolText(asBoolean(left) && asBoolean(right));
+    } else if (type === "logic-or") {
+      const [left = "", right = ""] = applyTemplate(value, context).split(/\s+OR\s+/i);
+      produced = boolText(asBoolean(left) || asBoolean(right));
+    } else if (type === "logic-not") {
+      produced = boolText(!asBoolean(applyTemplate(value, context)));
+    } else if (type === "touch-screen") {
+      produced = boolText((navigator.maxTouchPoints || 0) > 0);
     } else if (type === "random-range") {
       const [min, max] = String(applyTemplate(value, context)).split("..").map((item) => Number(item.trim()));
       produced = Math.floor((Number.isFinite(min) ? min : 1) + Math.random() * ((Number.isFinite(max) ? max : 10) - (Number.isFinite(min) ? min : 1) + 1));
@@ -1297,17 +1596,23 @@ function runPipeline(nodes, edges, inputValues, paused, allowScripts = false) {
       produced = part.includes("month") ? now.getMonth() + 1 : part.includes("day") ? now.getDate() : part.includes("hour") ? now.getHours() : now.getFullYear();
     } else if (type === "text-length") {
       produced = String(applyTemplate(value, context)).length;
+    } else if (type === "text-letter") {
+      produced = letterFromExpression(applyTemplate(value, context));
+    } else if (type === "text-replace") {
+      produced = replaceTextExpression(applyTemplate(value, context));
+    } else if (type === "text-case") {
+      produced = transformCaseExpression(applyTemplate(value, context));
     } else if (type === "rgb-hex") {
       const channels = String(applyTemplate(value, context)).match(/\d+/g)?.slice(0, 3).map((item) => Math.max(0, Math.min(255, Number(item)))) || [255, 0, 0];
       produced = `#${channels.map((item) => item.toString(16).padStart(2, "0")).join("")}`;
-    } else if (type === "particle" || type === "file-watcher" || type === "loop" || type === "wait" || type === "switch" || type === "browser" || type === "http") {
+    } else if (type === "hex-channel") {
+      produced = getHexChannel(applyTemplate(value, context));
+    } else if (type === "file-watcher") {
+      const watchPath = applyTemplate(value, context);
+      const watchEvent = interactionState.fileWatchEvents?.[watchPath];
+      produced = watchEvent ? `${watchEvent.eventType}:${watchEvent.filename || ""}` : "";
+    } else if (type === "particle" || type === "switch" || type === "browser" || type === "http") {
       produced = applyTemplate(value, context);
-    } else if (
-      type.startsWith("signal-") ||
-      ["scene-start", "repeat-times", "forever", "break-loop", "skip-cycle", "wait-until", "stop-flow", "restart-flow", "clone-spawn", "clone-remove", "move-steps", "edge-bounce", "change-x", "change-y", "set-x", "set-y", "go-to-point", "glide-point", "turn-angle", "set-heading", "face-target", "show-actor", "hide-actor", "speech-bubble", "clear-speech", "costume-switch", "visual-effect", "size-change", "layer-shift", "flip-horizontal", "pen-down", "pen-up", "pen-color", "pen-size", "fill-start", "fill-stop", "clear-drawing", "sound-stop", "volume-change", "volume-set", "tempo-change", "tempo-set", "pointer-down", "object-clicked", "key-held", "pointer-over", "number-check", "logic-and", "logic-or", "logic-not", "touch-screen", "text-letter", "text-replace", "text-case", "hex-channel"].includes(type)
-    ) {
-      produced = applyTemplate(value, context);
-      outputTexts.push({ id: node.id, text: String(produced || node.data?.label || ""), label: node.data?.label || "Node" });
     } else {
       produced = applyTemplate(value, context);
     }
@@ -1340,6 +1645,17 @@ function runPipeline(nodes, edges, inputValues, paused, allowScripts = false) {
       return;
     }
 
+    if (
+      (type === "signal-listen" || type === "scene-start" || type === "wait-until") &&
+      String(produced) !== "true"
+    ) {
+      return;
+    }
+
+    if (type === "stop-flow") {
+      return;
+    }
+
     (outgoing[nodeId] || []).forEach((edge) => activeEdgeIds.push(edge.id));
   });
 
@@ -1353,7 +1669,8 @@ function runPipeline(nodes, edges, inputValues, paused, allowScripts = false) {
     focusedNodeId: activeNodeIds[activeNodeIds.length - 1] || null,
     topo,
     liveValues,
-    events
+    events,
+    runtimeState
   };
 }
 
@@ -1376,7 +1693,8 @@ const BuilderElement = memo(function BuilderElement({
   onSelect,
   onPointerDown,
   onPointerUp,
-  onAction
+  onAction,
+  onInteraction
 }) {
   const textValue = resolveUiValue(element, runtime, "text");
   const imageValue = resolveUiValue(element, runtime, "src");
@@ -1397,6 +1715,7 @@ const BuilderElement = memo(function BuilderElement({
   const handleClick = async (event) => {
     event.stopPropagation();
     onSelect?.(element.id);
+    onInteraction?.("click", element.id);
     if (!editable && element.kind === "button" && element.actionType === "open-url" && element.actionValue) {
       await onAction?.(element.actionValue);
     }
@@ -1420,6 +1739,8 @@ const BuilderElement = memo(function BuilderElement({
         event.stopPropagation();
         onPointerUp?.();
       }}
+      onPointerEnter={() => onInteraction?.("enter", element.id)}
+      onPointerLeave={() => onInteraction?.("leave", element.id)}
     >
       {element.kind === "image" ? (
         imageValue ? <img src={imageValue} alt={element.text || "Builder asset"} /> : <span className="builder-placeholder">Image</span>
@@ -1507,6 +1828,7 @@ function RuntimePanel({
   debugOverlay,
   flowJson,
   onUiAction,
+  onUiInteraction,
   appendLog,
   uiText,
   previewDevice,
@@ -1626,13 +1948,14 @@ function RuntimePanel({
                       appendLog(makeLog("error", "UI Viewer", `버튼 액션이 차단되었습니다: ${maskUrlForLog(url)}`, String(error.message || error)));
                     }
                   }}
+                  onInteraction={onUiInteraction}
                 />
               ))}
             </div>
           </div>
         ) : null}
 
-        {(runtime.outputTexts.length || runtime.outputImages.length || runtime.outputSounds.length) ? (
+        {viewMode === "preview" && (runtime.outputTexts.length || runtime.outputImages.length || runtime.outputSounds.length) ? (
           <div className="auto-output-stack">
             <div className="auto-output-title">Node Output Feed</div>
             {runtime.outputTexts.map((item) => (
@@ -1710,6 +2033,8 @@ function SettingsModal({
   setDraftPreviewDevice,
   draftTemplateKey,
   setDraftTemplateKey,
+  draftHttpsNodesEnabled,
+  setDraftHttpsNodesEnabled,
   appInfo,
   updateInfo,
   updateState,
@@ -1765,6 +2090,18 @@ function SettingsModal({
                 <option key={key} value={key}>{template.label}</option>
               ))}
             </select>
+          </label>
+
+          <label className="settings-toggle-card">
+            <span>
+              <strong>{uiText.httpsNodes}</strong>
+              <small>{uiText.httpsNodesDescription}</small>
+            </span>
+            <input
+              type="checkbox"
+              checked={draftHttpsNodesEnabled}
+              onChange={(event) => setDraftHttpsNodesEnabled(event.target.checked)}
+            />
           </label>
 
           <section className="update-card">
@@ -1840,6 +2177,239 @@ function SettingsModal({
   );
 }
 
+function asBoolean(value) {
+  const normalized = String(value ?? "").trim().toLowerCase();
+  if (["true", "1", "yes", "on"].includes(normalized)) return true;
+  if (["false", "0", "no", "off", ""].includes(normalized)) return false;
+  return Boolean(value);
+}
+
+function boolText(value) {
+  return value ? "true" : "false";
+}
+
+function toFiniteNumber(value, fallback = 0) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
+}
+
+function parsePointValue(value, fallback = { x: 0, y: 0 }) {
+  const rendered = String(value || "");
+  const xMatch = rendered.match(/x\s*:\s*(-?\d+(?:\.\d+)?)/i);
+  const yMatch = rendered.match(/y\s*:\s*(-?\d+(?:\.\d+)?)/i);
+  return {
+    x: xMatch ? Number(xMatch[1]) : fallback.x,
+    y: yMatch ? Number(yMatch[1]) : fallback.y
+  };
+}
+
+function normalizeHexColor(value) {
+  const match = String(value || "").trim().match(/^#?([0-9a-f]{6})$/i);
+  return match ? `#${match[1].toLowerCase()}` : "#000000";
+}
+
+function getHexChannel(value) {
+  const match = String(value || "").trim().match(/^#?([0-9a-f]{6})\s*([rgb])$/i);
+  if (!match) return "";
+  const color = match[1];
+  const offset = { r: 0, g: 2, b: 4 }[match[2].toLowerCase()];
+  return parseInt(color.slice(offset, offset + 2), 16);
+}
+
+function replaceTextExpression(value) {
+  const [source = "", find = "", replacement = ""] = String(value || "").split("|").map((item) => item.trim());
+  return source.split(find).join(replacement);
+}
+
+function letterFromExpression(value) {
+  const match = String(value || "").match(/^(\d+)\s+of\s+(.+)$/i);
+  if (!match) return "";
+  const index = Math.max(0, Number(match[1]) - 1);
+  return String(match[2] || "").charAt(index);
+}
+
+function transformCaseExpression(value) {
+  const match = String(value || "").match(/^(upper|lower)\s+(.+)$/i);
+  if (!match) return String(value || "");
+  return match[1].toLowerCase() === "upper" ? match[2].toUpperCase() : match[2].toLowerCase();
+}
+
+function createRuntimeState() {
+  return {
+    scene: {
+      currentScene: "main",
+      actors: {
+        actor: {
+          x: 0,
+          y: 0,
+          heading: 90,
+          visible: true,
+          speech: "",
+          costume: "default",
+          effects: {},
+          size: 100,
+          layer: 0,
+          flipped: false
+        }
+      },
+      clones: []
+    },
+    pen: {
+      down: false,
+      color: "#3ecf8e",
+      size: 1,
+      fill: null,
+      strokes: []
+    },
+    audio: {
+      volume: 100,
+      tempo: 1,
+      activeSounds: []
+    },
+    signals: new Set(),
+    control: {
+      breakRequested: false,
+      skipRequested: false,
+      stopRequested: false,
+      restartRequested: false
+    }
+  };
+}
+
+function getDefaultActor(runtimeState) {
+  return runtimeState.scene.actors.actor;
+}
+
+function ExportModal({
+  open,
+  appName,
+  icon,
+  outputPath,
+  targets,
+  targetOptions,
+  busy,
+  onAppNameChange,
+  onIconChange,
+  onPickPath,
+  onToggleTarget,
+  onExport,
+  onCancel
+}) {
+  const iconInputRef = useRef(null);
+
+  const readIconFile = useCallback((file) => {
+    if (!file) return;
+    const lowerName = file.name.toLowerCase();
+    if (!lowerName.endsWith(".png") && !lowerName.endsWith(".ico")) {
+      window.alert("PNG 또는 ICO 파일만 아이콘으로 사용할 수 있습니다.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      onIconChange({
+        name: file.name,
+        dataUrl: String(reader.result || "")
+      });
+    };
+    reader.readAsDataURL(file);
+  }, [onIconChange]);
+
+  const handleDrop = useCallback((event) => {
+    event.preventDefault();
+    readIconFile(event.dataTransfer.files?.[0]);
+  }, [readIconFile]);
+
+  if (!open) return null;
+
+  return (
+    <div className="settings-modal-backdrop" onClick={onCancel}>
+      <div className="settings-modal export-modal" onClick={(event) => event.stopPropagation()}>
+        <div className="settings-modal-header">
+          <strong>최종 산출물</strong>
+          <button className="ghost-btn" onClick={onCancel}>취소하기</button>
+        </div>
+
+        <div className="settings-modal-body export-modal-body">
+          <div className="export-destination-card">
+            <span>해당 앱은</span>
+            <strong>{outputPath || "저장 위치를 선택하세요."}</strong>
+            <span>에 저장됩니다.</span>
+            <button className="ghost-btn" onClick={onPickPath}>경로 선택</button>
+          </div>
+
+          <section className="export-target-picker">
+            <div>
+              <strong>산출물 형식을 선택하세요.</strong>
+              <span>경로와 형식을 모두 지정해야 내보내기를 진행할 수 있습니다.</span>
+            </div>
+            <div className="export-target-grid">
+              {targetOptions.map((target) => (
+                <label key={target.key} className={`export-target-card ${target.enabled ? "" : "is-disabled"}`}>
+                  <input
+                    type="checkbox"
+                    checked={targets.includes(target.key)}
+                    disabled={!target.enabled}
+                    onChange={() => onToggleTarget(target.key)}
+                  />
+                  <span>
+                    <strong>{target.label}</strong>
+                    <small>{target.platform}</small>
+                    <em>{target.detail}</em>
+                    {target.note ? <i>{target.note}</i> : null}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </section>
+
+          <button
+            type="button"
+            className={`export-icon-dropzone ${icon ? "has-icon" : ""}`}
+            onClick={() => iconInputRef.current?.click()}
+            onDragOver={(event) => event.preventDefault()}
+            onDrop={handleDrop}
+          >
+            {icon ? <img src={icon.dataUrl} alt="선택한 앱 아이콘" /> : null}
+            <span>{icon ? icon.name : "앱 아이콘 여기 끌어당기기"}</span>
+          </button>
+          <input
+            ref={iconInputRef}
+            type="file"
+            accept=".png,.ico,image/png,image/x-icon,image/vnd.microsoft.icon"
+            hidden
+            onChange={(event) => readIconFile(event.target.files?.[0])}
+          />
+
+          <label className="settings-field export-name-field">
+            <span>앱 이름을 정해주세요.</span>
+            <input
+              type="text"
+              value={appName}
+              onChange={(event) => onAppNameChange(event.target.value)}
+              placeholder="myt-ixo"
+            />
+          </label>
+
+          <p className="export-help">
+            아이콘 또는 이름을 지정하지 않을 시 기본 아이콘과 기본 이름 (myt-ixo.exe)로 지정됩니다.
+          </p>
+        </div>
+
+        <div className="settings-modal-actions">
+          <span className="export-note">PNG 또는 ICO 아이콘을 지원합니다.</span>
+          <div className="settings-cta-group">
+            <button className="ghost-btn" onClick={onCancel}>취소하기</button>
+            <button className="menu-btn docs-btn" onClick={onExport} disabled={busy || !outputPath || targets.length === 0}>
+              {busy ? "내보내는 중..." : "내보내기"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // [메인 에디터] 노드 편집기, Viewer, Builder, 로그, 저장 기능을 총괄합니다.
 function EngineEditor() {
   const { screenToFlowPosition } = useReactFlow();
@@ -1879,11 +2449,29 @@ function EngineEditor() {
   const [draftThemeKey, setDraftThemeKey] = useState("mint");
   const [draftPreviewDevice, setDraftPreviewDevice] = useState("desktop");
   const [draftTemplateKey, setDraftTemplateKey] = useState("");
+  const [httpsNodesEnabled, setHttpsNodesEnabled] = useState(false);
+  const [draftHttpsNodesEnabled, setDraftHttpsNodesEnabled] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
   const [appInfo, setAppInfo] = useState({ version: "1.0.0", platform: "browser" });
   const [updateInfo, setUpdateInfo] = useState(null);
   const [updateState, setUpdateState] = useState("idle");
   const [scriptExecutionAllowed, setScriptExecutionAllowed] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportAppName, setExportAppName] = useState("");
+  const [exportIcon, setExportIcon] = useState(null);
+  const [exportOutputPath, setExportOutputPath] = useState("");
+  const [exportTargets, setExportTargets] = useState([]);
+  const [exportCapabilities, setExportCapabilities] = useState({});
+  const [exportBusy, setExportBusy] = useState(false);
+  const [interactionState, setInteractionState] = useState({
+    pointerDown: false,
+    pointerX: 0,
+    pointerY: 0,
+    keysDown: [],
+    clickedIds: [],
+    pointerOverId: "",
+    fileWatchEvents: {}
+  });
 
   const builderCanvasRef = useRef(null);
   const librarySearchInputRef = useRef(null);
@@ -1892,8 +2480,9 @@ function EngineEditor() {
   const lastExecutionKeyRef = useRef("");
   const lastActionSignatureRef = useRef("");
   const autoSaveTimerRef = useRef(null);
-  const securityDecisionRef = useRef({ external: "pending", script: "pending" });
+  const securityDecisionRef = useRef({ external: "pending", httpsNode: "pending", script: "pending" });
   const securityApprovalPromiseRef = useRef({});
+  const startupHttpsPreferencePromiseRef = useRef(null);
   const inFlightExternalActionsRef = useRef(new Set());
 
   useEffect(() => {
@@ -1906,21 +2495,22 @@ function EngineEditor() {
     setDraftThemeKey(themeKey);
     setDraftPreviewDevice(previewDevice);
     setDraftTemplateKey("");
-  }, [language, previewDevice, showSettings, themeKey]);
+    setDraftHttpsNodesEnabled(httpsNodesEnabled);
+  }, [httpsNodesEnabled, language, previewDevice, showSettings, themeKey]);
 
   const appendLog = useCallback((entry) => {
     setLogs((current) => [...current.slice(-(DEFAULT_LOG_LIMIT - 1)), entry]);
   }, []);
 
   const resetSecurityState = useCallback(async () => {
-    securityDecisionRef.current = { external: "pending", script: "pending" };
+    securityDecisionRef.current = { external: "pending", httpsNode: "pending", script: "pending" };
     securityApprovalPromiseRef.current = {};
     inFlightExternalActionsRef.current.clear();
     setScriptExecutionAllowed(false);
     await window.ixo?.resetSecurityApprovals?.();
   }, []);
 
-  const requestSecurityApproval = useCallback(async (scope) => {
+  const requestSecurityApproval = useCallback(async (scope, context = {}) => {
     const currentDecision = securityDecisionRef.current[scope];
     if (currentDecision === "approved") {
       return true;
@@ -1934,16 +2524,21 @@ function EngineEditor() {
 
     const approvalPromise = (async () => {
       const result = window.ixo?.requestSecurityApproval
-        ? await window.ixo.requestSecurityApproval(scope)
+        ? await window.ixo.requestSecurityApproval(scope, context)
         : {
             approved: window.confirm(
               scope === "external"
                 ? "This project wants to use HTTPS requests or open an external browser. Allow for this session?"
+                : scope === "httpsNode"
+                  ? "https:// 통신 노드의 사용을 원하십니까?"
                 : "This project contains script nodes that can run custom code. Allow for this session?"
             )
           };
       const approved = Boolean(result?.approved);
       securityDecisionRef.current[scope] = approved ? "approved" : "denied";
+      if (scope === "httpsNode" && approved) {
+        securityDecisionRef.current.external = "approved";
+      }
       if (scope === "script") {
         setScriptExecutionAllowed(approved);
       }
@@ -1958,7 +2553,152 @@ function EngineEditor() {
     }
   }, []);
 
+  useEffect(() => {
+    let mounted = true;
+
+    const loadPreference = async () => {
+      try {
+        let preferences = await window.ixo?.getSecurityPreferences?.();
+        if (typeof preferences?.httpsNodesEnabled !== "boolean") {
+          if (!startupHttpsPreferencePromiseRef.current) {
+            startupHttpsPreferencePromiseRef.current = window.ixo?.promptStartupHttpsPreference?.();
+          }
+          preferences = await startupHttpsPreferencePromiseRef.current;
+        }
+
+        const enabled = Boolean(preferences?.httpsNodesEnabled);
+        if (mounted) {
+          setHttpsNodesEnabled(enabled);
+          setDraftHttpsNodesEnabled(enabled);
+        }
+      } catch (error) {
+        appendLog(makeLog("error", "HTTPS Nodes", "HTTPS 노드 권한 상태를 불러오지 못했습니다.", String(error.message || error)));
+      }
+    };
+
+    loadPreference();
+    return () => {
+      mounted = false;
+    };
+  }, [appendLog]);
+
+  useEffect(() => {
+    let mounted = true;
+    const loadExportCapabilities = async () => {
+      try {
+        const capabilities = await window.ixo?.getExportCapabilities?.();
+        if (!mounted || !Array.isArray(capabilities)) return;
+        setExportCapabilities(Object.fromEntries(capabilities.map((item) => [item.key, item])));
+      } catch (error) {
+        appendLog(makeLog("error", "Export", "내보내기 대상 정보를 불러오지 못했습니다.", String(error.message || error)));
+      }
+    };
+    loadExportCapabilities();
+    return () => {
+      mounted = false;
+    };
+  }, [appendLog]);
+
+  const exportTargetOptions = useMemo(
+    () => EXPORT_TARGET_OPTIONS.map((target) => {
+      const capability = exportCapabilities[target.key];
+      const runtimeAvailable = capability?.available !== false;
+      return {
+        ...target,
+        enabled: target.supported && runtimeAvailable,
+        note: !target.supported
+          ? target.note
+          : runtimeAvailable
+            ? target.note
+            : "현재 기기에 이 플랫폼 런타임이 준비되어 있지 않습니다."
+      };
+    }),
+    [exportCapabilities]
+  );
+
+  useEffect(() => {
+    let pointerFrame = 0;
+    let latestPointer = null;
+    const handlePointerDown = (event) => {
+      setInteractionState((current) => ({
+        ...current,
+        pointerDown: true,
+        pointerX: event.clientX,
+        pointerY: event.clientY
+      }));
+    };
+    const handlePointerUp = (event) => {
+      setInteractionState((current) => ({
+        ...current,
+        pointerDown: false,
+        pointerX: event.clientX,
+        pointerY: event.clientY
+      }));
+    };
+    const handlePointerMove = (event) => {
+      latestPointer = { x: event.clientX, y: event.clientY };
+      if (pointerFrame) return;
+      pointerFrame = window.requestAnimationFrame(() => {
+        pointerFrame = 0;
+        if (!latestPointer) return;
+        setInteractionState((current) => ({
+          ...current,
+          pointerX: latestPointer.x,
+          pointerY: latestPointer.y
+        }));
+      });
+    };
+    const handleKeyDown = (event) => {
+      setInteractionState((current) => ({
+        ...current,
+        keysDown: current.keysDown.includes(event.key.toLowerCase())
+          ? current.keysDown
+          : [...current.keysDown, event.key.toLowerCase()]
+      }));
+    };
+    const handleKeyUp = (event) => {
+      setInteractionState((current) => ({
+        ...current,
+        keysDown: current.keysDown.filter((key) => key !== event.key.toLowerCase())
+      }));
+    };
+
+    window.addEventListener("pointerdown", handlePointerDown);
+    window.addEventListener("pointerup", handlePointerUp);
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+    return () => {
+      window.removeEventListener("pointerdown", handlePointerDown);
+      window.removeEventListener("pointerup", handlePointerUp);
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+      if (pointerFrame) {
+        window.cancelAnimationFrame(pointerFrame);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!window.ixo?.onWatchEvent) return undefined;
+    return window.ixo.onWatchEvent((event) => {
+      setInteractionState((current) => ({
+        ...current,
+        fileWatchEvents: {
+          ...current.fileWatchEvents,
+          [event.path]: event,
+          [event.requestedPath || event.path]: event
+        }
+      }));
+    });
+  }, []);
+
   const requestSecureHttps = useCallback(async (rawUrl) => {
+    if (!httpsNodesEnabled) {
+      throw new Error("HTTPS nodes are disabled in Settings.");
+    }
+
     const validation = validateClientHttpsUrl(rawUrl);
     if (!validation.ok) {
       throw new Error(validation.error);
@@ -1979,7 +2719,7 @@ function EngineEditor() {
       status: response.status,
       url: validation.url
     };
-  }, [requestSecurityApproval]);
+  }, [httpsNodesEnabled, requestSecurityApproval]);
 
   const openSecureExternalUrl = useCallback(async (rawUrl) => {
     const validation = validateClientHttpsUrl(rawUrl);
@@ -2002,8 +2742,8 @@ function EngineEditor() {
   }, [requestSecurityApproval]);
 
   const runtime = useMemo(
-    () => runPipeline(nodes, edges, inputValues, paused, scriptExecutionAllowed),
-    [edges, inputValues, nodes, paused, scriptExecutionAllowed]
+    () => runPipeline(nodes, edges, inputValues, paused, scriptExecutionAllowed, interactionState),
+    [edges, inputValues, interactionState, nodes, paused, scriptExecutionAllowed]
   );
   const runtimeExecutionKey = useMemo(
     () => JSON.stringify({ activeNodeIds: runtime.activeNodeIds, activeEdgeIds: runtime.activeEdgeIds, liveValues: runtime.liveValues, paused }),
@@ -2186,6 +2926,24 @@ function EngineEditor() {
       }
     });
   }, [appendLog, nodes, paused, requestSecurityApproval, runtime.activeNodeIds, scriptExecutionAllowed]);
+
+  useEffect(() => {
+    if (!window.ixo?.watchPath) return undefined;
+    const watcherNodes = nodes.filter((node) => node.data?.nodeType === "file-watcher" && node.data?.value);
+    const activePaths = watcherNodes.map((node) => String(node.data.value));
+
+    activePaths.forEach((targetPath) => {
+      window.ixo.watchPath(targetPath).catch((error) => {
+        appendLog(makeLog("error", "File Watcher", `감시 시작 실패: ${targetPath}`, String(error.message || error)));
+      });
+    });
+
+    return () => {
+      activePaths.forEach((targetPath) => {
+        window.ixo?.unwatchPath?.(targetPath);
+      });
+    };
+  }, [appendLog, nodes]);
 
   // [외부 액션] HTTPS 요청과 브라우저 열기 노드가 활성화된 경우 한 번만 실행합니다.
   useEffect(() => {
@@ -2399,7 +3157,12 @@ function EngineEditor() {
     snapshot();
 
     if (selectedUiElementId) {
+      const linkedNodeId = selectedUiElement?.linkedNodeId;
       setUiElements((current) => current.filter((item) => item.id !== selectedUiElementId));
+      if (linkedNodeId) {
+        setNodes((current) => current.filter((node) => node.id !== linkedNodeId));
+        setEdges((current) => current.filter((edge) => edge.source !== linkedNodeId && edge.target !== linkedNodeId));
+      }
       setSelectedUiElementId(null);
       setStatus("UI element removed.");
       setIsDirty(true);
@@ -2418,23 +3181,43 @@ function EngineEditor() {
     const selected = new Set(selectedNodeIds);
     setNodes((current) => current.filter((node) => !selected.has(node.id)));
     setEdges((current) => current.filter((edge) => !selected.has(edge.source) && !selected.has(edge.target)));
+    setUiElements((current) => current.filter((item) => !selected.has(item.linkedNodeId)));
     setSelectedNodeId(null);
     setSelectedNodeIds([]);
     setSelectedEdgeIds([]);
     setStatus("Selected nodes removed.");
     setIsDirty(true);
-  }, [selectedEdgeIds, selectedNodeIds, selectedUiElementId, setEdges, setNodes, snapshot]);
+  }, [selectedEdgeIds, selectedNodeIds, selectedUiElement, selectedUiElementId, setEdges, setNodes, snapshot]);
 
   const duplicateSelection = useCallback(() => {
     if (selectedUiElementId && selectedUiElement) {
       snapshot();
+      const linkedNode = makeNode(
+        {
+          label: selectedUiElement.kind === "image" ? "UI Image" : selectedUiElement.kind === "button" ? "UI Button" : selectedUiElement.kind === "container" ? "UI Container" : "UI Text",
+          group: "visual",
+          type: getUiNodeTypeFromKind(selectedUiElement.kind)
+        },
+        {
+          x: 980,
+          y: 120 + uiElements.length * 92
+        }
+      );
       const clone = {
         ...selectedUiElement,
         id: `ui-${Date.now()}`,
         x: selectedUiElement.x + 24,
-        y: selectedUiElement.y + 24
+        y: selectedUiElement.y + 24,
+        linkedNodeId: linkedNode.id
+      };
+      linkedNode.data = {
+        ...linkedNode.data,
+        value: clone.kind === "image" ? clone.src : clone.text,
+        refKey: clone.bindingKey || linkedNode.data.refKey,
+        linkedUiElementId: clone.id
       };
       setUiElements((current) => [...current, clone]);
+      setNodes((current) => [...current, linkedNode]);
       setSelectedUiElementId(clone.id);
       setStatus("UI element duplicated.");
       setIsDirty(true);
@@ -2462,7 +3245,7 @@ function EngineEditor() {
     setNodes((current) => [...current, ...clones]);
     setStatus("Selected nodes duplicated.");
     setIsDirty(true);
-  }, [createNodeId, nodes, selectedNodeIds, selectedUiElement, selectedUiElementId, setNodes, snapshot]);
+  }, [createNodeId, makeNode, nodes, selectedNodeIds, selectedUiElement, selectedUiElementId, setNodes, snapshot, uiElements.length]);
 
   const saveProject = useCallback(async () => {
     if (!window.ixo?.saveProject) {
@@ -2504,6 +3287,46 @@ function EngineEditor() {
     }
   }, [resetSecurityState, setEdges, setNodes, snapshot]);
 
+  const pickExportPath = useCallback(async () => {
+    if (!window.ixo?.chooseExportPath) {
+      setStatus("Export path selection is unavailable in browser mode.");
+      return "";
+    }
+
+    const result = await window.ixo.chooseExportPath({
+      appName: exportAppName
+    });
+    if (result.ok) {
+      setExportOutputPath(result.path);
+      return result.path;
+    }
+    return "";
+  }, [exportAppName]);
+
+  const openExportModal = useCallback(async () => {
+    if (!window.ixo?.exportProject) {
+      setStatus("Export unavailable in browser mode.");
+      return;
+    }
+
+    setShowFileMenu(false);
+    setExportAppName("");
+    setExportIcon(null);
+    setExportOutputPath("");
+    setExportTargets([]);
+    setShowExportModal(true);
+  }, []);
+
+  const toggleExportTarget = useCallback((targetKey) => {
+    const option = exportTargetOptions.find((item) => item.key === targetKey);
+    if (!option?.enabled) return;
+    setExportTargets((current) => (
+      current.includes(targetKey)
+        ? current.filter((item) => item !== targetKey)
+        : [...current, targetKey]
+    ));
+  }, [exportTargetOptions]);
+
   const exportProject = useCallback(async () => {
     if (!window.ixo?.exportProject) {
       setStatus("Export unavailable in browser mode.");
@@ -2511,17 +3334,35 @@ function EngineEditor() {
     }
 
     try {
+      setExportBusy(true);
+      if (!exportOutputPath) {
+        setStatus("Choose an export folder before exporting.");
+        appendLog(makeLog("error", "Export", "내보내기 경로를 먼저 선택해야 합니다."));
+        return;
+      }
+      if (!exportTargets.length) {
+        setStatus("Select at least one export format.");
+        appendLog(makeLog("error", "Export", "산출물 형식을 하나 이상 선택해야 합니다."));
+        return;
+      }
+
       const result = await window.ixo.exportProject({
         nodes,
         edges,
         nodeCounter: nodeCounterRef.current,
         inputValues,
         uiElements
+      }, {
+        outputDir: exportOutputPath,
+        targets: exportTargets,
+        appName: exportAppName,
+        icon: exportIcon
       });
 
       if (result.ok) {
-        setStatus(`Exported archive: ${result.path}`);
-        appendLog(makeLog("info", "Export", `Archive created: ${result.path}`));
+        setStatus(`Exported outputs: ${result.path}`);
+        appendLog(makeLog("info", "Export", `Outputs created in: ${result.path}`));
+        setShowExportModal(false);
       } else if (!result.canceled) {
         setStatus(`Export failed: ${result.error || "Unknown error"}`);
         appendLog(makeLog("error", "Export", result.error || "Export failed."));
@@ -2529,8 +3370,10 @@ function EngineEditor() {
     } catch (error) {
       setStatus(`Export failed: ${error.message}`);
       appendLog(makeLog("error", "Export", error.message || "Export failed."));
+    } finally {
+      setExportBusy(false);
     }
-  }, [appendLog, edges, inputValues, nodes, uiElements]);
+  }, [appendLog, edges, exportAppName, exportIcon, exportOutputPath, exportTargets, inputValues, nodes, uiElements]);
 
   const checkForUpdates = useCallback(async ({ silent = false } = {}) => {
     if (!window.ixo?.checkForUpdates) {
@@ -2674,7 +3517,17 @@ function EngineEditor() {
     [currentTheme.accent, edges, runtime.activeEdgeIds]
   );
 
-  const onConnect = useCallback((connection) => {
+  const onConnect = useCallback(async (connection) => {
+    const linkedNodes = nodes.filter((node) => (
+      node.id === connection.source || node.id === connection.target
+    ));
+    const httpsNode = linkedNodes.find((node) => node.data?.nodeType === "http");
+    if (httpsNode && !httpsNodesEnabled) {
+      setStatus("HTTPS node connection blocked in Settings.");
+      appendLog(makeLog("error", httpsNode.data?.label || "HTTPS Request", "설정에서 HTTPS 노드가 꺼져 있어 연결할 수 없습니다."));
+      return;
+    }
+
     snapshot();
     setEdges((current) =>
       addEdge(
@@ -2687,16 +3540,16 @@ function EngineEditor() {
       )
     );
     setIsDirty(true);
-  }, [setEdges, snapshot]);
+  }, [appendLog, httpsNodesEnabled, nodes, setEdges, snapshot]);
 
   const handleNodesChange = useCallback((changes) => {
     onNodesChange(changes);
-    if (changes.length) setIsDirty(true);
+    if (hasPersistentNodeChange(changes)) setIsDirty(true);
   }, [onNodesChange]);
 
   const handleEdgesChange = useCallback((changes) => {
     onEdgesChange(changes);
-    if (changes.length) setIsDirty(true);
+    if (hasPersistentEdgeChange(changes)) setIsDirty(true);
   }, [onEdgesChange]);
 
   const syncSelectedNodes = useCallback((ids, primaryId = null) => {
@@ -2830,19 +3683,56 @@ function EngineEditor() {
           : node
       ))
     );
+    if (selectedNode.data?.linkedUiElementId && ["value", "refKey"].includes(field)) {
+      setUiElements((current) =>
+        current.map((item) => (
+          item.id === selectedNode.data.linkedUiElementId
+            ? {
+                ...item,
+                ...(field === "value"
+                  ? selectedNode.data.nodeType === "ui-image"
+                    ? { src: value }
+                    : { text: value }
+                  : { bindingKey: value })
+              }
+            : item
+        ))
+      );
+    }
     setIsDirty(true);
   };
 
   const updateUiField = (field, value) => {
     if (!selectedUiElement) return;
     snapshot();
+    const nextValue = field === "x" || field === "y" || field === "width" || field === "height" || field === "fontSize" || field === "radius" ? Number(value) : value;
     setUiElements((current) =>
       current.map((item) => (
         item.id === selectedUiElement.id
-          ? { ...item, [field]: field === "x" || field === "y" || field === "width" || field === "height" || field === "fontSize" || field === "radius" ? Number(value) : value }
+          ? { ...item, [field]: nextValue }
           : item
       ))
     );
+    if (selectedUiElement.linkedNodeId && ["text", "src", "bindingKey"].includes(field)) {
+      setNodes((current) =>
+        current.map((node) => (
+          node.id === selectedUiElement.linkedNodeId
+            ? {
+                ...node,
+                data: {
+                  ...node.data,
+                  value: field === "bindingKey"
+                    ? node.data.value
+                    : String(nextValue ?? ""),
+                  refKey: field === "bindingKey"
+                    ? String(nextValue || node.data.refKey || "")
+                    : node.data.refKey
+                }
+              }
+            : node
+        ))
+      );
+    }
     setIsDirty(true);
   };
 
@@ -2851,14 +3741,35 @@ function EngineEditor() {
 
     const selectedBindingKey = selectedNode?.data?.refKey || "";
     const next = createUiElement(kind, selectedBindingKey, currentTheme.accent);
-    const finalElement = point ? { ...next, x: point.x, y: point.y } : next;
+    const linkedNode = makeNode(
+      {
+        label: kind === "image" ? "UI Image" : kind === "button" ? "UI Button" : kind === "container" ? "UI Container" : "UI Text",
+        group: "visual",
+        type: getUiNodeTypeFromKind(kind)
+      },
+      {
+        x: 980,
+        y: 120 + uiElements.length * 92
+      }
+    );
+    linkedNode.data = {
+      ...linkedNode.data,
+      value: kind === "image" ? next.src : next.text,
+      refKey: next.bindingKey || linkedNode.data.refKey,
+      linkedUiElementId: next.id
+    };
+    const finalElement = {
+      ...(point ? { ...next, x: point.x, y: point.y } : next),
+      linkedNodeId: linkedNode.id
+    };
 
     setUiElements((current) => [...current, finalElement]);
+    setNodes((current) => [...current, linkedNode]);
     setSelectedUiElementId(finalElement.id);
     setViewMode("builder");
     setStatus(`UI element added: ${kind}`);
     setIsDirty(true);
-  }, [currentTheme.accent, selectedNode, snapshot]);
+  }, [currentTheme.accent, makeNode, selectedNode, setNodes, snapshot, uiElements.length]);
 
   const handleBuilderDragOver = useCallback((event) => {
     event.preventDefault();
@@ -2901,6 +3812,30 @@ function EngineEditor() {
     return openSecureExternalUrl(url);
   }, [openSecureExternalUrl]);
 
+  const handleUiInteraction = useCallback((kind, id) => {
+    setInteractionState((current) => {
+      if (kind === "enter") {
+        return { ...current, pointerOverId: id };
+      }
+      if (kind === "leave") {
+        return current.pointerOverId === id ? { ...current, pointerOverId: "" } : current;
+      }
+      if (kind === "click") {
+        window.setTimeout(() => {
+          setInteractionState((latest) => ({
+            ...latest,
+            clickedIds: latest.clickedIds.filter((clickedId) => clickedId !== id)
+          }));
+        }, 120);
+        return {
+          ...current,
+          clickedIds: [id]
+        };
+      }
+      return current;
+    });
+  }, []);
+
   const handleUiElementSelect = useCallback((id) => {
     setSelectedUiElementId(id);
     setSelectedNodeId(null);
@@ -2910,10 +3845,15 @@ function EngineEditor() {
     setEdges((current) => current.map((edge) => ({ ...edge, selected: false })));
   }, [setEdges, setNodes]);
 
-  const applySettings = useCallback(() => {
+  const applySettings = useCallback(async () => {
     setLanguage(draftLanguage);
     setThemeKey(draftThemeKey);
     setPreviewDevice(draftPreviewDevice);
+    setHttpsNodesEnabled(draftHttpsNodesEnabled);
+    await window.ixo?.setHttpsNodesEnabled?.(draftHttpsNodesEnabled);
+    if (!draftHttpsNodesEnabled) {
+      await resetSecurityState();
+    }
 
     if (draftTemplateKey) {
       const template = STARTER_TEMPLATES[draftTemplateKey];
@@ -2930,15 +3870,16 @@ function EngineEditor() {
     }
 
     setToastMessage((UI_TEXT[draftLanguage] || UI_TEXT.ko).applied);
-  }, [applyState, draftLanguage, draftPreviewDevice, draftTemplateKey, draftThemeKey, resetSecurityState, snapshot]);
+  }, [applyState, draftHttpsNodesEnabled, draftLanguage, draftPreviewDevice, draftTemplateKey, draftThemeKey, resetSecurityState, snapshot]);
 
   const cancelSettings = useCallback(() => {
     setDraftLanguage(language);
     setDraftThemeKey(themeKey);
     setDraftPreviewDevice(previewDevice);
     setDraftTemplateKey("");
+    setDraftHttpsNodesEnabled(httpsNodesEnabled);
     setShowSettings(false);
-  }, [language, previewDevice, themeKey]);
+  }, [httpsNodesEnabled, language, previewDevice, themeKey]);
 
   const clearLocalAutosave = useCallback(() => {
     window.localStorage?.removeItem(LOCAL_AUTOSAVE_KEY);
@@ -3137,7 +4078,7 @@ function EngineEditor() {
                   <div className="file-dropdown">
                     <button onClick={saveProject}>Save</button>
                     <button onClick={loadProject}>Load</button>
-                    <button onClick={exportProject}>Export</button>
+                    <button onClick={openExportModal}>Export</button>
                     <button onClick={magicAlign}>Magic Align</button>
                   </div>
                 ) : null}
@@ -3272,6 +4213,7 @@ function EngineEditor() {
                     debugOverlay={debugOverlay}
                     flowJson={flowJson}
                     onUiAction={openUiAction}
+                    onUiInteraction={handleUiInteraction}
                     appendLog={appendLog}
                     uiText={uiText}
                     previewDevice={previewDevice}
@@ -3480,6 +4422,8 @@ function EngineEditor() {
         setDraftPreviewDevice={setDraftPreviewDevice}
         draftTemplateKey={draftTemplateKey}
         setDraftTemplateKey={setDraftTemplateKey}
+        draftHttpsNodesEnabled={draftHttpsNodesEnabled}
+        setDraftHttpsNodesEnabled={setDraftHttpsNodesEnabled}
         appInfo={appInfo}
         updateInfo={updateInfo}
         updateState={updateState}
@@ -3488,6 +4432,26 @@ function EngineEditor() {
         onApply={applySettings}
         onCancel={cancelSettings}
         onClearAutosave={clearLocalAutosave}
+      />
+
+      <ExportModal
+        open={showExportModal}
+        appName={exportAppName}
+        icon={exportIcon}
+        outputPath={exportOutputPath}
+        targets={exportTargets}
+        targetOptions={exportTargetOptions}
+        busy={exportBusy}
+        onAppNameChange={setExportAppName}
+        onIconChange={setExportIcon}
+        onPickPath={pickExportPath}
+        onToggleTarget={toggleExportTarget}
+        onExport={exportProject}
+        onCancel={() => {
+          if (!exportBusy) {
+            setShowExportModal(false);
+          }
+        }}
       />
 
       {toastMessage ? <div className="settings-toast">{toastMessage}</div> : null}

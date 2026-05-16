@@ -260,6 +260,37 @@ img {
   padding: 10px 12px;
 }
 
+.settings-toggle-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.settings-toggle-card span {
+  display: grid;
+  gap: 4px;
+}
+
+.settings-toggle-card strong {
+  font-size: 13px;
+}
+
+.settings-toggle-card small {
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.settings-toggle-card input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+}
+
 .template-list,
 .settings-actions {
   display: flex;
@@ -1565,6 +1596,146 @@ img {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+.export-modal {
+  width: min(620px, 94vw);
+}
+
+.export-modal-body {
+  gap: 16px;
+}
+
+.export-destination-card {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.export-destination-card strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.export-icon-dropzone {
+  min-height: 180px;
+  border: 1px dashed rgba(62, 207, 142, 0.42);
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at top left, rgba(62, 207, 142, 0.16), transparent 42%),
+    rgba(255, 255, 255, 0.02);
+  display: grid;
+  place-items: center;
+  gap: 12px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.export-target-picker {
+  display: grid;
+  gap: 12px;
+}
+
+.export-target-picker > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.export-target-picker span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.export-target-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.export-target-card {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.export-target-card input {
+  margin-top: 4px;
+  accent-color: var(--accent);
+}
+
+.export-target-card span {
+  display: grid;
+  gap: 3px;
+}
+
+.export-target-card strong {
+  color: var(--text);
+}
+
+.export-target-card small,
+.export-target-card em,
+.export-target-card i {
+  color: var(--muted);
+  font-style: normal;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.export-target-card.is-disabled {
+  opacity: 0.58;
+}
+
+.export-icon-dropzone:hover {
+  border-color: rgba(62, 207, 142, 0.72);
+  background:
+    radial-gradient(circle at top left, rgba(62, 207, 142, 0.22), transparent 42%),
+    rgba(255, 255, 255, 0.03);
+}
+
+.export-icon-dropzone img {
+  width: 74px;
+  height: 74px;
+  object-fit: contain;
+  border-radius: 18px;
+  background: rgba(0, 0, 0, 0.18);
+  padding: 10px;
+}
+
+.export-icon-dropzone span {
+  font-size: 14px;
+}
+
+.export-name-field input {
+  width: 100%;
+}
+
+.export-help,
+.export-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+@media (max-width: 720px) {
+  .export-destination-card {
+    grid-template-columns: 1fr;
+  }
+
+  .export-destination-card strong {
+    white-space: normal;
+  }
 }
 
 .settings-toast {
