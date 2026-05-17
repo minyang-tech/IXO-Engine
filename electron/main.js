@@ -1,4 +1,4 @@
-﻿const { app, BrowserWindow, Menu, ipcMain, dialog, shell, net: electronNet } = require("electron");
+﻿const { app, BrowserWindow, Menu, ipcMain, dialog, shell, net: electronNet, nativeImage } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const originalFs = require("original-fs");
@@ -10,6 +10,34 @@ const { checkForUpdates, downloadReleaseAsset } = require("./updateService");
 const EXTERNAL_REQUEST_TIMEOUT_MS = 8000;
 const MAX_EXTERNAL_REDIRECTS = 3;
 const DEFAULT_EXPORT_APP_STEM = "myt-ixo";
+const MOBILE_ICON_BACKGROUND_COLOR = "#101713";
+const ANDROID_ICON_DENSITIES = [
+  { name: "mdpi", legacySize: 48, adaptiveSize: 108 },
+  { name: "hdpi", legacySize: 72, adaptiveSize: 162 },
+  { name: "xhdpi", legacySize: 96, adaptiveSize: 216 },
+  { name: "xxhdpi", legacySize: 144, adaptiveSize: 324 },
+  { name: "xxxhdpi", legacySize: 192, adaptiveSize: 432 }
+];
+const IOS_APP_ICON_SLOTS = [
+  { idiom: "iphone", size: "20x20", scale: "2x", pixels: 40 },
+  { idiom: "iphone", size: "20x20", scale: "3x", pixels: 60 },
+  { idiom: "iphone", size: "29x29", scale: "2x", pixels: 58 },
+  { idiom: "iphone", size: "29x29", scale: "3x", pixels: 87 },
+  { idiom: "iphone", size: "40x40", scale: "2x", pixels: 80 },
+  { idiom: "iphone", size: "40x40", scale: "3x", pixels: 120 },
+  { idiom: "iphone", size: "60x60", scale: "2x", pixels: 120 },
+  { idiom: "iphone", size: "60x60", scale: "3x", pixels: 180 },
+  { idiom: "ipad", size: "20x20", scale: "1x", pixels: 20 },
+  { idiom: "ipad", size: "20x20", scale: "2x", pixels: 40 },
+  { idiom: "ipad", size: "29x29", scale: "1x", pixels: 29 },
+  { idiom: "ipad", size: "29x29", scale: "2x", pixels: 58 },
+  { idiom: "ipad", size: "40x40", scale: "1x", pixels: 40 },
+  { idiom: "ipad", size: "40x40", scale: "2x", pixels: 80 },
+  { idiom: "ipad", size: "76x76", scale: "1x", pixels: 76 },
+  { idiom: "ipad", size: "76x76", scale: "2x", pixels: 152 },
+  { idiom: "ipad", size: "83.5x83.5", scale: "2x", pixels: 167 },
+  { idiom: "ios-marketing", size: "1024x1024", scale: "1x", pixels: 1024 }
+];
 const SECURITY_PREFERENCES_FILE = "security-preferences.json";
 const FALLBACK_NETWORK_SAFETY_NOTICE = [
   "## 네트워크 사용 안내",
@@ -134,7 +162,8 @@ function getSecurityApprovals(webContentsId) {
     securityApprovalsByWebContents.set(webContentsId, {
       external: false,
       httpsNode: false,
-      script: false
+      script: false,
+      fileWatcher: false
     });
   }
   return securityApprovalsByWebContents.get(webContentsId);
@@ -144,7 +173,8 @@ function resetSecurityApprovals(webContentsId) {
   securityApprovalsByWebContents.set(webContentsId, {
     external: false,
     httpsNode: false,
-    script: false
+    script: false,
+    fileWatcher: false
   });
 }
 
@@ -295,7 +325,7 @@ async function fetchValidatedHttpsUrl(rawUrl, remainingRedirects = MAX_EXTERNAL_
 
 async function requestSecurityApproval(event, scope, context = {}) {
   assertTrustedSender(event);
-  if (!["external", "httpsNode", "script"].includes(scope)) {
+  if (!["external", "httpsNode", "script", "fileWatcher"].includes(scope)) {
     throw new Error("Unknown security approval scope.");
   }
 
@@ -316,11 +346,17 @@ async function requestSecurityApproval(event, scope, context = {}) {
           message: "네트워크 계열 노드 사용을 동의하십니까?",
           detail: getNetworkSafetyNotice()
         }
-      : {
-        title: "Script Execution Approval",
-        message: "This project contains script nodes that can run custom code.",
-        detail: "Allow script nodes for this project session?"
-      };
+      : scope === "fileWatcher"
+        ? {
+            title: "File Watcher Approval",
+            message: "이 프로젝트가 로컬 파일 또는 폴더 감시 기능을 사용하려고 합니다.",
+            detail: `감시 대상: ${String(context?.path || "선택한 경로")}\n\n허용하면 이 세션 동안 파일 변경 이벤트를 읽을 수 있습니다.`
+          }
+        : {
+            title: "Full Script Execution Approval",
+            message: "This project contains script nodes that require full JavaScript execution.",
+            detail: "Restricted script mode is used by default. Allow full JavaScript for this project session?"
+          };
 
   const result = await dialog.showMessageBox(BrowserWindow.fromWebContents(event.sender), {
     type: "warning",
@@ -745,6 +781,11 @@ function sanitizeNpmPackageName(rawName) {
   return cleaned || DEFAULT_EXPORT_APP_STEM;
 }
 
+function normalizeMobileIconBackgroundColor(rawColor) {
+  const candidate = String(rawColor || "").trim();
+  return /^#[0-9a-f]{6}$/i.test(candidate) ? candidate : MOBILE_ICON_BACKGROUND_COLOR;
+}
+
 function getCapacitorPackageJson(target, manifest) {
   return {
     name: sanitizeNpmPackageName(manifest.displayName),
@@ -765,6 +806,120 @@ function getCapacitorPackageJson(target, manifest) {
       "@capacitor/cli": "latest"
     }
   };
+}
+
+function getDefaultMobileIconSource() {
+  const candidates = [
+    path.join(__dirname, "..", "IXO Logo.png"),
+    path.join(process.resourcesPath || "", "app.asar", "IXO Logo.png"),
+    path.join(process.resourcesPath || "", "IXO Logo.png")
+  ];
+
+  for (const candidate of candidates) {
+    if (candidate && fs.existsSync(candidate)) {
+      return {
+        mime: "image/png",
+        buffer: fs.readFileSync(candidate),
+        originalName: "IXO Logo.png",
+        isDefault: true
+      };
+    }
+  }
+
+  return null;
+}
+
+function getMobileIconSource(icon) {
+  return decodeIconDataUrl(icon) || getDefaultMobileIconSource();
+}
+
+function resizeIconToPng(iconSource, pixels) {
+  const image = nativeImage.createFromBuffer(iconSource.buffer);
+  if (image.isEmpty()) {
+    throw new Error("Mobile export icon could not be decoded.");
+  }
+  return image.resize({ width: pixels, height: pixels, quality: "best" }).toPNG();
+}
+
+function writeAndroidAdaptiveIconAssets(destination, iconSource, backgroundColor) {
+  const resRoot = path.join(destination, "assets", "icons", "android", "res");
+  const generatedFiles = [];
+
+  ANDROID_ICON_DENSITIES.forEach(({ name, legacySize, adaptiveSize }) => {
+    const folder = path.join(resRoot, `mipmap-${name}`);
+    fs.mkdirSync(folder, { recursive: true });
+    const legacyBuffer = resizeIconToPng(iconSource, legacySize);
+    const adaptiveBuffer = resizeIconToPng(iconSource, adaptiveSize);
+    [
+      ["ic_launcher.png", legacyBuffer],
+      ["ic_launcher_round.png", legacyBuffer],
+      ["ic_launcher_foreground.png", adaptiveBuffer]
+    ].forEach(([filename, buffer]) => {
+      const target = path.join(folder, filename);
+      fs.writeFileSync(target, buffer);
+      generatedFiles.push(path.relative(destination, target));
+    });
+  });
+
+  const adaptiveFolder = path.join(resRoot, "mipmap-anydpi-v26");
+  const valuesFolder = path.join(resRoot, "values");
+  fs.mkdirSync(adaptiveFolder, { recursive: true });
+  fs.mkdirSync(valuesFolder, { recursive: true });
+
+  const adaptiveXml = [
+    '<?xml version="1.0" encoding="utf-8"?>',
+    '<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">',
+    '  <background android:drawable="@color/ic_launcher_background" />',
+    '  <foreground android:drawable="@mipmap/ic_launcher_foreground" />',
+    '</adaptive-icon>'
+  ].join("\n");
+  const colorsXml = [
+    '<?xml version="1.0" encoding="utf-8"?>',
+    '<resources>',
+    `  <color name="ic_launcher_background">${backgroundColor}</color>`,
+    '</resources>'
+  ].join("\n");
+
+  [
+    [path.join(adaptiveFolder, "ic_launcher.xml"), adaptiveXml],
+    [path.join(adaptiveFolder, "ic_launcher_round.xml"), adaptiveXml],
+    [path.join(valuesFolder, "colors.xml"), colorsXml]
+  ].forEach(([target, contents]) => {
+    fs.writeFileSync(target, contents, "utf-8");
+    generatedFiles.push(path.relative(destination, target));
+  });
+
+  return generatedFiles;
+}
+
+function writeIosAppIconAssets(destination, iconSource) {
+  const appIconSet = path.join(destination, "assets", "icons", "ios", "AppIcon.appiconset");
+  fs.mkdirSync(appIconSet, { recursive: true });
+  const generatedFiles = [];
+
+  const images = IOS_APP_ICON_SLOTS.map((slot) => {
+    const filename = `icon-${slot.idiom}-${slot.size.replace(".", "_")}-${slot.scale}.png`;
+    const target = path.join(appIconSet, filename);
+    fs.writeFileSync(target, resizeIconToPng(iconSource, slot.pixels));
+    generatedFiles.push(path.relative(destination, target));
+    return {
+      idiom: slot.idiom,
+      size: slot.size,
+      scale: slot.scale,
+      filename
+    };
+  });
+
+  const contentsPath = path.join(appIconSet, "Contents.json");
+  fs.writeFileSync(contentsPath, JSON.stringify({
+    images,
+    info: {
+      author: "xcode",
+      version: 1
+    }
+  }, null, 2), "utf-8");
+  generatedFiles.push(path.relative(destination, contentsPath));
+  return generatedFiles;
 }
 
 function getCapacitorConfig(manifest) {
@@ -813,6 +968,7 @@ function getMobileBuildReadme(target, manifest) {
     "- `mobile-export.json`: 모바일 빌드 메타데이터",
     "- `package.json`: Capacitor 워크스페이스 의존성과 명령",
     "- `capacitor.config.json`: 앱 ID, 앱 이름, webDir 설정",
+    "- `assets/icons/`: 플랫폼별로 자동 리사이즈된 앱 아이콘 세트",
     "",
     "## 빌드 흐름",
     "1. `npm install`",
@@ -828,6 +984,8 @@ function getMobileBuildReadme(target, manifest) {
         "",
         "## Android",
         "- Android Studio 또는 CI에서 `applicationId`를 `mobile-export.json`의 `bundleId`와 맞춥니다.",
+        "- `assets/icons/android/res/`를 Android 프로젝트의 `app/src/main/res/`에 복사하면 adaptive icon과 legacy launcher icon을 바로 사용할 수 있습니다.",
+        `- adaptive icon 배경색은 \`${manifest.iconBackgroundColor}\`이며, 필요하면 \`values/colors.xml\`에서 교체하세요.`,
         "- release keystore를 연결한 뒤 `.apk` 또는 `.aab`를 빌드합니다.",
         "- 현재 워크스페이스는 Android SDK가 없는 PC에서도 생성할 수 있습니다."
       ]
@@ -835,6 +993,7 @@ function getMobileBuildReadme(target, manifest) {
         "",
         "## iOS",
         "- macOS의 Xcode 프로젝트에서 `bundleIdentifier`를 `mobile-export.json`의 `bundleId`와 맞춥니다.",
+        "- `assets/icons/ios/AppIcon.appiconset/`을 Xcode asset catalog의 `AppIcon`으로 가져오면 됩니다.",
         "- Apple Developer 서명 설정을 연결한 뒤 `.ipa`를 archive/export 합니다.",
         "- iOS 최종 산출물은 macOS + Xcode 환경에서만 빌드합니다."
       ];
@@ -880,6 +1039,7 @@ function exportMobileWorkspace(project, options, targetKey, outputDir) {
     webRoot: "web",
     launchPath: "runtime.html",
     wrapper: "capacitor",
+    iconBackgroundColor: normalizeMobileIconBackgroundColor(options?.iconBackgroundColor),
     commands: {
       install: "npm install",
       check: "npm run mobile:check",
@@ -896,11 +1056,19 @@ function exportMobileWorkspace(project, options, targetKey, outputDir) {
   fs.mkdirSync(path.join(destination, "scripts"), { recursive: true });
   fs.writeFileSync(path.join(destination, "scripts", "check-workspace.mjs"), getCapacitorWorkspaceCheckScript(), "utf-8");
 
-  const decodedIcon = decodeIconDataUrl(options?.icon);
+  const decodedIcon = getMobileIconSource(options?.icon);
   if (decodedIcon) {
     const extension = path.extname(decodedIcon.originalName) || (decodedIcon.mime === "image/png" ? ".png" : ".ico");
     fs.mkdirSync(path.join(destination, "assets"), { recursive: true });
     fs.writeFileSync(path.join(destination, "assets", `app-icon${extension}`), decodedIcon.buffer);
+    const generatedIconFiles = target.platform === "android"
+      ? writeAndroidAdaptiveIconAssets(destination, decodedIcon, manifest.iconBackgroundColor)
+      : writeIosAppIconAssets(destination, decodedIcon);
+    manifest.iconAssets = {
+      source: decodedIcon.isDefault ? "default" : "custom",
+      generatedFiles: generatedIconFiles
+    };
+    fs.writeFileSync(path.join(destination, "mobile-export.json"), JSON.stringify(manifest, null, 2), "utf-8");
   }
 
   return destination;
@@ -916,13 +1084,23 @@ function createMainWindow() {
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
-      nodeIntegration: false
+      nodeIntegration: false,
+      sandbox: true,
+      webSecurity: true,
+      allowRunningInsecureContent: false
     }
   });
 
   const webContentsId = mainWindow.webContents.id;
   trustedWebContentsIds.add(webContentsId);
   resetSecurityApprovals(webContentsId);
+  mainWindow.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+  mainWindow.webContents.on("will-navigate", (event) => {
+    event.preventDefault();
+  });
+  mainWindow.webContents.session.setPermissionRequestHandler((_webContents, _permission, callback) => {
+    callback(false);
+  });
   mainWindow.on("closed", () => {
     trustedWebContentsIds.delete(webContentsId);
     securityApprovalsByWebContents.delete(webContentsId);
@@ -1047,6 +1225,9 @@ app.whenReady().then(() => {
 
   ipcMain.handle("fs:watchPath", async (event, rawPath) => {
     assertTrustedSender(event);
+    if (!getSecurityApprovals(event.sender.id).fileWatcher) {
+      throw new Error("File watcher access requires approval.");
+    }
     const requestedPath = String(rawPath || "").trim();
     if (!requestedPath) {
       throw new Error("A file or folder path is required.");

@@ -37,7 +37,8 @@
       "dist/renderer/**/*",
       "electron/**/*",
       "package.json",
-      "notice for safety.md"
+      "notice for safety.md",
+      "IXO Logo.png"
     ],
     "asarUnpack": [
       "node_modules/rcedit/bin/**/*"

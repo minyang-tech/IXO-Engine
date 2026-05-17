@@ -111,12 +111,32 @@ function safeDownloadName(name) {
   return path.basename(name || `IXO-Engine-${Date.now()}`);
 }
 
+function validateReleaseAssetUrl(rawUrl) {
+  let parsed;
+  try {
+    parsed = new URL(String(rawUrl || ""));
+  } catch {
+    throw new Error("Release asset URL is invalid.");
+  }
+
+  const expectedPrefix = `/minyang-tech/IXO-Engine/releases/download/`;
+  if (
+    parsed.protocol !== "https:"
+    || parsed.hostname !== "github.com"
+    || !parsed.pathname.startsWith(expectedPrefix)
+  ) {
+    throw new Error("Release asset URL is not trusted.");
+  }
+
+  return parsed.toString();
+}
+
 async function downloadReleaseAsset(asset) {
   if (!asset?.downloadUrl) {
     throw new Error("No downloadable release asset is available for this platform.");
   }
 
-  const response = await net.fetch(asset.downloadUrl, { headers: RELEASE_HEADERS });
+  const response = await net.fetch(validateReleaseAssetUrl(asset.downloadUrl), { headers: RELEASE_HEADERS });
   if (!response.ok) {
     throw new Error(`Update download failed (${response.status}).`);
   }

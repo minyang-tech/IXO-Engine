@@ -25,7 +25,7 @@ jobs:
           name: windows-release
           path: release/windows/**
 
-  linux:
+  linux-native:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -33,10 +33,21 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - name: Install Linux packaging tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fakeroot
       - run: npm ci
       - run: npm run build:renderer
-      - run: npm run build:linux
+      - name: Build native Linux packages
+        run: npx electron-builder --linux AppImage deb --x64 --config.directories.output=release/linux
+      - name: Verify native Linux artifacts
+        run: |
+          test -n "$(find release/linux -maxdepth 1 -name '*.AppImage' -print -quit)"
+          test -n "$(find release/linux -maxdepth 1 -name '*.deb' -print -quit)"
       - uses: actions/upload-artifact@v4
         with:
-          name: linux-release
-          path: release/linux/**
+          name: linux-native-release
+          path: |
+            release/linux/*.AppImage
+            release/linux/*.deb

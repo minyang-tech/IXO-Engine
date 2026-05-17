@@ -11,8 +11,7 @@ import ReactFlow, {
   Position,
   ReactFlowProvider,
   useEdgesState,
-  useNodesState,
-  useReactFlow
+  useNodesState
 } from "reactflow";
 import "reactflow/dist/style.css";
 import logoImage from "../IXO Logo.png";
@@ -59,6 +58,7 @@ const TRACE_SPEED = {
 };
 
 const DEFAULT_LOG_LIMIT = 150;
+const HISTORY_MERGE_WINDOW_MS = 700;
 const LOCAL_AUTOSAVE_KEY = "ixo-engine-local-autosave-v1";
 const LOCAL_BACKUPS_KEY = "ixo-engine-local-backups-v1";
 const LOCAL_SAFE_MODE_KEY = "ixo-engine-safe-mode-v1";
@@ -74,6 +74,18 @@ const NETWORK_SAFETY_NOTICE = [
   "사용자의 계정 정보나 식별 가능한 데이터는 처리되지 않습니다.",
   "본 애플리케이션의 주요 기능은 로컬 환경에서 실행되며, 네트워크 연결은 업데이트 확인 및 일부 기능 제공에만 제한적으로 사용됩니다."
 ].join("\n");
+const RESTRICTED_SCRIPT_BLOCKED_PROPERTIES = new Set([
+  "__proto__",
+  "prototype",
+  "constructor",
+  "caller",
+  "callee",
+  "arguments",
+  "__defineGetter__",
+  "__defineSetter__",
+  "__lookupGetter__",
+  "__lookupSetter__"
+]);
 
 const LANGUAGE_OPTIONS = [
   { value: "ko", label: "\uD55C\uAD6D\uC5B4" },
@@ -328,6 +340,633 @@ const UI_TEXT = {
   }
 };
 
+const EXTRA_UI_TEXT = {
+  ko: {
+    preview: "미리보기",
+    viewer: "UI 뷰어",
+    builder: "캔버스 빌더",
+    settingsTitle: "엔진 설정",
+    docs: "문서",
+    file: "파일",
+    builderToolbarTitle: "캔버스 빌더",
+    workspaceSubtitle: "Visual logic + UI builder workspace",
+    save: "저장",
+    load: "불러오기",
+    export: "내보내기",
+    magicAlign: "자동 정렬",
+    speed: "속도",
+    resume: "재개",
+    pause: "일시정지",
+    trace: "추적",
+    nodeLibrary: "노드 라이브러리",
+    groupSelected: "선택 항목 그룹화",
+    safeMode: "안전 모드",
+    restoreBackup: "백업 복원",
+    autoReset: "자동 초기화",
+    close: "닫기",
+    findNode: "노드 찾기",
+    searchAllNodes: "전체 노드 검색...",
+    searchNodes: "노드 검색...",
+    quickSearchNodes: "노드 이름을 입력하고 Enter...",
+    librarySearchPlaceholder: "Ctrl+F 또는 노드 이름 입력...",
+    clear: "지우기",
+    result: "결과",
+    results: "결과",
+    coreTab: "기본",
+    proTab: "고급",
+    functionsTab: "함수",
+    functions: "함수",
+    createFunction: "함수 만들기",
+    editingFunction: "현재 함수 편집 중",
+    returnToMain: "메인으로 돌아가기",
+    functionDescription: "함수 설명",
+    functionDescriptionPlaceholder: "이 함수가 하는 일을 적어주세요.",
+    returnRefKey: "반환 Ref Key",
+    parameters: "매개변수",
+    addParameter: "매개변수 추가",
+    defaultValue: "기본값",
+    description: "설명",
+    delete: "삭제",
+    noParametersHint: "필요할 때 매개변수를 추가하세요.",
+    functionNameAria: "함수 이름",
+    noParams: "매개변수 없음",
+    edit: "편집",
+    noFunctions: "아직 함수가 없습니다",
+    noFunctionsHint: "직접 만든 함수는 재귀 호출도 가능합니다.",
+    noMatchingNodes: "일치하는 노드가 없습니다",
+    tryAnotherKeyword: "다른 검색어를 입력하거나 검색을 지워보세요.",
+    nodeOutputFeed: "노드 출력 피드",
+    execution: "실행 순서",
+    errorLogConsole: "오류 로그 콘솔",
+    errorLogHint: "스크립트 실행 결과, 분기 결과, 외부 액션 로그를 아래에 누적합니다.",
+    noLogs: "아직 기록된 로그가 없습니다.",
+    uiInspector: "UI 속성",
+    proInspector: "고급 속성",
+    properties: "속성",
+    nodes: "노드",
+    edges: "연결",
+    uiLayers: "UI 레이어",
+    logs: "로그",
+    viewerMode: "보기 모드",
+    viewerModeBuilder: "Canvas Builder가 활성화되어 있습니다.",
+    viewerModeViewer: "UI Viewer만 집중해서 보고 있습니다.",
+    viewerModePreview: "Preview와 JSON 상태를 함께 보고 있습니다.",
+    elementKind: "요소 종류",
+    textLabel: "텍스트 / 라벨",
+    imageSrc: "이미지 주소",
+    bindingRefKey: "연결 Ref Key",
+    width: "너비",
+    height: "높이",
+    fontSize: "글자 크기",
+    radius: "모서리 반경",
+    textColor: "글자 색상",
+    background: "배경",
+    actionType: "동작 종류",
+    actionValue: "동작 값",
+    deleteUiElement: "UI 요소 삭제",
+    nodeLabel: "노드 라벨",
+    conditionChain: "조건식 (AND/OR)",
+    mathExpression: "수식",
+    javascriptCode: "JavaScript 코드",
+    valueSetting: "값 / 설정",
+    refKey: "Ref Key",
+    groupLabel: "그룹 라벨",
+    nodeType: "노드 종류",
+    functionArguments: "함수 인수",
+    functionNoParams: "이 함수는 매개변수가 없습니다.",
+    functionReturnPrefix: "반환값은",
+    functionReturnSuffix: "기준으로 전달됩니다.",
+    lastExecutedNode: "마지막 실행 노드",
+    numericSlider: "숫자 슬라이더",
+    colorPicker: "색상 선택",
+    soundUpload: "사운드 업로드",
+    filePath: "파일 경로",
+    selectedId: "선택 ID",
+    createLinkedUiText: "연결된 UI 텍스트 만들기",
+    emptyInspectorHint: "노드를 더블 클릭하면 고급 Inspector가 열리고, Builder 모드에서는 UI 요소를 선택해 디자인 속성을 수정할 수 있습니다.",
+    addUiText: "UI 텍스트 추가",
+    addUiButton: "UI 버튼 추가",
+    engineStatus: "엔진 상태",
+    unsavedChanges: "저장되지 않은 변경사항",
+    mode: "모드",
+    paletteText: "텍스트",
+    paletteImage: "이미지",
+    paletteButton: "버튼",
+    paletteContainer: "컨테이너",
+    deviceDesktop: "데스크톱",
+    deviceTablet: "태블릿",
+    deviceMobile: "모바일",
+    exportTitle: "최종 산출물",
+    cancelExport: "취소하기",
+    exportDestinationPrefix: "해당 앱은",
+    exportDestinationEmpty: "저장 위치를 선택하세요.",
+    exportDestinationSuffix: "에 저장됩니다.",
+    pickPath: "경로 선택",
+    chooseArtifactTypes: "산출물 형식을 선택하세요.",
+    exportRequirementHint: "경로와 형식을 모두 지정해야 내보내기를 진행할 수 있습니다.",
+    desktopPipeline: "데스크톱",
+    mobilePipeline: "모바일",
+    mobilePipelineTitle: "모바일은 별도 패키징 파이프라인으로 처리됩니다.",
+    mobilePipelineCopy: "웹 런타임과 프로젝트 데이터를 모바일 워크스페이스로 내보내고, Android/iOS 전용 도구 체인에서 최종 `.apk` 또는 `.ipa`를 빌드합니다.",
+    mobileIconPreview: "모바일 아이콘 미리보기",
+    mobileIconPreviewHint: "기본 아이콘 또는 선택한 아이콘으로 플랫폼별 결과를 미리 확인합니다.",
+    mobileIconPreviewAlt: "모바일 아이콘 미리보기",
+    androidAdaptiveIcon: "Android adaptive icon",
+    iosAppIcon: "iOS app icon",
+    androidIconBackground: "Android 아이콘 배경색",
+    selectedAppIconAlt: "선택한 앱 아이콘",
+    dragAppIcon: "앱 아이콘 여기 끌어당기기",
+    appNamePrompt: "앱 이름을 정해주세요.",
+    version: "버전",
+    defaultExportHint: "아이콘 또는 이름을 지정하지 않을 시 기본 아이콘과 기본 이름이 사용됩니다.",
+    iconFormatsHint: "PNG 또는 ICO 아이콘을 지원합니다.",
+    exporting: "내보내는 중...",
+    exportAction: "내보내기",
+    invalidIcon: "PNG 또는 ICO 파일만 아이콘으로 사용할 수 있습니다."
+  },
+  en: {
+    preview: "Preview",
+    viewer: "UI Viewer",
+    builder: "Canvas Builder",
+    settingsTitle: "Engine Settings",
+    docs: "Docs",
+    file: "File",
+    builderToolbarTitle: "Canvas Builder",
+    workspaceSubtitle: "Visual logic + UI builder workspace",
+    save: "Save",
+    load: "Load",
+    export: "Export",
+    magicAlign: "Magic Align",
+    speed: "Speed",
+    resume: "Resume",
+    pause: "Pause",
+    trace: "Trace",
+    nodeLibrary: "Node Library",
+    groupSelected: "Group Selected",
+    safeMode: "Safe Mode",
+    restoreBackup: "Restore Backup",
+    autoReset: "Auto Reset",
+    close: "Close",
+    findNode: "Find node",
+    searchAllNodes: "Search all nodes...",
+    searchNodes: "Search nodes...",
+    quickSearchNodes: "Type node name and press Enter...",
+    librarySearchPlaceholder: "Ctrl+F or type a node name...",
+    clear: "Clear",
+    result: "result",
+    results: "results",
+    coreTab: "Core",
+    proTab: "Pro",
+    functionsTab: "Functions",
+    functions: "Functions",
+    createFunction: "Create Function",
+    editingFunction: "Editing function",
+    returnToMain: "Return to Main",
+    functionDescription: "Function Description",
+    functionDescriptionPlaceholder: "Describe what this function does.",
+    returnRefKey: "Return Ref Key",
+    parameters: "Parameters",
+    addParameter: "Add Parameter",
+    defaultValue: "Default value",
+    description: "Description",
+    delete: "Delete",
+    noParametersHint: "Add parameters when you need them.",
+    functionNameAria: "Function name",
+    noParams: "no params",
+    edit: "Edit",
+    noFunctions: "No functions yet",
+    noFunctionsHint: "User-defined functions can call themselves recursively.",
+    noMatchingNodes: "No matching nodes",
+    tryAnotherKeyword: "Try another keyword or clear the search.",
+    nodeOutputFeed: "Node Output Feed",
+    execution: "Execution",
+    errorLogConsole: "Error Log Console",
+    errorLogHint: "Script results, branch results, and external action logs accumulate below.",
+    noLogs: "No logs yet.",
+    uiInspector: "UI Inspector",
+    proInspector: "Pro Inspector",
+    properties: "Properties",
+    nodes: "Nodes",
+    edges: "Edges",
+    uiLayers: "UI Layers",
+    logs: "Logs",
+    viewerMode: "Viewer Mode",
+    viewerModeBuilder: "Canvas Builder is active.",
+    viewerModeViewer: "Focusing on UI Viewer only.",
+    viewerModePreview: "Showing Preview and JSON state together.",
+    elementKind: "Element Kind",
+    textLabel: "Text / Label",
+    imageSrc: "Image Src",
+    bindingRefKey: "Binding Ref Key",
+    width: "Width",
+    height: "Height",
+    fontSize: "Font Size",
+    radius: "Radius",
+    textColor: "Text Color",
+    background: "Background",
+    actionType: "Action Type",
+    actionValue: "Action Value",
+    deleteUiElement: "Delete UI Element",
+    nodeLabel: "Node Label",
+    conditionChain: "Condition Chain (AND/OR)",
+    mathExpression: "Math Expression",
+    javascriptCode: "JavaScript Code",
+    valueSetting: "Value / Setting",
+    refKey: "Ref Key",
+    groupLabel: "Group Label",
+    nodeType: "Node Type",
+    functionArguments: "Function Arguments",
+    functionNoParams: "This function has no parameters.",
+    functionReturnPrefix: "Return value is passed from",
+    functionReturnSuffix: ".",
+    lastExecutedNode: "the last executed node",
+    numericSlider: "Numeric Slider",
+    colorPicker: "Color Picker",
+    soundUpload: "Sound Upload",
+    filePath: "File Path",
+    selectedId: "Selected ID",
+    createLinkedUiText: "Create Linked UI Text",
+    emptyInspectorHint: "Double-click a node to open the Pro Inspector, or select a UI element in Builder mode to edit its design properties.",
+    addUiText: "Add UI Text",
+    addUiButton: "Add UI Button",
+    engineStatus: "ENGINE STATUS",
+    unsavedChanges: "Unsaved changes",
+    mode: "Mode",
+    paletteText: "Text",
+    paletteImage: "Image",
+    paletteButton: "Button",
+    paletteContainer: "Container",
+    deviceDesktop: "Desktop",
+    deviceTablet: "Tablet",
+    deviceMobile: "Mobile",
+    exportTitle: "Final Artifact",
+    cancelExport: "Cancel",
+    exportDestinationPrefix: "This app will be saved to",
+    exportDestinationEmpty: "Choose a save location.",
+    exportDestinationSuffix: "",
+    pickPath: "Choose Path",
+    chooseArtifactTypes: "Choose artifact types.",
+    exportRequirementHint: "You must choose both a path and at least one format before exporting.",
+    desktopPipeline: "Desktop",
+    mobilePipeline: "Mobile",
+    mobilePipelineTitle: "Mobile uses a separate packaging pipeline.",
+    mobilePipelineCopy: "The web runtime and project data are exported into a mobile workspace, then Android/iOS toolchains build the final `.apk` or `.ipa`.",
+    mobileIconPreview: "Mobile icon preview",
+    mobileIconPreviewHint: "Preview how the default or selected icon will appear per platform.",
+    mobileIconPreviewAlt: "Mobile icon preview",
+    androidAdaptiveIcon: "Android adaptive icon",
+    iosAppIcon: "iOS app icon",
+    androidIconBackground: "Android icon background",
+    selectedAppIconAlt: "Selected app icon",
+    dragAppIcon: "Drop app icon here",
+    appNamePrompt: "Choose an app name.",
+    version: "Version",
+    defaultExportHint: "If no icon or name is provided, the default icon and default name are used.",
+    iconFormatsHint: "PNG and ICO icons are supported.",
+    exporting: "Exporting...",
+    exportAction: "Export",
+    invalidIcon: "Only PNG or ICO files can be used as icons."
+  },
+  zh: {
+    preview: "预览",
+    viewer: "界面查看器",
+    builder: "画布构建器",
+    settingsTitle: "引擎设置",
+    docs: "文档",
+    file: "文件",
+    builderToolbarTitle: "画布构建器",
+    workspaceSubtitle: "可视化逻辑 + UI 构建工作区",
+    save: "保存",
+    load: "加载",
+    export: "导出",
+    magicAlign: "自动对齐",
+    speed: "速度",
+    resume: "继续",
+    pause: "暂停",
+    trace: "追踪",
+    nodeLibrary: "节点库",
+    groupSelected: "组合所选项",
+    safeMode: "安全模式",
+    restoreBackup: "恢复备份",
+    autoReset: "自动重置",
+    close: "关闭",
+    findNode: "查找节点",
+    searchAllNodes: "搜索全部节点...",
+    searchNodes: "搜索节点...",
+    quickSearchNodes: "输入节点名称并按 Enter...",
+    librarySearchPlaceholder: "Ctrl+F 或输入节点名称...",
+    clear: "清除",
+    result: "项结果",
+    results: "项结果",
+    coreTab: "基础",
+    proTab: "高级",
+    functionsTab: "函数",
+    functions: "函数",
+    createFunction: "创建函数",
+    editingFunction: "正在编辑函数",
+    returnToMain: "返回主界面",
+    functionDescription: "函数说明",
+    functionDescriptionPlaceholder: "请描述这个函数的作用。",
+    returnRefKey: "返回 Ref Key",
+    parameters: "参数",
+    addParameter: "添加参数",
+    defaultValue: "默认值",
+    description: "说明",
+    delete: "删除",
+    noParametersHint: "需要时再添加参数。",
+    functionNameAria: "函数名称",
+    noParams: "无参数",
+    edit: "编辑",
+    noFunctions: "还没有函数",
+    noFunctionsHint: "自定义函数也可以递归调用。",
+    noMatchingNodes: "没有匹配的节点",
+    tryAnotherKeyword: "请尝试其他关键词或清空搜索。",
+    nodeOutputFeed: "节点输出流",
+    execution: "执行顺序",
+    errorLogConsole: "错误日志控制台",
+    errorLogHint: "脚本结果、分支结果和外部动作日志会累计显示在下方。",
+    noLogs: "还没有日志。",
+    uiInspector: "UI 检查器",
+    proInspector: "高级检查器",
+    properties: "属性",
+    nodes: "节点",
+    edges: "连线",
+    uiLayers: "UI 图层",
+    logs: "日志",
+    viewerMode: "查看模式",
+    viewerModeBuilder: "Canvas Builder 已启用。",
+    viewerModeViewer: "当前只查看 UI Viewer。",
+    viewerModePreview: "同时查看 Preview 与 JSON 状态。",
+    elementKind: "元素类型",
+    textLabel: "文本 / 标签",
+    imageSrc: "图片地址",
+    bindingRefKey: "绑定 Ref Key",
+    width: "宽度",
+    height: "高度",
+    fontSize: "字号",
+    radius: "圆角",
+    textColor: "文字颜色",
+    background: "背景",
+    actionType: "动作类型",
+    actionValue: "动作值",
+    deleteUiElement: "删除 UI 元素",
+    nodeLabel: "节点标签",
+    conditionChain: "条件表达式 (AND/OR)",
+    mathExpression: "数学表达式",
+    javascriptCode: "JavaScript 代码",
+    valueSetting: "值 / 设置",
+    refKey: "Ref Key",
+    groupLabel: "分组标签",
+    nodeType: "节点类型",
+    functionArguments: "函数参数",
+    functionNoParams: "此函数没有参数。",
+    functionReturnPrefix: "返回值将从",
+    functionReturnSuffix: "传出。",
+    lastExecutedNode: "最后执行的节点",
+    numericSlider: "数字滑块",
+    colorPicker: "颜色选择",
+    soundUpload: "上传声音",
+    filePath: "文件路径",
+    selectedId: "已选 ID",
+    createLinkedUiText: "创建关联 UI 文本",
+    emptyInspectorHint: "双击节点可打开高级检查器；在 Builder 模式中选择 UI 元素可编辑设计属性。",
+    addUiText: "添加 UI 文本",
+    addUiButton: "添加 UI 按钮",
+    engineStatus: "引擎状态",
+    unsavedChanges: "有未保存更改",
+    mode: "模式",
+    paletteText: "文本",
+    paletteImage: "图片",
+    paletteButton: "按钮",
+    paletteContainer: "容器",
+    deviceDesktop: "桌面",
+    deviceTablet: "平板",
+    deviceMobile: "移动端",
+    exportTitle: "最终产物",
+    cancelExport: "取消",
+    exportDestinationPrefix: "该应用将保存到",
+    exportDestinationEmpty: "请选择保存位置。",
+    exportDestinationSuffix: "",
+    pickPath: "选择路径",
+    chooseArtifactTypes: "请选择产物格式。",
+    exportRequirementHint: "必须同时指定路径和格式后才能导出。",
+    desktopPipeline: "桌面",
+    mobilePipeline: "移动端",
+    mobilePipelineTitle: "移动端使用独立打包流程。",
+    mobilePipelineCopy: "网页运行时和项目数据会先导出到移动端工作区，再由 Android/iOS 工具链构建最终 `.apk` 或 `.ipa`。",
+    mobileIconPreview: "移动端图标预览",
+    mobileIconPreviewHint: "预览默认图标或已选图标在各平台上的效果。",
+    mobileIconPreviewAlt: "移动端图标预览",
+    androidAdaptiveIcon: "Android 自适应图标",
+    iosAppIcon: "iOS 应用图标",
+    androidIconBackground: "Android 图标背景色",
+    selectedAppIconAlt: "已选择的应用图标",
+    dragAppIcon: "将应用图标拖到这里",
+    appNamePrompt: "请设置应用名称。",
+    version: "版本",
+    defaultExportHint: "如果未指定图标或名称，将使用默认图标和默认名称。",
+    iconFormatsHint: "支持 PNG 或 ICO 图标。",
+    exporting: "正在导出...",
+    exportAction: "导出",
+    invalidIcon: "只能使用 PNG 或 ICO 文件作为图标。"
+  },
+  ja: {
+    preview: "プレビュー",
+    viewer: "UI ビューアー",
+    builder: "キャンバスビルダー",
+    settingsTitle: "エンジン設定",
+    docs: "ドキュメント",
+    file: "ファイル",
+    deleteZone: "削除エリア",
+    builderToolbarTitle: "キャンバスビルダー",
+    workspaceSubtitle: "ビジュアルロジック + UI ビルダー ワークスペース",
+    save: "保存",
+    load: "読み込み",
+    export: "書き出し",
+    magicAlign: "自動整列",
+    speed: "速度",
+    resume: "再開",
+    pause: "一時停止",
+    trace: "トレース",
+    nodeLibrary: "ノードライブラリ",
+    groupSelected: "選択項目をグループ化",
+    safeMode: "セーフモード",
+    restoreBackup: "バックアップを復元",
+    autoReset: "自動初期化",
+    close: "閉じる",
+    findNode: "ノードを検索",
+    searchAllNodes: "すべてのノードを検索...",
+    searchNodes: "ノードを検索...",
+    quickSearchNodes: "ノード名を入力して Enter...",
+    librarySearchPlaceholder: "Ctrl+F またはノード名を入力...",
+    clear: "クリア",
+    result: "件",
+    results: "件",
+    coreTab: "基本",
+    proTab: "高度",
+    functionsTab: "関数",
+    functions: "関数",
+    createFunction: "関数を作成",
+    editingFunction: "編集中の関数",
+    returnToMain: "メインへ戻る",
+    functionDescription: "関数の説明",
+    functionDescriptionPlaceholder: "この関数の役割を入力してください。",
+    returnRefKey: "戻り値 Ref Key",
+    parameters: "引数",
+    addParameter: "引数を追加",
+    defaultValue: "既定値",
+    description: "説明",
+    delete: "削除",
+    noParametersHint: "必要になったら引数を追加してください。",
+    functionNameAria: "関数名",
+    noParams: "引数なし",
+    edit: "編集",
+    noFunctions: "関数はまだありません",
+    noFunctionsHint: "自作関数は再帰呼び出しにも対応します。",
+    noMatchingNodes: "一致するノードがありません",
+    tryAnotherKeyword: "別のキーワードを試すか検索をクリアしてください。",
+    nodeOutputFeed: "ノード出力フィード",
+    execution: "実行順",
+    errorLogConsole: "エラーログコンソール",
+    errorLogHint: "スクリプト結果、分岐結果、外部アクションログを下に蓄積します。",
+    noLogs: "ログはまだありません。",
+    uiInspector: "UI インスペクター",
+    proInspector: "高度インスペクター",
+    properties: "プロパティ",
+    nodes: "ノード",
+    edges: "接続",
+    uiLayers: "UI レイヤー",
+    logs: "ログ",
+    viewerMode: "表示モード",
+    viewerModeBuilder: "Canvas Builder が有効です。",
+    viewerModeViewer: "UI Viewer のみを表示しています。",
+    viewerModePreview: "Preview と JSON 状態を同時に表示しています。",
+    elementKind: "要素の種類",
+    textLabel: "テキスト / ラベル",
+    imageSrc: "画像ソース",
+    bindingRefKey: "連携 Ref Key",
+    width: "幅",
+    height: "高さ",
+    fontSize: "文字サイズ",
+    radius: "角丸",
+    textColor: "文字色",
+    background: "背景",
+    actionType: "アクション種類",
+    actionValue: "アクション値",
+    deleteUiElement: "UI 要素を削除",
+    nodeLabel: "ノードラベル",
+    conditionChain: "条件式 (AND/OR)",
+    mathExpression: "数式",
+    javascriptCode: "JavaScript コード",
+    valueSetting: "値 / 設定",
+    refKey: "Ref Key",
+    groupLabel: "グループラベル",
+    nodeType: "ノード種類",
+    functionArguments: "関数引数",
+    functionNoParams: "この関数には引数がありません。",
+    functionReturnPrefix: "戻り値は",
+    functionReturnSuffix: "を基準に渡されます。",
+    lastExecutedNode: "最後に実行したノード",
+    numericSlider: "数値スライダー",
+    colorPicker: "色を選択",
+    soundUpload: "サウンドをアップロード",
+    filePath: "ファイルパス",
+    selectedId: "選択 ID",
+    createLinkedUiText: "連携 UI テキストを作成",
+    emptyInspectorHint: "ノードをダブルクリックすると高度インスペクターが開き、Builder モードでは UI 要素を選択してデザイン属性を編集できます。",
+    addUiText: "UI テキストを追加",
+    addUiButton: "UI ボタンを追加",
+    engineStatus: "エンジン状態",
+    unsavedChanges: "未保存の変更",
+    mode: "モード",
+    paletteText: "テキスト",
+    paletteImage: "画像",
+    paletteButton: "ボタン",
+    paletteContainer: "コンテナ",
+    deviceDesktop: "デスクトップ",
+    deviceTablet: "タブレット",
+    deviceMobile: "モバイル",
+    exportTitle: "最終成果物",
+    cancelExport: "キャンセル",
+    exportDestinationPrefix: "このアプリは",
+    exportDestinationEmpty: "保存先を選択してください。",
+    exportDestinationSuffix: "に保存されます。",
+    pickPath: "保存先を選択",
+    chooseArtifactTypes: "成果物形式を選択してください。",
+    exportRequirementHint: "保存先と形式の両方を指定すると書き出せます。",
+    desktopPipeline: "デスクトップ",
+    mobilePipeline: "モバイル",
+    mobilePipelineTitle: "モバイルは別のパッケージング工程で処理されます。",
+    mobilePipelineCopy: "Web ランタイムとプロジェクトデータをモバイルワークスペースへ書き出し、Android/iOS 専用ツールチェーンで最終 `.apk` または `.ipa` をビルドします。",
+    mobileIconPreview: "モバイルアイコンのプレビュー",
+    mobileIconPreviewHint: "既定または選択したアイコンの各プラットフォーム表示を確認します。",
+    mobileIconPreviewAlt: "モバイルアイコンのプレビュー",
+    androidAdaptiveIcon: "Android adaptive icon",
+    iosAppIcon: "iOS app icon",
+    androidIconBackground: "Android アイコン背景色",
+    selectedAppIconAlt: "選択したアプリアイコン",
+    dragAppIcon: "ここにアプリアイコンをドロップ",
+    appNamePrompt: "アプリ名を決めてください。",
+    version: "バージョン",
+    defaultExportHint: "アイコンまたは名前を指定しない場合は既定のものを使用します。",
+    iconFormatsHint: "PNG または ICO アイコンに対応しています。",
+    exporting: "書き出し中...",
+    exportAction: "書き出し",
+    invalidIcon: "アイコンには PNG または ICO ファイルのみ使用できます。"
+  }
+};
+
+Object.entries(EXTRA_UI_TEXT).forEach(([language, copy]) => {
+  Object.assign(UI_TEXT[language], copy);
+});
+
+const GROUP_TEXT = {
+  ko: {
+    start: "시작",
+    control: "제어",
+    visual: "시각",
+    system: "시스템",
+    logic: "논리",
+    utility: "유틸리티",
+    data: "데이터",
+    network: "네트워크",
+    function: "함수"
+  },
+  en: {
+    start: "Start",
+    control: "Control",
+    visual: "Visual",
+    system: "System",
+    logic: "Logic",
+    utility: "Utility",
+    data: "Data",
+    network: "Network",
+    function: "Function"
+  },
+  zh: {
+    start: "开始",
+    control: "控制",
+    visual: "视觉",
+    system: "系统",
+    logic: "逻辑",
+    utility: "工具",
+    data: "数据",
+    network: "网络",
+    function: "函数"
+  },
+  ja: {
+    start: "開始",
+    control: "制御",
+    visual: "表示",
+    system: "システム",
+    logic: "論理",
+    utility: "ユーティリティ",
+    data: "データ",
+    network: "ネットワーク",
+    function: "関数"
+  }
+};
+
 const NODE_TEXT = {
   ko: {
     start: "시작점",
@@ -525,11 +1164,212 @@ const NODE_TEXT = {
   ja: {}
 };
 
-NODE_TEXT.zh = NODE_TEXT.en;
-NODE_TEXT.ja = NODE_TEXT.en;
+NODE_TEXT.zh = {
+  start: "起点",
+  condition: "条件分支",
+  compare: "比较值",
+  "merge-data": "合并数据",
+  script: "脚本",
+  loop: "重复执行",
+  wait: "延迟等待",
+  switch: "分流",
+  text: "文本输出",
+  image: "图片输出",
+  input: "输入框",
+  trigger: "点击动作",
+  layout: "布局容器",
+  "ui-text": "UI 文本",
+  "ui-image": "UI 图片",
+  "ui-button": "UI 按钮",
+  "ui-container": "UI 容器",
+  variable: "全局值",
+  storage: "本地存储",
+  constant: "常量",
+  http: "HTTPS 请求",
+  browser: "打开浏览器",
+  "system-info": "系统信息",
+  "audio-player": "音频播放",
+  "file-watcher": "文件监听",
+  math: "公式计算",
+  string: "字符串组合",
+  random: "随机值",
+  "signal-send": "发送消息",
+  "signal-listen": "接收消息",
+  "scene-start": "场景开始",
+  "repeat-times": "按次数重复",
+  forever: "持续重复",
+  "break-loop": "结束循环",
+  "skip-cycle": "跳过本次循环",
+  "wait-until": "等待条件",
+  "stop-flow": "停止流程",
+  "restart-flow": "重新开始",
+  "clone-spawn": "创建副本",
+  "clone-remove": "删除副本",
+  "move-steps": "向前移动",
+  "edge-bounce": "边缘反弹",
+  "change-x": "修改 X",
+  "change-y": "修改 Y",
+  "set-x": "设置 X",
+  "set-y": "设置 Y",
+  "go-to-point": "移动到坐标",
+  "glide-point": "平滑移动",
+  "turn-angle": "旋转角度",
+  "set-heading": "设置方向",
+  "face-target": "面向目标",
+  "show-actor": "显示",
+  "hide-actor": "隐藏",
+  "speech-bubble": "气泡文字",
+  "clear-speech": "清除气泡",
+  "costume-switch": "切换外观",
+  "visual-effect": "视觉效果",
+  "size-change": "修改大小",
+  "layer-shift": "调整图层",
+  "flip-horizontal": "水平翻转",
+  "pen-down": "开始绘制",
+  "pen-up": "停止绘制",
+  "pen-color": "画笔颜色",
+  "pen-size": "画笔粗细",
+  "fill-start": "开始填充",
+  "fill-stop": "停止填充",
+  "clear-drawing": "清除绘图",
+  "sound-play": "播放声音",
+  "sound-play-wait": "播放到结束",
+  "sound-stop": "停止全部声音",
+  "volume-change": "调整音量",
+  "volume-set": "设置音量",
+  "tempo-change": "调整速度",
+  "tempo-set": "设置速度",
+  "bgm-play": "播放背景音乐",
+  "pointer-down": "鼠标按下？",
+  "object-clicked": "对象被点击？",
+  "key-held": "按键按下？",
+  "pointer-over": "指针接触？",
+  "number-check": "是否为数字",
+  "logic-and": "并且",
+  "logic-or": "或者",
+  "logic-not": "非",
+  "touch-screen": "支持触摸？",
+  "random-range": "范围随机",
+  timer: "计时器",
+  "date-part": "日期值",
+  "text-length": "文本长度",
+  "text-letter": "文本位置",
+  "text-replace": "替换文本",
+  "text-case": "大小写转换",
+  "rgb-hex": "RGB 转 HEX",
+  "hex-channel": "HEX 通道",
+  "function-call": "函数调用"
+};
+
+NODE_TEXT.ja = {
+  start: "開始点",
+  condition: "条件分岐",
+  compare: "値を比較",
+  "merge-data": "データ結合",
+  script: "スクリプト",
+  loop: "繰り返し実行",
+  wait: "待機",
+  switch: "分岐",
+  text: "テキスト出力",
+  image: "画像出力",
+  input: "入力欄",
+  trigger: "押下動作",
+  layout: "レイアウトボックス",
+  "ui-text": "UI テキスト",
+  "ui-image": "UI 画像",
+  "ui-button": "UI ボタン",
+  "ui-container": "UI コンテナ",
+  variable: "グローバル値",
+  storage: "ローカル保存",
+  constant: "固定値",
+  http: "HTTPS リクエスト",
+  browser: "ブラウザを開く",
+  "system-info": "システム情報",
+  "audio-player": "音声再生",
+  "file-watcher": "ファイル監視",
+  math: "数式計算",
+  string: "文字列結合",
+  random: "ランダム値",
+  "signal-send": "メッセージ送信",
+  "signal-listen": "メッセージ受信",
+  "scene-start": "画面開始",
+  "repeat-times": "回数繰り返し",
+  forever: "ずっと繰り返す",
+  "break-loop": "繰り返し終了",
+  "skip-cycle": "今回をスキップ",
+  "wait-until": "条件まで待機",
+  "stop-flow": "流れを停止",
+  "restart-flow": "最初から再実行",
+  "clone-spawn": "複製を作成",
+  "clone-remove": "複製を削除",
+  "move-steps": "前へ移動",
+  "edge-bounce": "端で跳ね返る",
+  "change-x": "X を変更",
+  "change-y": "Y を変更",
+  "set-x": "X を指定",
+  "set-y": "Y を指定",
+  "go-to-point": "座標へ移動",
+  "glide-point": "なめらかに移動",
+  "turn-angle": "角度回転",
+  "set-heading": "方向を指定",
+  "face-target": "対象を見る",
+  "show-actor": "表示",
+  "hide-actor": "非表示",
+  "speech-bubble": "吹き出し",
+  "clear-speech": "吹き出しを消す",
+  "costume-switch": "見た目を変更",
+  "visual-effect": "効果を調整",
+  "size-change": "大きさ変更",
+  "layer-shift": "レイヤー移動",
+  "flip-horizontal": "左右反転",
+  "pen-down": "描画開始",
+  "pen-up": "描画停止",
+  "pen-color": "線の色",
+  "pen-size": "線の太さ",
+  "fill-start": "塗りつぶし開始",
+  "fill-stop": "塗りつぶし停止",
+  "clear-drawing": "描画を消す",
+  "sound-play": "音を再生",
+  "sound-play-wait": "最後まで再生",
+  "sound-stop": "すべて停止",
+  "volume-change": "音量変更",
+  "volume-set": "音量指定",
+  "tempo-change": "速さ変更",
+  "tempo-set": "速さ指定",
+  "bgm-play": "BGM 再生",
+  "pointer-down": "マウス押下？",
+  "object-clicked": "オブジェクト押下？",
+  "key-held": "キー押下？",
+  "pointer-over": "ポインター接触？",
+  "number-check": "数値か？",
+  "logic-and": "かつ",
+  "logic-or": "または",
+  "logic-not": "ではない",
+  "touch-screen": "タッチ可能？",
+  "random-range": "範囲ランダム",
+  timer: "タイマー",
+  "date-part": "日付値",
+  "text-length": "文字列長",
+  "text-letter": "文字位置",
+  "text-replace": "文字置換",
+  "text-case": "大文字小文字変換",
+  "rgb-hex": "RGB から HEX",
+  "hex-channel": "HEX チャンネル",
+  "function-call": "関数呼び出し"
+};
 
 function getNodeLabel(nodeType, language, fallback) {
   return NODE_TEXT[language]?.[nodeType] || NODE_TEXT.en[nodeType] || fallback || nodeType;
+}
+
+function getGroupLabel(group, language) {
+  return GROUP_TEXT[language]?.[group] || GROUP_TEXT.en[group] || group;
+}
+
+function getPreviewDeviceLabel(device, uiText) {
+  if (device === "tablet") return uiText.deviceTablet;
+  if (device === "mobile") return uiText.deviceMobile;
+  return uiText.deviceDesktop;
 }
 
 const STARTER_TEMPLATES = {
@@ -1141,6 +1981,18 @@ function getUiNodeTypeFromKind(kind) {
   return getUiNodeDefinition(kind).type;
 }
 
+function getUiKindFromNodeType(nodeType) {
+  if (nodeType === "image") return "image";
+  if (nodeType === "trigger") return "button";
+  if (nodeType === "layout") return "container";
+  if (nodeType === "text") return "text";
+  return "";
+}
+
+function isUiLinkedNodeType(nodeType) {
+  return Boolean(getUiKindFromNodeType(nodeType));
+}
+
 function getUiNodeValue(element) {
   return element.kind === "image" ? element.src : element.text;
 }
@@ -1155,6 +2007,32 @@ function getUiNodePatch(element) {
     value: getUiNodeValue(element),
     linkedUiElementId: element.id
   };
+}
+
+function createUiElementFromNode(node, index = 0, accentColor = ACCENT) {
+  const kind = getUiKindFromNodeType(node.data?.nodeType);
+  const base = createUiElement(kind || "text", node.data?.refKey || "", accentColor);
+  const columnOffset = (index % 3) * 28;
+  const rowOffset = Math.floor(index / 3) * 28;
+
+  return {
+    ...base,
+    x: base.x + columnOffset,
+    y: base.y + rowOffset,
+    text: kind === "image" ? base.text : String(node.data?.value || base.text),
+    src: kind === "image" ? String(node.data?.value || base.src) : base.src,
+    bindingKey: node.data?.refKey || "",
+    linkedNodeId: node.id
+  };
+}
+
+function getUiNodeMatchScore(element, node) {
+  if (getUiNodeTypeFromKind(element.kind) !== node.data?.nodeType) return -1;
+
+  let score = 1;
+  if (element.bindingKey && element.bindingKey === node.data?.refKey) score += 4;
+  if (getUiNodeValue(element) && getUiNodeValue(element) === node.data?.value) score += 2;
+  return score;
 }
 
 // [템플릿] 노드 값이나 UI 텍스트에서 {{refKey}} 문법을 치환합니다.
@@ -1499,17 +2377,21 @@ function runPipeline(
         produced = rendered;
       }
     } else if (type === "script") {
-      if (!allowScripts) {
+      const restrictedResult = tryRunRestrictedScript(value, context, inputValues);
+      if (restrictedResult.ok) {
+        produced = typeof restrictedResult.value === "undefined" ? "" : restrictedResult.value;
+        events.push(makeLog("info", node.data?.label || "Script", `제한 실행 모드로 스크립트가 실행되었습니다. 결과: ${String(produced)}`));
+      } else if (!allowScripts) {
         produced = "";
-        events.push(makeLog("info", node.data?.label || "Script", "스크립트 실행이 승인될 때까지 차단되었습니다."));
+        events.push(makeLog("info", node.data?.label || "Script", "제한 실행 모드에서 허용되지 않는 구문이 있어 전체 JavaScript 승인 전까지 차단되었습니다."));
       } else {
         try {
-          // [스크립트 노드] 사용자 코드 실행 결과를 받아 콘솔에도 남깁니다.
+          // [스크립트 노드] 제한 모드를 벗어난 코드는 별도 승인 후에만 전체 JavaScript로 실행합니다.
           // eslint-disable-next-line no-new-func
           const fn = new Function("context", "inputValues", String(value || "return context;"));
           const result = fn(context, inputValues);
           produced = typeof result === "undefined" ? "" : result;
-          events.push(makeLog("info", node.data?.label || "Script", `스크립트가 실행되었습니다. 결과: ${String(produced)}`));
+          events.push(makeLog("info", node.data?.label || "Script", `전체 JavaScript 모드로 스크립트가 실행되었습니다. 결과: ${String(produced)}`));
         } catch (error) {
           produced = `Script Error: ${error.message}`;
           events.push(makeLog("error", node.data?.label || "Script", produced));
@@ -1972,7 +2854,7 @@ const IXONode = memo(function IXONode({ data, selected }) {
       <Handle className="node-handle node-handle-target" type="target" position={Position.Left} />
       <div className="ixo-node-header">
         <span className="ixo-badge">IXO</span>
-        <span>{data.category || "Node"}</span>
+        <span>{data.displayCategory || data.category || "Node"}</span>
       </div>
       <div className="ixo-node-title-row">
         <div className="ixo-node-title">{data.displayLabel || data.label}</div>
@@ -2085,7 +2967,7 @@ function RuntimePanel({
                   event.dataTransfer.effectAllowed = "copy";
                 }}
               >
-                {item.label}
+                {uiText[`palette${item.kind[0].toUpperCase()}${item.kind.slice(1)}`] || item.label}
               </button>
             ))}
           </div>
@@ -2117,7 +2999,7 @@ function RuntimePanel({
             <div className="device-tabs">
               {Object.entries(PREVIEW_DEVICE_OPTIONS).map(([key, option]) => (
                 <button key={key} className={previewDevice === key ? "active" : ""} onClick={() => setPreviewDevice(key)}>
-                  {option.label}
+                  {getPreviewDeviceLabel(key, uiText)}
                 </button>
               ))}
             </div>
@@ -2166,7 +3048,7 @@ function RuntimePanel({
 
         {viewMode === "preview" && (runtime.outputTexts.length || runtime.outputImages.length || runtime.outputSounds.length) ? (
           <div className="auto-output-stack">
-            <div className="auto-output-title">Node Output Feed</div>
+            <div className="auto-output-title">{uiText.nodeOutputFeed}</div>
             {runtime.outputTexts.map((item) => (
               <div key={item.id} className="runtime-text-row">
                 <strong>{item.label}</strong>
@@ -2190,7 +3072,7 @@ function RuntimePanel({
 
         {debugOverlay ? (
           <div className="debug-overlay">
-            <span>Execution</span>
+            <span>{uiText.execution}</span>
             <strong>{runtime.topo.join(" -> ")}</strong>
           </div>
         ) : null}
@@ -2202,19 +3084,19 @@ function RuntimePanel({
 }
 
 // [로그 콘솔] 내부 에러와 실행 이력을 하단 섹션에 정리합니다.
-function LogConsole({ logs, onClear }) {
+function LogConsole({ logs, onClear, uiText }) {
   return (
     <div className="log-console">
       <div className="log-console-header">
         <div>
-          <strong>Error Log Console</strong>
-          <span>스크립트 실행 결과, 분기 결과, 외부 액션 로그를 아래에 누적합니다.</span>
+          <strong>{uiText.errorLogConsole}</strong>
+          <span>{uiText.errorLogHint}</span>
         </div>
-        <button className="ghost-btn" onClick={onClear}>Clear</button>
+        <button className="ghost-btn" onClick={onClear}>{uiText.clear}</button>
       </div>
 
       <div className="log-console-list">
-        {logs.length === 0 ? <div className="log-empty">아직 기록된 로그가 없습니다.</div> : null}
+        {logs.length === 0 ? <div className="log-empty">{uiText.noLogs}</div> : null}
         {logs.map((log) => (
           <div key={log.id} className={`log-entry level-${log.level}`}>
             <div className="log-meta">
@@ -2286,7 +3168,7 @@ function SettingsModal({
             <span>{uiText.responsivePreview}</span>
             <select value={draftPreviewDevice} onChange={(event) => setDraftPreviewDevice(event.target.value)}>
               {Object.entries(PREVIEW_DEVICE_OPTIONS).map(([key, option]) => (
-                <option key={key} value={key}>{option.label}</option>
+                <option key={key} value={key}>{getPreviewDeviceLabel(key, uiText)}</option>
               ))}
             </select>
           </label>
@@ -2393,6 +3275,274 @@ function asBoolean(value) {
   return Boolean(value);
 }
 
+class RestrictedScriptError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "RestrictedScriptError";
+  }
+}
+
+function getRestrictedScriptExpression(code) {
+  const normalized = String(code || "return context;").trim();
+  const match = normalized.match(/^return\s+([\s\S]*?);?$/);
+  if (!match) {
+    throw new RestrictedScriptError("Restricted mode only supports a single return expression.");
+  }
+  const expression = match[1].trim().replace(/;$/, "").trim();
+  if (!expression) {
+    throw new RestrictedScriptError("Restricted mode requires a return value.");
+  }
+  return expression;
+}
+
+function tokenizeRestrictedScript(source) {
+  const tokens = [];
+  const operators = ["===", "!==", ">=", "<=", "&&", "||", "??", "==", "!=", "+", "-", "*", "/", "%", ">", "<", "!", "?", ":", ".", "[", "]", "(", ")"];
+  let index = 0;
+
+  while (index < source.length) {
+    const char = source[index];
+    if (/\s/.test(char)) {
+      index += 1;
+      continue;
+    }
+
+    if (char === "'" || char === '"') {
+      const quote = char;
+      let value = "";
+      index += 1;
+      while (index < source.length) {
+        const current = source[index];
+        if (current === "\\") {
+          const next = source[index + 1];
+          if (typeof next === "undefined") {
+            throw new RestrictedScriptError("Unterminated string literal.");
+          }
+          const escapes = { n: "\n", r: "\r", t: "\t" };
+          value += escapes[next] ?? next;
+          index += 2;
+          continue;
+        }
+        if (current === quote) {
+          index += 1;
+          tokens.push({ type: "string", value });
+          value = null;
+          break;
+        }
+        value += current;
+        index += 1;
+      }
+      if (value !== null) {
+        throw new RestrictedScriptError("Unterminated string literal.");
+      }
+      continue;
+    }
+
+    const numberMatch = source.slice(index).match(/^(?:\d+(?:\.\d+)?|\.\d+)/);
+    if (numberMatch) {
+      tokens.push({ type: "number", value: Number(numberMatch[0]) });
+      index += numberMatch[0].length;
+      continue;
+    }
+
+    const identifierMatch = source.slice(index).match(/^[A-Za-z_$][\w$]*/);
+    if (identifierMatch) {
+      tokens.push({ type: "identifier", value: identifierMatch[0] });
+      index += identifierMatch[0].length;
+      continue;
+    }
+
+    const operator = operators.find((candidate) => source.startsWith(candidate, index));
+    if (!operator) {
+      throw new RestrictedScriptError(`Unsupported token near "${source.slice(index, index + 12)}".`);
+    }
+    tokens.push({ type: "operator", value: operator });
+    index += operator.length;
+  }
+
+  tokens.push({ type: "eof", value: "" });
+  return tokens;
+}
+
+function cloneRestrictedScriptValue(value) {
+  try {
+    return typeof structuredClone === "function"
+      ? structuredClone(value)
+      : JSON.parse(JSON.stringify(value));
+  } catch {
+    return {};
+  }
+}
+
+function readRestrictedScriptProperty(target, property) {
+  const key = String(property);
+  if (RESTRICTED_SCRIPT_BLOCKED_PROPERTIES.has(key)) {
+    throw new RestrictedScriptError(`Property "${key}" is blocked in restricted mode.`);
+  }
+  if (target === null || typeof target === "undefined") {
+    return undefined;
+  }
+  if (typeof target !== "object" && typeof target !== "string") {
+    return undefined;
+  }
+  return target[key];
+}
+
+function evaluateRestrictedScript(code, context, inputValues) {
+  const tokens = tokenizeRestrictedScript(getRestrictedScriptExpression(code));
+  const safeRoots = {
+    context: cloneRestrictedScriptValue(context),
+    inputValues: cloneRestrictedScriptValue(inputValues)
+  };
+  const precedence = {
+    "??": 1,
+    "||": 2,
+    "&&": 3,
+    "==": 4,
+    "!=": 4,
+    "===": 4,
+    "!==": 4,
+    ">": 5,
+    "<": 5,
+    ">=": 5,
+    "<=": 5,
+    "+": 6,
+    "-": 6,
+    "*": 7,
+    "/": 7,
+    "%": 7
+  };
+  let cursor = 0;
+
+  const current = () => tokens[cursor];
+  const match = (value) => {
+    if (current().value !== value) return false;
+    cursor += 1;
+    return true;
+  };
+  const expect = (value) => {
+    if (!match(value)) {
+      throw new RestrictedScriptError(`Expected "${value}".`);
+    }
+  };
+
+  const applyBinary = (operator, left, right) => {
+    if (operator === "??") return left ?? right;
+    if (operator === "||") return left || right;
+    if (operator === "&&") return left && right;
+    if (operator === "==") return left == right;
+    if (operator === "!=") return left != right;
+    if (operator === "===") return left === right;
+    if (operator === "!==") return left !== right;
+    if (operator === ">") return left > right;
+    if (operator === "<") return left < right;
+    if (operator === ">=") return left >= right;
+    if (operator === "<=") return left <= right;
+    if (operator === "+") return left + right;
+    if (operator === "-") return left - right;
+    if (operator === "*") return left * right;
+    if (operator === "/") return left / right;
+    if (operator === "%") return left % right;
+    throw new RestrictedScriptError(`Operator "${operator}" is not supported.`);
+  };
+
+  function parseConditional() {
+    const condition = parseBinary();
+    if (!match("?")) {
+      return condition;
+    }
+    const whenTrue = parseConditional();
+    expect(":");
+    const whenFalse = parseConditional();
+    return condition ? whenTrue : whenFalse;
+  }
+
+  function parsePrimary() {
+    const token = current();
+    let value;
+
+    if (token.type === "number" || token.type === "string") {
+      value = token.value;
+      cursor += 1;
+    } else if (token.type === "identifier") {
+      cursor += 1;
+      if (token.value === "true") value = true;
+      else if (token.value === "false") value = false;
+      else if (token.value === "null") value = null;
+      else if (token.value === "undefined") value = undefined;
+      else if (Object.prototype.hasOwnProperty.call(safeRoots, token.value)) value = safeRoots[token.value];
+      else throw new RestrictedScriptError(`Identifier "${token.value}" is not allowed in restricted mode.`);
+    } else if (match("(")) {
+      value = parseConditional();
+      expect(")");
+    } else {
+      throw new RestrictedScriptError("Expected a value.");
+    }
+
+    while (true) {
+      if (match(".")) {
+        const property = current();
+        if (property.type !== "identifier") {
+          throw new RestrictedScriptError("Expected a property name.");
+        }
+        cursor += 1;
+        value = readRestrictedScriptProperty(value, property.value);
+        continue;
+      }
+      if (match("[")) {
+        const property = parseConditional();
+        expect("]");
+        value = readRestrictedScriptProperty(value, property);
+        continue;
+      }
+      if (current().value === "(") {
+        throw new RestrictedScriptError("Function calls are not allowed in restricted mode.");
+      }
+      break;
+    }
+
+    return value;
+  }
+
+  function parseUnary() {
+    if (match("!")) return !parseUnary();
+    if (match("+")) return Number(parseUnary());
+    if (match("-")) return -Number(parseUnary());
+    return parsePrimary();
+  }
+
+  function parseBinary(minimumPrecedence = 0) {
+    let left = parseUnary();
+    while (current().type === "operator" && Object.prototype.hasOwnProperty.call(precedence, current().value)) {
+      const operator = current().value;
+      const operatorPrecedence = precedence[operator];
+      if (operatorPrecedence < minimumPrecedence) break;
+      cursor += 1;
+      const right = parseBinary(operatorPrecedence + 1);
+      left = applyBinary(operator, left, right);
+    }
+    return left;
+  }
+
+  const result = parseConditional();
+  if (current().type !== "eof") {
+    throw new RestrictedScriptError("Unexpected trailing tokens.");
+  }
+  return result;
+}
+
+function tryRunRestrictedScript(code, context, inputValues) {
+  try {
+    return { ok: true, value: evaluateRestrictedScript(code, context, inputValues) };
+  } catch (error) {
+    return { ok: false, error };
+  }
+}
+
+function canRunRestrictedScript(code) {
+  return tryRunRestrictedScript(code, {}, {}).ok;
+}
+
 function boolText(value) {
   return value ? "true" : "false";
 }
@@ -2491,8 +3641,10 @@ function getDefaultActor(runtimeState) {
 
 function ExportModal({
   open,
+  uiText,
   appName,
   icon,
+  mobileIconBackgroundColor,
   outputPath,
   targets,
   targetOptions,
@@ -2502,6 +3654,7 @@ function ExportModal({
   busy,
   onAppNameChange,
   onIconChange,
+  onMobileIconBackgroundColorChange,
   onPickPath,
   onToggleTarget,
   onPipelineChange,
@@ -2511,12 +3664,13 @@ function ExportModal({
   onCancel
 }) {
   const iconInputRef = useRef(null);
+  const mobilePreviewIconSrc = icon?.dataUrl || logoImage;
 
   const readIconFile = useCallback((file) => {
     if (!file) return;
     const lowerName = file.name.toLowerCase();
     if (!lowerName.endsWith(".png") && !lowerName.endsWith(".ico")) {
-      window.alert("PNG 또는 ICO 파일만 아이콘으로 사용할 수 있습니다.");
+      window.alert(uiText.invalidIcon);
       return;
     }
 
@@ -2528,7 +3682,7 @@ function ExportModal({
       });
     };
     reader.readAsDataURL(file);
-  }, [onIconChange]);
+  }, [onIconChange, uiText.invalidIcon]);
 
   const handleDrop = useCallback((event) => {
     event.preventDefault();
@@ -2541,31 +3695,31 @@ function ExportModal({
     <div className="settings-modal-backdrop" onClick={onCancel}>
       <div className="settings-modal export-modal" onClick={(event) => event.stopPropagation()}>
         <div className="settings-modal-header">
-          <strong>최종 산출물</strong>
-          <button className="ghost-btn" onClick={onCancel}>취소하기</button>
+          <strong>{uiText.exportTitle}</strong>
+          <button className="ghost-btn" onClick={onCancel}>{uiText.cancelExport}</button>
         </div>
 
         <div className="settings-modal-body export-modal-body">
           <div className="export-destination-card">
-            <span>해당 앱은</span>
-            <strong>{outputPath || "저장 위치를 선택하세요."}</strong>
-            <span>에 저장됩니다.</span>
-            <button className="ghost-btn" onClick={onPickPath}>경로 선택</button>
+            <span>{uiText.exportDestinationPrefix}</span>
+            <strong>{outputPath || uiText.exportDestinationEmpty}</strong>
+            <span>{uiText.exportDestinationSuffix}</span>
+            <button className="ghost-btn" onClick={onPickPath}>{uiText.pickPath}</button>
           </div>
 
           <section className="export-target-picker">
             <div>
-              <strong>산출물 형식을 선택하세요.</strong>
-              <span>경로와 형식을 모두 지정해야 내보내기를 진행할 수 있습니다.</span>
+              <strong>{uiText.chooseArtifactTypes}</strong>
+              <span>{uiText.exportRequirementHint}</span>
             </div>
             <div className="export-pipeline-tabs">
-              <button className={pipeline === "desktop" ? "active" : ""} onClick={() => onPipelineChange("desktop")}>Desktop</button>
-              <button className={pipeline === "mobile" ? "active" : ""} onClick={() => onPipelineChange("mobile")}>Mobile</button>
+              <button className={pipeline === "desktop" ? "active" : ""} onClick={() => onPipelineChange("desktop")}>{uiText.desktopPipeline}</button>
+              <button className={pipeline === "mobile" ? "active" : ""} onClick={() => onPipelineChange("mobile")}>{uiText.mobilePipeline}</button>
             </div>
             {pipeline === "mobile" ? (
               <div className="mobile-export-note">
-                <strong>모바일은 별도 패키징 파이프라인으로 처리됩니다.</strong>
-                <span>웹 런타임과 프로젝트 데이터를 모바일 워크스페이스로 내보내고, Android/iOS 전용 도구 체인에서 최종 `.apk` 또는 `.ipa`를 빌드합니다.</span>
+                <strong>{uiText.mobilePipelineTitle}</strong>
+                <span>{uiText.mobilePipelineCopy}</span>
               </div>
             ) : null}
             <div className="export-target-grid">
@@ -2595,8 +3749,8 @@ function ExportModal({
             onDragOver={(event) => event.preventDefault()}
             onDrop={handleDrop}
           >
-            {icon ? <img src={icon.dataUrl} alt="선택한 앱 아이콘" /> : null}
-            <span>{icon ? icon.name : "앱 아이콘 여기 끌어당기기"}</span>
+            {icon ? <img src={icon.dataUrl} alt={uiText.selectedAppIconAlt} /> : null}
+            <span>{icon ? icon.name : uiText.dragAppIcon}</span>
           </button>
           <input
             ref={iconInputRef}
@@ -2607,7 +3761,7 @@ function ExportModal({
           />
 
           <label className="settings-field export-name-field">
-            <span>앱 이름을 정해주세요.</span>
+            <span>{uiText.appNamePrompt}</span>
             <input
               type="text"
               value={appName}
@@ -2628,7 +3782,7 @@ function ExportModal({
                 />
               </label>
               <label className="settings-field">
-                <span>버전</span>
+                <span>{uiText.version}</span>
                 <input
                   type="text"
                   value={mobileVersionName}
@@ -2639,17 +3793,48 @@ function ExportModal({
             </div>
           ) : null}
 
+          {pipeline === "mobile" ? (
+            <section className="mobile-icon-preview-panel">
+              <div className="mobile-icon-preview-heading">
+                <strong>{uiText.mobileIconPreview}</strong>
+                <span>{uiText.mobileIconPreviewHint}</span>
+              </div>
+              <div className="mobile-icon-preview-grid">
+                <div>
+                  <small>{uiText.androidAdaptiveIcon}</small>
+                  <div className="adaptive-icon-preview" style={{ background: mobileIconBackgroundColor }}>
+                    <img src={mobilePreviewIconSrc} alt={uiText.mobileIconPreviewAlt} />
+                  </div>
+                </div>
+                <div>
+                  <small>{uiText.iosAppIcon}</small>
+                  <div className="ios-icon-preview">
+                    <img src={mobilePreviewIconSrc} alt={uiText.mobileIconPreviewAlt} />
+                  </div>
+                </div>
+              </div>
+              <label className="settings-field mobile-icon-color-field">
+                <span>{uiText.androidIconBackground}</span>
+                <input
+                  type="color"
+                  value={mobileIconBackgroundColor}
+                  onChange={(event) => onMobileIconBackgroundColorChange(event.target.value)}
+                />
+              </label>
+            </section>
+          ) : null}
+
           <p className="export-help">
-            아이콘 또는 이름을 지정하지 않을 시 기본 아이콘과 기본 이름이 사용됩니다.
+            {uiText.defaultExportHint}
           </p>
         </div>
 
         <div className="settings-modal-actions">
-          <span className="export-note">PNG 또는 ICO 아이콘을 지원합니다.</span>
+          <span className="export-note">{uiText.iconFormatsHint}</span>
           <div className="settings-cta-group">
-            <button className="ghost-btn" onClick={onCancel}>취소하기</button>
+            <button className="ghost-btn" onClick={onCancel}>{uiText.cancelExport}</button>
             <button className="menu-btn docs-btn" onClick={onExport} disabled={busy || !outputPath || targets.length === 0}>
-              {busy ? "내보내는 중..." : "내보내기"}
+              {busy ? uiText.exporting : uiText.exportAction}
             </button>
           </div>
         </div>
@@ -2660,7 +3845,7 @@ function ExportModal({
 
 // [메인 에디터] 노드 편집기, Viewer, Builder, 로그, 저장 기능을 총괄합니다.
 function EngineEditor() {
-  const { screenToFlowPosition, setCenter } = useReactFlow();
+  const reactFlowRef = useRef(null);
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [libraryTab, setLibraryTab] = useState("pro");
@@ -2688,6 +3873,7 @@ function EngineEditor() {
   const [paused, setPaused] = useState(false);
   const [history, setHistory] = useState([]);
   const [future, setFuture] = useState([]);
+  const [flowRevision, setFlowRevision] = useState(0);
   const [viewMode, setViewMode] = useState("preview");
   const [logs, setLogs] = useState([]);
   const [dragState, setDragState] = useState(null);
@@ -2714,6 +3900,7 @@ function EngineEditor() {
   const [exportPipeline, setExportPipeline] = useState("desktop");
   const [mobileBundleId, setMobileBundleId] = useState("com.minyangtech.mytixo");
   const [mobileVersionName, setMobileVersionName] = useState("1.0.0");
+  const [mobileIconBackgroundColor, setMobileIconBackgroundColor] = useState("#101713");
   const [exportCapabilities, setExportCapabilities] = useState({});
   const [exportBusy, setExportBusy] = useState(false);
   const [interactionState, setInteractionState] = useState({
@@ -2728,6 +3915,7 @@ function EngineEditor() {
 
   const builderCanvasRef = useRef(null);
   const librarySearchInputRef = useRef(null);
+  const lastSnapshotMetaRef = useRef({ mergeKey: "", at: 0 });
   const sidebarRef = useRef(null);
   const nodeCounterRef = useRef(nodeCounter);
   const lastExecutionKeyRef = useRef("");
@@ -2735,12 +3923,22 @@ function EngineEditor() {
   const autoSaveTimerRef = useRef(null);
   const mainGraphRef = useRef(null);
   const uiLinkBootstrapRef = useRef(false);
-  const securityDecisionRef = useRef({ external: "pending", httpsNode: "pending", script: "pending" });
+  const nodeDragStartSnapshotRef = useRef(null);
+  const historyRestoreGuardRef = useRef(false);
+  const pendingRestoredNodesRef = useRef(null);
+  const securityDecisionRef = useRef({ external: "pending", httpsNode: "pending", script: "pending", fileWatcher: "pending" });
   const securityApprovalPromiseRef = useRef({});
   const startupHttpsPreferencePromiseRef = useRef(null);
   const inFlightExternalActionsRef = useRef(new Set());
   const [safeModeInfo, setSafeModeInfo] = useState(null);
 
+  const screenToFlowPosition = useCallback(
+    (point) => reactFlowRef.current?.screenToFlowPosition(point) || point,
+    []
+  );
+  const setCenter = useCallback((...args) => {
+    reactFlowRef.current?.setCenter(...args);
+  }, []);
   useEffect(() => {
     nodeCounterRef.current = nodeCounter;
   }, [nodeCounter]);
@@ -2759,7 +3957,7 @@ function EngineEditor() {
   }, []);
 
   const resetSecurityState = useCallback(async () => {
-    securityDecisionRef.current = { external: "pending", httpsNode: "pending", script: "pending" };
+    securityDecisionRef.current = { external: "pending", httpsNode: "pending", script: "pending", fileWatcher: "pending" };
     securityApprovalPromiseRef.current = {};
     inFlightExternalActionsRef.current.clear();
     setScriptExecutionAllowed(false);
@@ -2787,7 +3985,9 @@ function EngineEditor() {
                 ? `네트워크 계열 노드 사용을 동의하십니까?\n\n${NETWORK_SAFETY_NOTICE}`
                 : scope === "httpsNode"
                   ? `네트워크 계열 노드 사용을 동의하십니까?\n\n${NETWORK_SAFETY_NOTICE}`
-                : "This project contains script nodes that can run custom code. Allow for this session?"
+                  : scope === "fileWatcher"
+                    ? `이 프로젝트가 로컬 파일 또는 폴더 감시 기능을 사용하려고 합니다.\n\n감시 대상: ${context?.path || "선택한 경로"}`
+                    : "This project contains script nodes that require full JavaScript execution. Allow for this session?"
             )
           };
       const approved = Boolean(result?.approved);
@@ -3029,6 +4229,7 @@ function EngineEditor() {
         data: {
           ...node.data,
           displayLabel: getNodeLabel(node.data?.nodeType, language, node.data?.label),
+          displayCategory: getGroupLabel(node.data?.kind, language),
           liveValue: runtime.liveValues[node.id] ?? "",
           isActive: runtime.activeNodeIds.includes(node.id),
           isFocused: runtime.focusedNodeId === node.id,
@@ -3139,14 +4340,28 @@ function EngineEditor() {
     };
   }, [activeFunctionId, edges, functions, inputValues, language, nodes, previewDevice, themeKey, uiElements, viewMode]);
 
-  const snapshot = useCallback(() => {
-    setHistory((current) => [...current.slice(-79), cloneState(nodes, edges, inputValues, nodeCounterRef.current, uiElements, functions, activeFunctionId)]);
+  const snapshot = useCallback(({ mergeKey = "" } = {}) => {
+    const now = Date.now();
+    const canMerge = Boolean(
+      mergeKey
+      && lastSnapshotMetaRef.current.mergeKey === mergeKey
+      && now - lastSnapshotMetaRef.current.at <= HISTORY_MERGE_WINDOW_MS
+    );
+    setHistory((current) => (
+      canMerge
+        ? current
+        : [...current.slice(-79), cloneState(nodes, edges, inputValues, nodeCounterRef.current, uiElements, functions, activeFunctionId)]
+    ));
     setFuture([]);
+    lastSnapshotMetaRef.current = { mergeKey, at: now };
   }, [activeFunctionId, edges, functions, inputValues, nodes, uiElements]);
 
   // [이력 적용] 되돌리기 시 복구할 상태를 일관된 방식으로 반영합니다.
   const applyState = useCallback((state) => {
-    setNodes(applyNodeSelectionState(state.nodes, []));
+    const nextNodes = applyNodeSelectionState(state.nodes, []);
+    historyRestoreGuardRef.current = true;
+    pendingRestoredNodesRef.current = nextNodes;
+    setNodes(nextNodes);
     setEdges((state.edges || []).map((edge) => ({ ...edge, selected: false })));
     setInputValues(state.inputValues || {});
     setUiElements(normalizeUiElements(state.uiElements || []));
@@ -3159,6 +4374,11 @@ function EngineEditor() {
     setSelectedNodeIds([]);
     setSelectedEdgeIds([]);
     setSelectedUiElementId(null);
+    setFlowRevision((current) => current + 1);
+    window.setTimeout(() => {
+      historyRestoreGuardRef.current = false;
+      pendingRestoredNodesRef.current = null;
+    }, 1000);
   }, [setEdges, setNodes]);
 
   // [프로젝트 저장 브리지] Electron 메인 프로세스가 현재 프로젝트를 알고 있도록 동기화합니다.
@@ -3269,7 +4489,9 @@ function EngineEditor() {
   useEffect(() => {
     if (paused || scriptExecutionAllowed) return;
     const activeScriptNode = nodes.find(
-      (node) => runtime.activeNodeIds.includes(node.id) && node.data?.nodeType === "script"
+      (node) => runtime.activeNodeIds.includes(node.id)
+        && node.data?.nodeType === "script"
+        && !canRunRestrictedScript(node.data?.value)
     );
     if (!activeScriptNode) return;
 
@@ -3284,19 +4506,34 @@ function EngineEditor() {
     if (!window.ixo?.watchPath) return undefined;
     const watcherNodes = nodes.filter((node) => node.data?.nodeType === "file-watcher" && node.data?.value);
     const activePaths = watcherNodes.map((node) => String(node.data.value));
+    let disposed = false;
 
-    activePaths.forEach((targetPath) => {
-      window.ixo.watchPath(targetPath).catch((error) => {
-        appendLog(makeLog("error", "File Watcher", `감시 시작 실패: ${targetPath}`, String(error.message || error)));
+    const startWatchers = async () => {
+      if (!activePaths.length) return;
+      const approved = await requestSecurityApproval("fileWatcher", { path: activePaths[0] });
+      if (!approved || disposed) {
+        if (!approved) {
+          appendLog(makeLog("error", "File Watcher", "파일 감시 권한이 거부되어 감시를 시작하지 않았습니다."));
+        }
+        return;
+      }
+
+      activePaths.forEach((targetPath) => {
+        window.ixo.watchPath(targetPath).catch((error) => {
+          appendLog(makeLog("error", "File Watcher", `감시 시작 실패: ${targetPath}`, String(error.message || error)));
+        });
       });
-    });
+    };
+
+    startWatchers();
 
     return () => {
+      disposed = true;
       activePaths.forEach((targetPath) => {
         window.ixo?.unwatchPath?.(targetPath);
       });
     };
-  }, [appendLog, nodes]);
+  }, [appendLog, nodes, requestSecurityApproval]);
 
   // [외부 액션] HTTPS 요청과 브라우저 열기 노드가 활성화된 경우 한 번만 실행합니다.
   useEffect(() => {
@@ -3419,6 +4656,7 @@ function EngineEditor() {
       applyState(previous);
       setIsDirty(true);
       setStatus("Undo applied.");
+      lastSnapshotMetaRef.current = { mergeKey: "", at: 0 };
       return current.slice(0, -1);
     });
   }, [activeFunctionId, applyState, edges, functions, inputValues, nodes, uiElements]);
@@ -3431,6 +4669,7 @@ function EngineEditor() {
       applyState(next);
       setIsDirty(true);
       setStatus("Redo applied.");
+      lastSnapshotMetaRef.current = { mergeKey: "", at: 0 };
       return current.slice(0, -1);
     });
   }, [activeFunctionId, applyState, edges, functions, inputValues, nodes, uiElements]);
@@ -3495,6 +4734,7 @@ function EngineEditor() {
     setSelectedNodeIds([]);
     setSelectedEdgeIds([]);
     setSelectedUiElementId(null);
+    lastSnapshotMetaRef.current = { mergeKey: "", at: 0 };
   }, [setEdges, setNodes]);
 
   const enterFunctionEditor = useCallback((functionId) => {
@@ -3551,6 +4791,7 @@ function EngineEditor() {
   }, [activeFunctionId, edges, functions.length, getCommittedFunctions, inputValues, loadGraphIntoEditor, nodes, snapshot]);
 
   const renameFunction = useCallback((functionId, name) => {
+    snapshot({ mergeKey: `function:${functionId}:name` });
     const nextName = String(name || "").trim() || "function";
     setFunctions((current) => current.map((item) => (
       item.id === functionId
@@ -3558,9 +4799,10 @@ function EngineEditor() {
         : item
     )));
     setIsDirty(true);
-  }, []);
+  }, [snapshot]);
 
   const updateFunctionSignature = useCallback((functionId, field, value) => {
+    snapshot({ mergeKey: `function:${functionId}:${field}` });
     setFunctions((current) => current.map((item) => (
       item.id === functionId
         ? {
@@ -3570,7 +4812,7 @@ function EngineEditor() {
         : item
     )));
     setIsDirty(true);
-  }, []);
+  }, [snapshot]);
 
   const addFunctionParameter = useCallback((functionId) => {
     setFunctions((current) => current.map((item) => (
@@ -3588,6 +4830,7 @@ function EngineEditor() {
   }, []);
 
   const updateFunctionParameter = useCallback((functionId, parameterId, field, value) => {
+    snapshot({ mergeKey: `function:${functionId}:parameter:${parameterId}:${field}` });
     setFunctions((current) => current.map((item) => (
       item.id === functionId
         ? {
@@ -3601,7 +4844,7 @@ function EngineEditor() {
         : item
     )));
     setIsDirty(true);
-  }, []);
+  }, [snapshot]);
 
   const removeFunctionParameter = useCallback((functionId, parameterId) => {
     setFunctions((current) => current.map((item) => (
@@ -3617,7 +4860,7 @@ function EngineEditor() {
 
   const updateNodeFunctionArg = useCallback((parameterId, value) => {
     if (!selectedNode || selectedNode.data?.nodeType !== "function-call") return;
-    snapshot();
+    snapshot({ mergeKey: `node:${selectedNode.id}:functionArg:${parameterId}` });
     setNodes((current) => current.map((node) => (
       node.id === selectedNode.id
         ? {
@@ -3657,9 +4900,71 @@ function EngineEditor() {
 
   // [UI ↔ Node 동기화] 모든 Canvas UI가 메인 워크스페이스의 기존 표준 노드와 1:1로 연결되도록 유지합니다.
   useEffect(() => {
-    if (activeFunctionId) return;
+    if (activeFunctionId || historyRestoreGuardRef.current) return;
 
     const nodeMap = new Map(nodes.map((node) => [node.id, node]));
+    const elementMap = new Map(uiElements.map((element) => [element.id, element]));
+    const alreadyLinkedNodeIds = new Set(uiElements.map((element) => element.linkedNodeId).filter((nodeId) => nodeMap.has(nodeId)));
+    const staleOrUnlinkedElements = uiElements.filter((element) => !element.linkedNodeId || !nodeMap.has(element.linkedNodeId));
+    const availableNodes = nodes.filter((node) => (
+      isUiLinkedNodeType(node.data?.nodeType)
+      && !alreadyLinkedNodeIds.has(node.id)
+      && (!node.data?.linkedUiElementId || !elementMap.has(node.data.linkedUiElementId))
+    ));
+
+    if (staleOrUnlinkedElements.length && availableNodes.length) {
+      const remainingNodes = [...availableNodes];
+      const matchedPairs = [];
+
+      staleOrUnlinkedElements.forEach((element) => {
+        let bestIndex = -1;
+        let bestScore = -1;
+
+        remainingNodes.forEach((node, index) => {
+          const score = getUiNodeMatchScore(element, node);
+          if (score > bestScore) {
+            bestScore = score;
+            bestIndex = index;
+          }
+        });
+
+        if (bestIndex >= 0 && bestScore >= 1) {
+          const [node] = remainingNodes.splice(bestIndex, 1);
+          matchedPairs.push({ elementId: element.id, nodeId: node.id });
+        }
+      });
+
+      if (matchedPairs.length) {
+        const nodeByElementId = Object.fromEntries(matchedPairs.map((pair) => [pair.elementId, pair.nodeId]));
+        const elementByNodeId = Object.fromEntries(matchedPairs.map((pair) => [pair.nodeId, pair.elementId]));
+        setUiElements((current) =>
+          current.map((element) => (
+            nodeByElementId[element.id]
+              ? { ...element, linkedNodeId: nodeByElementId[element.id] }
+              : element
+          ))
+        );
+        setNodes((current) =>
+          current.map((node) => (
+            elementByNodeId[node.id]
+              ? {
+                  ...node,
+                  data: {
+                    ...node.data,
+                    linkedUiElementId: elementByNodeId[node.id]
+                  }
+                }
+              : node
+          ))
+        );
+        if (uiLinkBootstrapRef.current) {
+          setIsDirty(true);
+        }
+        uiLinkBootstrapRef.current = true;
+        return;
+      }
+    }
+
     const missingElements = uiElements.filter((element) => !element.linkedNodeId || !nodeMap.has(element.linkedNodeId));
 
     if (missingElements.length) {
@@ -3698,6 +5003,37 @@ function EngineEditor() {
       return;
     }
 
+    const linkedNodeIds = new Set(uiElements.map((element) => element.linkedNodeId).filter(Boolean));
+    const orphanedUiNodes = nodes.filter((node) => (
+      isUiLinkedNodeType(node.data?.nodeType)
+      && !linkedNodeIds.has(node.id)
+    ));
+
+    if (orphanedUiNodes.length) {
+      const createdElements = orphanedUiNodes.map((node, index) => createUiElementFromNode(node, index, currentTheme.accent));
+      const linkByNodeId = Object.fromEntries(createdElements.map((element) => [element.linkedNodeId, element.id]));
+
+      setUiElements((current) => [...current, ...createdElements]);
+      setNodes((current) =>
+        current.map((node) => (
+          linkByNodeId[node.id]
+            ? {
+                ...node,
+                data: {
+                  ...node.data,
+                  linkedUiElementId: linkByNodeId[node.id]
+                }
+              }
+            : node
+        ))
+      );
+      if (uiLinkBootstrapRef.current) {
+        setIsDirty(true);
+      }
+      uiLinkBootstrapRef.current = true;
+      return;
+    }
+
     let changed = false;
     const nextNodes = nodes.map((node) => {
       const linkedElement = uiElements.find((element) => element.linkedNodeId === node.id);
@@ -3719,7 +5055,7 @@ function EngineEditor() {
       setNodes(nextNodes);
     }
     uiLinkBootstrapRef.current = true;
-  }, [activeFunctionId, makeNode, nodes, setNodes, uiElements]);
+  }, [activeFunctionId, currentTheme.accent, makeNode, nodes, setNodes, uiElements]);
 
   const createGroupBox = useCallback(() => {
     const targets = nodes.filter((node) => selectedNodeIds.includes(node.id));
@@ -3919,6 +5255,7 @@ function EngineEditor() {
     setExportPipeline("desktop");
     setMobileBundleId("com.minyangtech.mytixo");
     setMobileVersionName("1.0.0");
+    setMobileIconBackgroundColor("#101713");
     setShowExportModal(true);
   }, []);
 
@@ -3962,7 +5299,8 @@ function EngineEditor() {
         appName: exportAppName,
         icon: exportIcon,
         bundleId: mobileBundleId,
-        versionName: mobileVersionName
+        versionName: mobileVersionName,
+        iconBackgroundColor: mobileIconBackgroundColor
       };
       const result = exportPipeline === "mobile"
         ? await window.ixo.exportMobileProject(getSerializableProject(), exportOptions)
@@ -3982,7 +5320,7 @@ function EngineEditor() {
     } finally {
       setExportBusy(false);
     }
-  }, [appendLog, exportAppName, exportIcon, exportOutputPath, exportPipeline, exportTargets, getSerializableProject, mobileBundleId, mobileVersionName]);
+  }, [appendLog, exportAppName, exportIcon, exportOutputPath, exportPipeline, exportTargets, getSerializableProject, mobileBundleId, mobileIconBackgroundColor, mobileVersionName]);
 
   const checkForUpdates = useCallback(async ({ silent = false } = {}) => {
     if (!window.ixo?.checkForUpdates) {
@@ -4105,8 +5443,8 @@ function EngineEditor() {
       }
     };
 
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => window.removeEventListener("keydown", onKeyDown, true);
   }, [createGroupBox, deleteSelection, duplicateSelection, redo, saveProject, selectedNodeIds.length, undo]);
 
   // [엣지 하이라이트] 실행 중인 선을 민트 톤과 애니메이션으로 강조합니다.
@@ -4152,6 +5490,15 @@ function EngineEditor() {
   }, [appendLog, httpsNodesEnabled, nodes, setEdges, snapshot]);
 
   const handleNodesChange = useCallback((changes) => {
+    if (
+      historyRestoreGuardRef.current
+      && changes.every((change) => change.type === "dimensions" || change.type === "select")
+    ) {
+      if (pendingRestoredNodesRef.current) {
+        setNodes(pendingRestoredNodesRef.current);
+      }
+      return;
+    }
     onNodesChange(changes);
     if (hasPersistentNodeChange(changes)) setIsDirty(true);
   }, [onNodesChange]);
@@ -4309,7 +5656,7 @@ function EngineEditor() {
 
   const updateNodeField = (field, value) => {
     if (!selectedNode) return;
-    snapshot();
+    snapshot({ mergeKey: `node:${selectedNode.id}:${field}` });
     setNodes((current) =>
       current.map((node) => (
         node.id === selectedNode.id
@@ -4338,7 +5685,7 @@ function EngineEditor() {
 
   const updateUiField = (field, value) => {
     if (!selectedUiElement) return;
-    snapshot();
+    snapshot({ mergeKey: `ui:${selectedUiElement.id}:${field}` });
     const nextValue = field === "x" || field === "y" || field === "width" || field === "height" || field === "fontSize" || field === "radius" ? Number(value) : value;
     setUiElements((current) =>
       current.map((item) => (
@@ -4426,12 +5773,13 @@ function EngineEditor() {
     const target = uiElements.find((item) => item.id === id);
     if (!target) return;
 
+    snapshot();
     setDragState({
       id,
       offsetX: event.clientX - rect.left - target.x,
       offsetY: event.clientY - rect.top - target.y
     });
-  }, [uiElements, viewMode]);
+  }, [snapshot, uiElements, viewMode]);
 
   const handleBuilderPointerUp = useCallback(() => {
     setDragState(null);
@@ -4591,16 +5939,35 @@ function EngineEditor() {
 
   const CanvasPane = (
     <div className="editor-area" onDrop={onDrop} onDragOver={onDragOver} style={{ "--trace-duration": `${TRACE_SPEED[speed]}s` }}>
+      <ReactFlowProvider key={flowRevision}>
       <ReactFlow
         nodes={nodesWithTrace}
         edges={edgeView}
         nodeTypes={nodeTypes}
         multiSelectionKeyCode={["Control", "Meta"]}
         onlyRenderVisibleElements
+        onInit={(instance) => {
+          reactFlowRef.current = instance;
+        }}
         onNodesChange={handleNodesChange}
         onEdgesChange={handleEdgesChange}
         onConnect={onConnect}
         onPaneContextMenu={onPaneContextMenu}
+        onNodeDragStart={(event, node) => {
+          nodeDragStartSnapshotRef.current = cloneState(
+            nodes.map((item) => (
+              item.id === node.id
+                ? { ...item, position: { ...node.position } }
+                : item
+            )),
+            edges,
+            inputValues,
+            nodeCounterRef.current,
+            uiElements,
+            functions,
+            activeFunctionId
+          );
+        }}
         onSelectionChange={({ nodes: selectedNodes = [], edges: selectedEdges = [] }) => {
           const nodeIds = selectedNodes.map((node) => node.id);
           const edgeIds = selectedEdges.map((edge) => edge.id);
@@ -4616,8 +5983,14 @@ function EngineEditor() {
           setSelectedEdgeIds([]);
           setSelectedNodeId(null);
         }}
-        onNodeDragStart={() => snapshot()}
         onNodeDragStop={(event, node) => {
+          if (nodeDragStartSnapshotRef.current) {
+            const dragSnapshot = nodeDragStartSnapshotRef.current;
+            setHistory((current) => [...current.slice(-79), dragSnapshot]);
+            setFuture([]);
+            lastSnapshotMetaRef.current = { mergeKey: "", at: Date.now() };
+            nodeDragStartSnapshotRef.current = null;
+          }
           handleNodeDropToSidebar(event, node);
         }}
         onNodeClick={(event, node) => {
@@ -4660,19 +6033,20 @@ function EngineEditor() {
         <Background color="#1d2a24" gap={24} size={1.1} variant="dots" />
         <Panel position="top-right" className="canvas-command-panel">
           <label className="canvas-search">
-            <span>Find node</span>
+            <span>{uiText.findNode}</span>
             <input
               value={librarySearchTerm}
               onChange={(event) => setLibrarySearchTerm(event.target.value)}
-              placeholder="Search all nodes..."
+              placeholder={uiText.searchAllNodes}
             />
           </label>
           <div className="canvas-command-meta">
-            <span>{visibleLibraryNodeCount} result{visibleLibraryNodeCount === 1 ? "" : "s"}</span>
+            <span>{visibleLibraryNodeCount} {visibleLibraryNodeCount === 1 ? uiText.result : uiText.results}</span>
             <kbd>Ctrl+F</kbd>
           </div>
         </Panel>
       </ReactFlow>
+      </ReactFlowProvider>
 
       {contextMenu ? (
         <div className="context-menu" style={{ left: contextMenu.x, top: contextMenu.y }}>
@@ -4680,7 +6054,7 @@ function EngineEditor() {
             type="text"
             value={searchTerm}
             onChange={(event) => setSearchTerm(event.target.value)}
-            placeholder="Search nodes..."
+            placeholder={uiText.searchNodes}
             autoFocus
           />
           <div className="context-list">
@@ -4700,7 +6074,7 @@ function EngineEditor() {
             <input
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
-              placeholder="Type node name and Enter..."
+              placeholder={uiText.quickSearchNodes}
               autoFocus
               onKeyDown={(event) => {
                 if (event.key === "Enter" && searchCandidates[0]) addNodeFromSearch(searchCandidates[0], "center");
@@ -4743,7 +6117,7 @@ function EngineEditor() {
               </span>
               <div className="brand-copy">
                 <h1>IXO Engine</h1>
-                <p>Visual logic + UI builder workspace</p>
+                <p>{uiText.workspaceSubtitle}</p>
               </div>
             </div>
 
@@ -4752,17 +6126,17 @@ function EngineEditor() {
                 <button className="menu-btn" onClick={() => setShowFileMenu((current) => !current)}>{uiText.file}</button>
                 {showFileMenu ? (
                   <div className="file-dropdown">
-                    <button onClick={saveProject}>Save</button>
-                    <button onClick={loadProject}>Load</button>
-                    <button onClick={openExportModal}>Export</button>
-                    <button onClick={magicAlign}>Magic Align</button>
+                    <button onClick={saveProject}>{uiText.save}</button>
+                    <button onClick={loadProject}>{uiText.load}</button>
+                    <button onClick={openExportModal}>{uiText.export}</button>
+                    <button onClick={magicAlign}>{uiText.magicAlign}</button>
                   </div>
                 ) : null}
               </div>
 
               <div className="exec-controls">
                 <div className="exec-row exec-row-top">
-                  <label htmlFor="speed-control">Speed {speed}x</label>
+                  <label htmlFor="speed-control">{uiText.speed} {speed}x</label>
                   <input
                     id="speed-control"
                     type="range"
@@ -4776,11 +6150,11 @@ function EngineEditor() {
 
                 <div className="exec-row exec-row-bottom">
                   <button className="menu-btn" onClick={() => setPaused((current) => !current)}>
-                    {paused ? "Resume" : "Pause"}
+                    {paused ? uiText.resume : uiText.pause}
                   </button>
                   <label className="trace-inline">
                     <input type="checkbox" checked={debugOverlay} onChange={(event) => setDebugOverlay(event.target.checked)} />
-                    Trace
+                    {uiText.trace}
                   </label>
                   <button
                     className="menu-btn docs-btn"
@@ -4800,33 +6174,33 @@ function EngineEditor() {
           </div>
 
           <div className="sidebar-header">
-            <div className="panel-title">Node Library</div>
-            <button className="ghost-btn" onClick={createGroupBox}>Group Selected</button>
+            <div className="panel-title">{uiText.nodeLibrary}</div>
+            <button className="ghost-btn" onClick={createGroupBox}>{uiText.groupSelected}</button>
           </div>
 
           {safeModeInfo?.active ? (
             <section className="safe-mode-card">
-              <strong>Safe Mode</strong>
+              <strong>{uiText.safeMode}</strong>
               <span>{safeModeInfo.message}</span>
               <div>
-                <button className="ghost-btn" onClick={restoreLatestBackup}>백업 복원</button>
-                <button className="ghost-btn" onClick={resetProjectToSafeDefaults}>자동 초기화</button>
-                <button className="ghost-btn" onClick={dismissSafeMode}>닫기</button>
+                <button className="ghost-btn" onClick={restoreLatestBackup}>{uiText.restoreBackup}</button>
+                <button className="ghost-btn" onClick={resetProjectToSafeDefaults}>{uiText.autoReset}</button>
+                <button className="ghost-btn" onClick={dismissSafeMode}>{uiText.close}</button>
               </div>
             </section>
           ) : null}
 
           <label className="library-search">
-            <span>Find node</span>
+            <span>{uiText.findNode}</span>
             <div className="library-search-field">
               <input
                 ref={librarySearchInputRef}
                 value={librarySearchTerm}
                 onChange={(event) => setLibrarySearchTerm(event.target.value)}
-                placeholder="Ctrl+F or type a node name..."
+                placeholder={uiText.librarySearchPlaceholder}
               />
               {librarySearchTerm ? (
-                <button type="button" onClick={() => setLibrarySearchTerm("")}>Clear</button>
+                <button type="button" onClick={() => setLibrarySearchTerm("")}>{uiText.clear}</button>
               ) : null}
             </div>
           </label>
@@ -4837,36 +6211,36 @@ function EngineEditor() {
           </div>
 
           <div className="sidebar-tabs">
-            <button className={libraryTab === "core" ? "active" : ""} onClick={() => setLibraryTab("core")}>Core</button>
-            <button className={libraryTab === "pro" ? "active" : ""} onClick={() => setLibraryTab("pro")}>Pro</button>
-            <button className={libraryTab === "functions" ? "active" : ""} onClick={() => setLibraryTab("functions")}>Functions</button>
+            <button className={libraryTab === "core" ? "active" : ""} onClick={() => setLibraryTab("core")}>{uiText.coreTab}</button>
+            <button className={libraryTab === "pro" ? "active" : ""} onClick={() => setLibraryTab("pro")}>{uiText.proTab}</button>
+            <button className={libraryTab === "functions" ? "active" : ""} onClick={() => setLibraryTab("functions")}>{uiText.functionsTab}</button>
           </div>
 
           {libraryTab === "functions" ? (
             <section className="function-hub">
               <div className="function-hub-head">
-                <strong>Functions</strong>
-                <button className="ghost-btn" onClick={createFunction}>함수 만들기</button>
+                <strong>{uiText.functions}</strong>
+                <button className="ghost-btn" onClick={createFunction}>{uiText.createFunction}</button>
               </div>
               {activeFunctionId ? (
                 <div className="function-editor-state">
-                  <span>현재 함수 편집 중</span>
+                  <span>{uiText.editingFunction}</span>
                   <strong>{functions.find((item) => item.id === activeFunctionId)?.name || "function"}</strong>
-                  <button className="ghost-btn" onClick={exitFunctionEditor}>메인으로 돌아가기</button>
+                  <button className="ghost-btn" onClick={exitFunctionEditor}>{uiText.returnToMain}</button>
                 </div>
               ) : null}
               {activeFunctionId ? (
                 <div className="function-signature-editor">
                   <label>
-                    <span>함수 설명</span>
+                    <span>{uiText.functionDescription}</span>
                     <textarea
                       value={functions.find((item) => item.id === activeFunctionId)?.description || ""}
                       onChange={(event) => updateFunctionSignature(activeFunctionId, "description", event.target.value)}
-                      placeholder="이 함수가 하는 일을 적어주세요."
+                      placeholder={uiText.functionDescriptionPlaceholder}
                     />
                   </label>
                   <label>
-                    <span>반환 Ref Key</span>
+                    <span>{uiText.returnRefKey}</span>
                     <input
                       value={functions.find((item) => item.id === activeFunctionId)?.returnRef || ""}
                       onChange={(event) => updateFunctionSignature(activeFunctionId, "returnRef", event.target.value)}
@@ -4874,8 +6248,8 @@ function EngineEditor() {
                     />
                   </label>
                   <div className="function-parameter-head">
-                    <strong>매개변수</strong>
-                    <button className="ghost-btn" onClick={() => addFunctionParameter(activeFunctionId)}>매개변수 추가</button>
+                    <strong>{uiText.parameters}</strong>
+                    <button className="ghost-btn" onClick={() => addFunctionParameter(activeFunctionId)}>{uiText.addParameter}</button>
                   </div>
                   <div className="function-parameter-list">
                     {(functions.find((item) => item.id === activeFunctionId)?.parameters || []).map((parameter) => (
@@ -4888,18 +6262,18 @@ function EngineEditor() {
                         <input
                           value={parameter.defaultValue}
                           onChange={(event) => updateFunctionParameter(activeFunctionId, parameter.id, "defaultValue", event.target.value)}
-                          placeholder="기본값"
+                          placeholder={uiText.defaultValue}
                         />
                         <input
                           value={parameter.description}
                           onChange={(event) => updateFunctionParameter(activeFunctionId, parameter.id, "description", event.target.value)}
-                          placeholder="설명"
+                          placeholder={uiText.description}
                         />
-                        <button className="ghost-btn danger-lite" onClick={() => removeFunctionParameter(activeFunctionId, parameter.id)}>삭제</button>
+                        <button className="ghost-btn danger-lite" onClick={() => removeFunctionParameter(activeFunctionId, parameter.id)}>{uiText.delete}</button>
                       </div>
                     ))}
                     {!(functions.find((item) => item.id === activeFunctionId)?.parameters || []).length ? (
-                      <span className="field-hint">필요할 때 매개변수를 추가하세요.</span>
+                      <span className="field-hint">{uiText.noParametersHint}</span>
                     ) : null}
                   </div>
                 </div>
@@ -4911,18 +6285,18 @@ function EngineEditor() {
                       <input
                         value={item.name}
                         onChange={(event) => renameFunction(item.id, event.target.value)}
-                        aria-label="Function name"
+                        aria-label={uiText.functionNameAria}
                       />
-                      <small>{item.parameters.length ? `(${item.parameters.map((parameter) => parameter.name).join(", ")})` : "(no params)"}</small>
-                      <button className="ghost-btn" onClick={() => enterFunctionEditor(item.id)}>편집</button>
-                      <button className="ghost-btn danger-lite" onClick={() => deleteFunction(item.id)}>삭제</button>
+                      <small>{item.parameters.length ? `(${item.parameters.map((parameter) => parameter.name).join(", ")})` : `(${uiText.noParams})`}</small>
+                      <button className="ghost-btn" onClick={() => enterFunctionEditor(item.id)}>{uiText.edit}</button>
+                      <button className="ghost-btn danger-lite" onClick={() => deleteFunction(item.id)}>{uiText.delete}</button>
                     </div>
                   ))}
                 </div>
               ) : (
                 <div className="library-empty-state compact">
-                  <strong>아직 함수가 없습니다</strong>
-                  <span>직접 만든 함수는 재귀 호출도 가능합니다.</span>
+                  <strong>{uiText.noFunctions}</strong>
+                  <span>{uiText.noFunctionsHint}</span>
                 </div>
               )}
             </section>
@@ -4932,7 +6306,7 @@ function EngineEditor() {
             Object.entries(sidebarGroups).map(([group, items]) => (
               <section key={group} className="library-section">
                 <button className="section-toggle" onClick={() => toggleSection(group)}>
-                  <span className="section-label">{GROUP_ICON[group] || "•"} {group.toUpperCase()}</span>
+                  <span className="section-label">{GROUP_ICON[group] || "•"} {getGroupLabel(group, language)}</span>
                   <span>{normalizedLibrarySearchTerm ? "-" : collapsed[group] ? "+" : "-"}</span>
                 </button>
 
@@ -4955,8 +6329,8 @@ function EngineEditor() {
             ))
           ) : (
             <div className="library-empty-state">
-              <strong>No matching nodes</strong>
-              <span>Try another keyword or clear the search.</span>
+              <strong>{uiText.noMatchingNodes}</strong>
+              <span>{uiText.tryAnotherKeyword}</span>
             </div>
           )}
         </aside>
@@ -5003,56 +6377,56 @@ function EngineEditor() {
             <PanelResizeHandle className="resize-handle horizontal-handle" />
 
             <ResizablePanel defaultSize={26} minSize={14}>
-              <LogConsole logs={logs} onClear={() => setLogs([])} />
+              <LogConsole logs={logs} onClear={() => setLogs([])} uiText={uiText} />
             </ResizablePanel>
           </PanelGroup>
         </section>
 
         <aside className="properties">
-          <div className="panel-title">{viewMode === "builder" && selectedUiElement ? "UI Inspector" : inspectorMode === "inspector" ? "Pro Inspector" : "Properties"}</div>
+          <div className="panel-title">{viewMode === "builder" && selectedUiElement ? uiText.uiInspector : inspectorMode === "inspector" ? uiText.proInspector : uiText.properties}</div>
 
           <div className="properties-stack">
             <div className="properties-card">
               <div className="summary-grid">
                 <div>
                   <strong>{nodes.length}</strong>
-                  <span>Nodes</span>
+                  <span>{uiText.nodes}</span>
                 </div>
                 <div>
                   <strong>{edges.length}</strong>
-                  <span>Edges</span>
+                  <span>{uiText.edges}</span>
                 </div>
                 <div>
                   <strong>{uiElements.length}</strong>
-                  <span>UI Layers</span>
+                  <span>{uiText.uiLayers}</span>
                 </div>
                 <div>
                   <strong>{logs.length}</strong>
-                  <span>Logs</span>
+                  <span>{uiText.logs}</span>
                 </div>
               </div>
               <div className="inspector-note">
-                <strong>Viewer Mode</strong>
-                <span>{viewMode === "builder" ? "Canvas Builder가 활성화되어 있습니다." : viewMode === "viewer" ? "UI Viewer만 집중해서 보고 있습니다." : "Preview와 JSON 상태를 함께 보고 있습니다."}</span>
+                <strong>{uiText.viewerMode}</strong>
+                <span>{viewMode === "builder" ? uiText.viewerModeBuilder : viewMode === "viewer" ? uiText.viewerModeViewer : uiText.viewerModePreview}</span>
               </div>
             </div>
 
             {selectedUiElement && viewMode === "builder" ? (
               <div className="property-form">
                 <label>
-                  Element Kind
+                  {uiText.elementKind}
                   <input type="text" value={selectedUiElement.kind} readOnly />
                 </label>
                 <label>
-                  Text / Label
+                  {uiText.textLabel}
                   <input type="text" value={selectedUiElement.text || ""} onChange={(event) => updateUiField("text", event.target.value)} />
                 </label>
                 <label>
-                  Image Src
+                  {uiText.imageSrc}
                   <input type="text" value={selectedUiElement.src || ""} onChange={(event) => updateUiField("src", event.target.value)} />
                 </label>
                 <label>
-                  Binding Ref Key
+                  {uiText.bindingRefKey}
                   <input type="text" value={selectedUiElement.bindingKey || ""} onChange={(event) => updateUiField("bindingKey", event.target.value)} placeholder="welcomeText, username..." />
                 </label>
                 <label>
@@ -5064,56 +6438,56 @@ function EngineEditor() {
                   <input type="number" value={selectedUiElement.y} onChange={(event) => updateUiField("y", event.target.value)} />
                 </label>
                 <label>
-                  Width
+                  {uiText.width}
                   <input type="number" value={selectedUiElement.width} onChange={(event) => updateUiField("width", event.target.value)} />
                 </label>
                 <label>
-                  Height
+                  {uiText.height}
                   <input type="number" value={selectedUiElement.height} onChange={(event) => updateUiField("height", event.target.value)} />
                 </label>
                 <label>
-                  Font Size
+                  {uiText.fontSize}
                   <input type="number" value={selectedUiElement.fontSize} onChange={(event) => updateUiField("fontSize", event.target.value)} />
                 </label>
                 <label>
-                  Radius
+                  {uiText.radius}
                   <input type="number" value={selectedUiElement.radius} onChange={(event) => updateUiField("radius", event.target.value)} />
                 </label>
                 <label>
-                  Text Color
+                  {uiText.textColor}
                   <input type="color" value={selectedUiElement.color} onChange={(event) => updateUiField("color", event.target.value)} />
                 </label>
                 <label>
-                  Background
+                  {uiText.background}
                   <input type="text" value={selectedUiElement.background} onChange={(event) => updateUiField("background", event.target.value)} />
                 </label>
                 <label>
-                  Action Type
+                  {uiText.actionType}
                   <select value={selectedUiElement.actionType} onChange={(event) => updateUiField("actionType", event.target.value)}>
                     <option value="none">none</option>
                     <option value="open-url">open-url</option>
                   </select>
                 </label>
                 <label>
-                  Action Value
+                  {uiText.actionValue}
                   <input type="text" value={selectedUiElement.actionValue || ""} onChange={(event) => updateUiField("actionValue", event.target.value)} />
                 </label>
-                <button className="danger-btn" onClick={deleteSelection}>Delete UI Element</button>
+                <button className="danger-btn" onClick={deleteSelection}>{uiText.deleteUiElement}</button>
               </div>
             ) : selectedNode ? (
               <div className="property-form">
                 <label>
-                  Node Label
+                  {uiText.nodeLabel}
                   <input type="text" value={selectedNode.data.label} onChange={(event) => updateNodeField("label", event.target.value)} />
                 </label>
                 <label>
                   {selectedNode.data.nodeType === "condition"
-                    ? "Condition Chain (AND/OR)"
+                    ? uiText.conditionChain
                     : selectedNode.data.nodeType === "math"
-                      ? "Math Expression"
+                      ? uiText.mathExpression
                       : selectedNode.data.nodeType === "script"
-                        ? "JavaScript Code"
-                        : "Value / Setting"}
+                        ? uiText.javascriptCode
+                        : uiText.valueSetting}
                   {selectedNode.data.nodeType === "condition" || selectedNode.data.nodeType === "math" || selectedNode.data.nodeType === "script" ? (
                     <textarea
                       value={selectedNode.data.value || ""}
@@ -5130,20 +6504,20 @@ function EngineEditor() {
                   )}
                 </label>
                 <label>
-                  Ref Key
+                  {uiText.refKey}
                   <input type="text" value={selectedNode.data.refKey || ""} onChange={(event) => updateNodeField("refKey", event.target.value)} placeholder="username, totalPrice..." />
                 </label>
                 <label>
-                  Group Label
+                  {uiText.groupLabel}
                   <input type="text" value={selectedNode.data.groupLabel || ""} onChange={(event) => updateNodeField("groupLabel", event.target.value)} placeholder="Flow A, Login, UI..." />
                 </label>
                 <label>
-                  Node Type
+                  {uiText.nodeType}
                   <input type="text" value={selectedNode.data.nodeType || ""} onChange={(event) => updateNodeField("nodeType", event.target.value)} />
                 </label>
                 {selectedNode.data.nodeType === "function-call" && selectedFunctionDefinition ? (
                   <div className="function-call-args">
-                    <strong>Function Arguments</strong>
+                    <strong>{uiText.functionArguments}</strong>
                     {selectedFunctionDefinition.parameters.length ? (
                       selectedFunctionDefinition.parameters.map((parameter) => (
                         <label key={parameter.id}>
@@ -5155,27 +6529,27 @@ function EngineEditor() {
                             placeholder={parameter.defaultValue || `{{${parameter.name}}}`}
                           />
                           {parameter.description ? <em>{parameter.description}</em> : null}
-                          {parameter.defaultValue ? <small>기본값: {parameter.defaultValue}</small> : null}
+                          {parameter.defaultValue ? <small>{uiText.defaultValue}: {parameter.defaultValue}</small> : null}
                         </label>
                       ))
                     ) : (
-                      <span className="field-hint">이 함수는 매개변수가 없습니다.</span>
+                      <span className="field-hint">{uiText.functionNoParams}</span>
                     )}
                     <span className="field-hint">
-                      반환값은 `{selectedFunctionDefinition.returnRef || "마지막 실행 노드"}` 기준으로 전달됩니다.
+                      {uiText.functionReturnPrefix} `{selectedFunctionDefinition.returnRef || uiText.lastExecutedNode}` {uiText.functionReturnSuffix}
                     </span>
                   </div>
                 ) : null}
                 <label>
-                  Numeric Slider
+                  {uiText.numericSlider}
                   <input type="range" min="0" max="100" value={Number(selectedNode.data.sliderValue || 0)} onChange={(event) => updateNodeField("sliderValue", event.target.value)} />
                 </label>
                 <label>
-                  Color Picker
+                  {uiText.colorPicker}
                   <input type="color" value={selectedNode.data.colorValue || ACCENT} onChange={(event) => updateNodeField("colorValue", event.target.value)} />
                 </label>
                 <label>
-                  {["audio-player", "sound-play", "sound-play-wait", "bgm-play"].includes(selectedNode.data.nodeType) ? "Sound Upload" : "File Path"}
+                  {["audio-player", "sound-play", "sound-play-wait", "bgm-play"].includes(selectedNode.data.nodeType) ? uiText.soundUpload : uiText.filePath}
                   <input
                     type="file"
                     accept={["audio-player", "sound-play", "sound-play-wait", "bgm-play"].includes(selectedNode.data.nodeType) ? "audio/*" : undefined}
@@ -5190,15 +6564,15 @@ function EngineEditor() {
                   />
                   {selectedNode.data.soundName ? <span className="field-hint">{selectedNode.data.soundName}</span> : null}
                 </label>
-                <div className="selected-id">Selected ID: {selectedNode.id}</div>
-                <button className="ghost-btn" onClick={() => createUiElementFromPalette("text")}>Create Linked UI Text</button>
+                <div className="selected-id">{uiText.selectedId}: {selectedNode.id}</div>
+                <button className="ghost-btn" onClick={() => createUiElementFromPalette("text")}>{uiText.createLinkedUiText}</button>
               </div>
             ) : (
               <div className="placeholder-card">
-                <p className="placeholder">노드를 더블 클릭하면 고급 Inspector가 열리고, Builder 모드에서는 UI 요소를 선택해 디자인 속성을 수정할 수 있습니다.</p>
+                <p className="placeholder">{uiText.emptyInspectorHint}</p>
                 <div className="placeholder-actions">
-                  <button className="ghost-btn" onClick={() => createUiElementFromPalette("text")}>Add UI Text</button>
-                  <button className="ghost-btn" onClick={() => createUiElementFromPalette("button")}>Add UI Button</button>
+                  <button className="ghost-btn" onClick={() => createUiElementFromPalette("text")}>{uiText.addUiText}</button>
+                  <button className="ghost-btn" onClick={() => createUiElementFromPalette("button")}>{uiText.addUiButton}</button>
                 </div>
               </div>
             )}
@@ -5207,8 +6581,8 @@ function EngineEditor() {
       </main>
 
       <footer className="status-bar">
-        <span>ENGINE STATUS: {status}{isDirty ? " | Unsaved changes" : ""}</span>
-        <span>Nodes {nodes.length} | Edges {edges.length} | UI {uiElements.length} | Mode {viewMode}</span>
+        <span>{uiText.engineStatus}: {status}{isDirty ? ` | ${uiText.unsavedChanges}` : ""}</span>
+        <span>{uiText.nodes} {nodes.length} | {uiText.edges} {edges.length} | UI {uiElements.length} | {uiText.mode} {viewMode}</span>
       </footer>
 
       <SettingsModal
@@ -5236,8 +6610,10 @@ function EngineEditor() {
 
       <ExportModal
         open={showExportModal}
+        uiText={uiText}
         appName={exportAppName}
         icon={exportIcon}
+        mobileIconBackgroundColor={mobileIconBackgroundColor}
         outputPath={exportOutputPath}
         targets={exportTargets}
         targetOptions={exportTargetOptions}
@@ -5247,6 +6623,7 @@ function EngineEditor() {
         busy={exportBusy}
         onAppNameChange={setExportAppName}
         onIconChange={setExportIcon}
+        onMobileIconBackgroundColorChange={setMobileIconBackgroundColor}
         onPickPath={pickExportPath}
         onToggleTarget={toggleExportTarget}
         onPipelineChange={changeExportPipeline}
@@ -5392,9 +6769,23 @@ function ExportRuntimeApp() {
     };
   }, []);
 
-  const requestSecurityApproval = useCallback(async (scope) => {
+  useEffect(() => {
+    if (!window.ixo?.onWatchEvent) return undefined;
+    return window.ixo.onWatchEvent((event) => {
+      setInteractionState((current) => ({
+        ...current,
+        fileWatchEvents: {
+          ...current.fileWatchEvents,
+          [event.path]: event,
+          [event.requestedPath || event.path]: event
+        }
+      }));
+    });
+  }, []);
+
+  const requestSecurityApproval = useCallback(async (scope, context = {}) => {
     if (!window.ixo?.requestSecurityApproval) return false;
-    const result = await window.ixo.requestSecurityApproval(scope);
+    const result = await window.ixo.requestSecurityApproval(scope, context);
     return Boolean(result?.approved);
   }, []);
 
@@ -5444,6 +6835,7 @@ function ExportRuntimeApp() {
       data: {
         ...node.data,
         displayLabel: getNodeLabel(node.data?.nodeType, project?.language || "ko", node.data?.label),
+        displayCategory: getGroupLabel(node.data?.kind, project?.language || "ko"),
         liveValue: runtime.liveValues[node.id] ?? "",
         isActive: runtime.activeNodeIds.includes(node.id),
         isFocused: runtime.focusedNodeId === node.id
@@ -5505,7 +6897,9 @@ function ExportRuntimeApp() {
   useEffect(() => {
     if (!project || scriptExecutionAllowed) return;
     const activeScriptNode = project.nodes.find(
-      (node) => runtime.activeNodeIds.includes(node.id) && node.data?.nodeType === "script"
+      (node) => runtime.activeNodeIds.includes(node.id)
+        && node.data?.nodeType === "script"
+        && !canRunRestrictedScript(node.data?.value)
     );
     if (!activeScriptNode) return;
     requestSecurityApproval("script").then((approved) => {
@@ -5514,6 +6908,30 @@ function ExportRuntimeApp() {
       }
     });
   }, [project, requestSecurityApproval, runtime.activeNodeIds, scriptExecutionAllowed]);
+
+  useEffect(() => {
+    if (!project || !window.ixo?.watchPath) return undefined;
+    const watcherNodes = project.nodes.filter((node) => node.data?.nodeType === "file-watcher" && node.data?.value);
+    const activePaths = watcherNodes.map((node) => String(node.data.value));
+    let disposed = false;
+
+    const startWatchers = async () => {
+      if (!activePaths.length) return;
+      const approved = await requestSecurityApproval("fileWatcher", { path: activePaths[0] });
+      if (!approved || disposed) return;
+      activePaths.forEach((targetPath) => {
+        window.ixo.watchPath(targetPath).catch(() => {});
+      });
+    };
+
+    startWatchers();
+    return () => {
+      disposed = true;
+      activePaths.forEach((targetPath) => {
+        window.ixo?.unwatchPath?.(targetPath);
+      });
+    };
+  }, [project, requestSecurityApproval]);
 
   const handleUiInteraction = useCallback((id, action) => {
     setInteractionState((current) => {

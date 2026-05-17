@@ -1830,6 +1830,66 @@ img {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.mobile-icon-preview-panel {
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.mobile-icon-preview-heading {
+  display: grid;
+  gap: 4px;
+}
+
+.mobile-icon-preview-heading span,
+.mobile-icon-preview-grid small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.mobile-icon-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.mobile-icon-preview-grid > div {
+  display: grid;
+  gap: 8px;
+}
+
+.adaptive-icon-preview,
+.ios-icon-preview {
+  min-height: 126px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+}
+
+.adaptive-icon-preview {
+  border-radius: 28px;
+}
+
+.ios-icon-preview {
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.adaptive-icon-preview img,
+.ios-icon-preview img {
+  width: 88px;
+  height: 88px;
+  object-fit: contain;
+}
+
+.mobile-icon-color-field input {
+  width: 100%;
+  min-height: 42px;
+}
+
 .export-target-picker > div:first-child {
   display: grid;
   gap: 4px;
@@ -1922,6 +1982,11 @@ img {
 
   .export-destination-card strong {
     white-space: normal;
+  }
+
+  .mobile-export-fields,
+  .mobile-icon-preview-grid {
+    grid-template-columns: 1fr;
   }
 }
 
