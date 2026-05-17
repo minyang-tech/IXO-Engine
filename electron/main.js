@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, ipcMain, dialog, shell, net: electronNet } = require("electron");
+﻿const { app, BrowserWindow, Menu, ipcMain, dialog, shell, net: electronNet } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const originalFs = require("original-fs");
@@ -11,6 +11,16 @@ const EXTERNAL_REQUEST_TIMEOUT_MS = 8000;
 const MAX_EXTERNAL_REDIRECTS = 3;
 const DEFAULT_EXPORT_APP_STEM = "myt-ixo";
 const SECURITY_PREFERENCES_FILE = "security-preferences.json";
+const FALLBACK_NETWORK_SAFETY_NOTICE = [
+  "## 네트워크 사용 안내",
+  "이 애플리케이션은 다음 기능을 위해 HTTPS 기반 네트워크 요청을 사용합니다:",
+  "- GitHub API를 통한 최신 버전 확인",
+  "- 기능 동작에 필요한 외부 데이터 로딩 (필요한 경우)",
+  "",
+  "이 앱은 개인 정보를 수집, 저장 또는 외부로 전송하지 않습니다.",
+  "사용자의 계정 정보나 식별 가능한 데이터는 처리되지 않습니다.",
+  "본 애플리케이션의 주요 기능은 로컬 환경에서 실행되며, 네트워크 연결은 업데이트 확인 및 일부 기능 제공에만 제한적으로 사용됩니다."
+].join("\n");
 const trustedWebContentsIds = new Set();
 const securityApprovalsByWebContents = new Map();
 const fileWatchersByWebContents = new Map();
@@ -20,275 +30,43 @@ const windowState = {
   latestProject: null,
   allowClose: false
 };
+const hasSingleInstanceLock = app.requestSingleInstanceLock();
 
-function escapeHtml(value) {
-  return String(value || "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
-
-function projectToHtml(project, appName = DEFAULT_EXPORT_APP_STEM) {
-  const safeJson = JSON.stringify(project).replace(/</g, "\\u003c");
-  const safeAppName = escapeHtml(appName);
-  return `<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>${safeAppName}</title>
-    <style>
-      body { margin: 0; font-family: Segoe UI, sans-serif; background: #08110d; color: #edf6f1; }
-      .wrap { padding: 24px; }
-      .viewer {
-        border: 1px solid rgba(128, 162, 145, 0.18);
-        border-radius: 24px;
-        background: linear-gradient(180deg, rgba(19, 33, 28, 0.96), rgba(13, 22, 18, 0.96));
-        padding: 18px;
-        box-shadow: 0 18px 44px rgba(0, 0, 0, 0.24);
-      }
-      .input-row { display: grid; gap: 8px; margin-bottom: 16px; }
-      .input {
-        width: 100%;
-        padding: 10px 12px;
-        border-radius: 14px;
-        border: 1px solid rgba(128, 162, 145, 0.18);
-        background: #101915;
-        color: #edf6f1;
-      }
-      .viewer-stage {
-        position: relative;
-        min-height: 420px;
-        border-radius: 20px;
-        border: 1px solid rgba(128, 162, 145, 0.18);
-        overflow: hidden;
-        background:
-          linear-gradient(180deg, rgba(62, 207, 142, 0.04), rgba(62, 207, 142, 0.01)),
-          linear-gradient(180deg, rgba(255, 255, 255, 0.01), rgba(255, 255, 255, 0));
-      }
-      .viewer-grid {
-        position: absolute;
-        inset: 0;
-        background:
-          linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
-        background-size: 24px 24px;
-        opacity: 0.24;
-      }
-      .builder-item {
-        position: absolute;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        overflow: hidden;
-      }
-      .builder-copy {
-        width: 100%;
-        padding: 12px;
-        white-space: pre-wrap;
-        word-break: break-word;
-        line-height: 1.45;
-      }
-      .builder-image {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-      }
-    </style>
-  </head>
-  <body>
-    <div class="wrap">
-      <h1>${safeAppName}</h1>
-      <div id="app"></div>
-    </div>
-    <script>
-      const project = ${safeJson};
-      const app = document.getElementById("app");
-      const nodes = project.nodes || [];
-      const edges = project.edges || [];
-      const inputs = project.inputValues || {};
-      const uiElements = project.uiElements || [];
-      const context = {};
-      const outgoing = {};
-      const indegree = {};
-      nodes.forEach((n) => { outgoing[n.id] = []; indegree[n.id] = 0; });
-      edges.forEach((e) => { outgoing[e.source].push(e); indegree[e.target] = (indegree[e.target] || 0) + 1; });
-      const queue = Object.keys(indegree).filter((id) => indegree[id] === 0);
-      const topo = [];
-      while (queue.length) {
-        const id = queue.shift();
-        topo.push(id);
-        (outgoing[id] || []).forEach((e) => {
-          indegree[e.target] -= 1;
-          if (indegree[e.target] === 0) queue.push(e.target);
-        });
-      }
-      function tpl(text) {
-        return String(text || "").replace(/\\{\\{\\s*([^}]+)\\s*\\}\\}/g, (_, key) => String(context[key.trim()] ?? ""));
-      }
-      function cast(raw) {
-        const stripped = String(raw ?? "").trim().replace(/^['"]|['"]$/g, "");
-        const numeric = Number(stripped);
-        return Number.isNaN(numeric) ? stripped : numeric;
-      }
-      function compare(expression) {
-        const match = String(expression || "").match(/^(.+?)\\s*(==|!=|>=|<=|>|<)\\s*(.+)$/);
-        if (!match) return Boolean(String(expression || "").trim());
-        const left = cast(match[1]);
-        const right = cast(match[3]);
-        if (match[2] === "==") return left == right;
-        if (match[2] === "!=") return left != right;
-        if (match[2] === ">") return left > right;
-        if (match[2] === "<") return left < right;
-        if (match[2] === ">=") return left >= right;
-        if (match[2] === "<=") return left <= right;
-        return false;
-      }
-      function condition(expression) {
-        return tpl(expression || "")
-          .split(/\\s+OR\\s+/i)
-          .filter(Boolean)
-          .some((part) => part.split(/\\s+AND\\s+/i).filter(Boolean).every(compare));
-      }
-      function math(expression) {
-        const rendered = tpl(expression || "");
-        const match = rendered.match(/^(-?\\d+(?:\\.\\d+)?)\\s*([\\+\\-\\*\\/])\\s*(-?\\d+(?:\\.\\d+)?)$/);
-        if (!match) return rendered;
-        const left = Number(match[1]);
-        const right = Number(match[3]);
-        if (match[2] === "+") return left + right;
-        if (match[2] === "-") return left - right;
-        if (match[2] === "*") return left * right;
-        return right === 0 ? 0 : left / right;
-      }
-      function letter(value) {
-        const match = String(value || "").match(/^(\\d+)\\s+of\\s+(.+)$/i);
-        return match ? String(match[2]).charAt(Math.max(0, Number(match[1]) - 1)) : "";
-      }
-      function replaceText(value) {
-        const parts = String(value || "").split("|").map((part) => part.trim());
-        return String(parts[0] || "").split(parts[1] || "").join(parts[2] || "");
-      }
-      function textCase(value) {
-        const match = String(value || "").match(/^(upper|lower)\\s+(.+)$/i);
-        return !match ? String(value || "") : match[1].toLowerCase() === "upper" ? match[2].toUpperCase() : match[2].toLowerCase();
-      }
-      function resolveUiValue(item, field) {
-        const base = field === "src" ? item.src : item.text;
-        if (item.bindingKey && typeof context[item.bindingKey] !== "undefined" && context[item.bindingKey] !== "") {
-          return String(context[item.bindingKey]);
-        }
-        return tpl(base || "");
-      }
-      const viewer = document.createElement("div");
-      viewer.className = "viewer";
-      const inputRow = document.createElement("div");
-      inputRow.className = "input-row";
-      const stage = document.createElement("div");
-      stage.className = "viewer-stage";
-      const grid = document.createElement("div");
-      grid.className = "viewer-grid";
-      stage.appendChild(grid);
-      viewer.appendChild(inputRow);
-      viewer.appendChild(stage);
-      app.appendChild(viewer);
-      const inputNodes = nodes.filter((n) => (n.data?.nodeType || "") === "input");
-      inputNodes.forEach((node) => {
-        const input = document.createElement("input");
-        input.className = "input";
-        input.placeholder = node.data?.value || "Input";
-        input.value = inputs[node.id] ?? "";
-        input.oninput = () => { inputs[node.id] = input.value; render(); };
-        inputRow.appendChild(input);
-      });
-      function renderUi(item) {
-        const el = document.createElement("div");
-        el.className = "builder-item";
-        el.style.left = (item.x || 0) + "px";
-        el.style.top = (item.y || 0) + "px";
-        el.style.width = (item.width || 220) + "px";
-        el.style.height = (item.height || 44) + "px";
-        el.style.borderRadius = (item.radius || 0) + "px";
-        el.style.color = item.color || "#edf6f1";
-        el.style.background = item.kind === "image" ? "transparent" : (item.background || "transparent");
-        el.style.fontSize = (item.fontSize || 16) + "px";
-        el.style.textAlign = item.align || "left";
-        if (item.kind === "image") {
-          const img = document.createElement("img");
-          img.className = "builder-image";
-          img.src = resolveUiValue(item, "src");
-          img.alt = item.text || "Builder asset";
-          el.appendChild(img);
-        } else {
-          if (item.kind === "button") {
-            el.style.fontWeight = "700";
-            el.style.cursor = "pointer";
-            if (item.actionType === "open-url" && item.actionValue) {
-              el.onclick = () => window.open(item.actionValue, "_blank", "noopener,noreferrer");
-            }
-          }
-          if (item.kind === "container") {
-            el.style.border = "1px solid rgba(62, 207, 142, 0.12)";
-            el.style.alignItems = "flex-start";
-            el.style.justifyContent = "flex-start";
-          }
-          const copy = document.createElement("div");
-          copy.className = "builder-copy";
-          copy.textContent = resolveUiValue(item, "text");
-          el.appendChild(copy);
-        }
-        stage.appendChild(el);
-      }
-      function render() {
-        stage.querySelectorAll(".builder-item").forEach((el) => el.remove());
-        Object.keys(context).forEach((k) => delete context[k]);
-        topo.forEach((id) => {
-          const node = nodes.find((n) => n.id === id);
-          if (!node) return;
-          const t = node.data?.nodeType || "";
-          const key = node.data?.refKey || node.id;
-          let produced = "";
-          if (t === "input") produced = inputs[node.id] ?? "";
-          else if (t === "math") produced = math(node.data?.value || "");
-          else if (t === "condition" || t === "compare") produced = condition(node.data?.value || "") ? "true" : "false";
-          else if (t === "random") produced = Math.floor(Math.random() * (Number(tpl(node.data?.value || "")) || 100));
-          else if (t === "random-range") {
-            const [min, max] = tpl(node.data?.value || "").split("..").map((part) => Number(part.trim()));
-            produced = Math.floor((Number.isFinite(min) ? min : 1) + Math.random() * ((Number.isFinite(max) ? max : 10) - (Number.isFinite(min) ? min : 1) + 1));
-          }
-          else if (t === "timer") produced = String(Math.round(performance.now() / 1000));
-          else if (t === "date-part") {
-            const part = String(node.data?.value || "year").toLowerCase();
-            const now = new Date();
-            produced = part.includes("month") ? now.getMonth() + 1 : part.includes("day") ? now.getDate() : part.includes("hour") ? now.getHours() : now.getFullYear();
-          }
-          else if (t === "text-length") produced = String(tpl(node.data?.value || "")).length;
-          else if (t === "text-letter") produced = letter(tpl(node.data?.value || ""));
-          else if (t === "text-replace") produced = replaceText(tpl(node.data?.value || ""));
-          else if (t === "text-case") produced = textCase(tpl(node.data?.value || ""));
-          else if (t === "rgb-hex") {
-            const channels = String(tpl(node.data?.value || "")).match(/\\d+/g)?.slice(0, 3).map((item) => Math.max(0, Math.min(255, Number(item)))) || [255, 0, 0];
-            produced = "#" + channels.map((item) => item.toString(16).padStart(2, "0")).join("");
-          }
-          else produced = tpl(node.data?.value || "");
-          context[key] = produced;
-        });
-        uiElements.forEach(renderUi);
-      }
-      render();
-    </script>
-  </body>
-</html>`;
-}
-
-function ensureTempExport() {
-  return fs.mkdtempSync(path.join(os.tmpdir(), "ixo-export-"));
+if (!hasSingleInstanceLock) {
+  app.quit();
+} else {
+  app.on("second-instance", () => {
+    const [mainWindow] = BrowserWindow.getAllWindows();
+    if (!mainWindow) return;
+    if (mainWindow.isMinimized()) {
+      mainWindow.restore();
+    }
+    mainWindow.focus();
+  });
 }
 
 function getSecurityPreferencesPath() {
   return path.join(app.getPath("userData"), SECURITY_PREFERENCES_FILE);
+}
+
+function getNetworkSafetyNotice() {
+  const candidates = [
+    path.join(__dirname, "..", "notice for safety.md"),
+    path.join(process.resourcesPath || "", "app.asar", "notice for safety.md"),
+    path.join(process.resourcesPath || "", "notice for safety.md")
+  ];
+
+  for (const candidate of candidates) {
+    try {
+      if (candidate && fs.existsSync(candidate)) {
+        return fs.readFileSync(candidate, "utf-8").trim();
+      }
+    } catch {
+      // Fall back to the embedded copy below.
+    }
+  }
+
+  return FALLBACK_NETWORK_SAFETY_NOTICE;
 }
 
 function readSecurityPreferences() {
@@ -528,15 +306,15 @@ async function requestSecurityApproval(event, scope, context = {}) {
 
   const copy = scope === "httpsNode"
     ? {
-        title: "HTTPS Node Approval",
-        message: "https:// 통신 노드의 사용을 원하십니까?",
-        detail: "승인하면 이 프로젝트 세션에서 HTTPS 요청 노드를 연결하고 실행할 수 있습니다."
+        title: "Network Node Approval",
+        message: "네트워크 계열 노드 사용을 동의하십니까?",
+        detail: getNetworkSafetyNotice()
       }
     : scope === "external"
       ? {
-          title: "External Action Approval",
-          message: "This project wants to use HTTPS requests or open an external browser.",
-          detail: "Allow external actions for this project session?"
+          title: "Network Node Approval",
+          message: "네트워크 계열 노드 사용을 동의하십니까?",
+          detail: getNetworkSafetyNotice()
         }
       : {
         title: "Script Execution Approval",
@@ -572,9 +350,9 @@ async function ensureStartupHttpsPreference(parentWindow) {
     startupHttpsPreferencePromise = (async () => {
       const result = await dialog.showMessageBox(parentWindow, {
         type: "question",
-        title: "HTTPS Node Permission",
-        message: "https:// 통신 노드의 사용을 원하십니까?",
-        detail: "허용하면 프로젝트에서 HTTPS 요청 노드를 사용할 수 있습니다. 나중에 설정에서 언제든 켜거나 끌 수 있습니다.",
+        title: "Network Node Permission",
+        message: "네트워크 계열 노드 사용을 동의하십니까?",
+        detail: getNetworkSafetyNotice(),
         buttons: ["허용", "거부"],
         defaultId: 0,
         cancelId: 1,
@@ -810,7 +588,7 @@ async function ensureRuntimeExport(project, options = {}) {
       "export"
     );
     fs.mkdirSync(exportDir, { recursive: true });
-    fs.writeFileSync(path.join(exportDir, "runtime.html"), projectToHtml(project, exportOptions.appStem), "utf-8");
+    fs.writeFileSync(path.join(exportDir, "project.json"), JSON.stringify(project, null, 2), "utf-8");
 
     return tempRoot;
   } catch (error) {
@@ -845,7 +623,7 @@ function getDefaultExportDirectoryPath(appName) {
   return path.join(app.getPath("downloads"), appStem);
 }
 
-const EXPORT_TARGETS = {
+const DESKTOP_EXPORT_TARGETS = {
   "windows-portable": {
     platform: "windows",
     folderSuffix: "windows-portable",
@@ -863,37 +641,72 @@ const EXPORT_TARGETS = {
   }
 };
 
-function validateExportTargets(targets) {
+const MOBILE_EXPORT_TARGETS = {
+  "android-apk": {
+    platform: "android",
+    folderSuffix: "android-apk-pipeline",
+    artifactExtension: ".apk",
+    kind: "mobile-workspace"
+  },
+  "ios-ipa": {
+    platform: "ios",
+    folderSuffix: "ios-ipa-pipeline",
+    artifactExtension: ".ipa",
+    kind: "mobile-workspace"
+  }
+};
+
+function validateTargetSelection(targets, supportedTargets) {
   if (!Array.isArray(targets) || targets.length === 0) {
     throw new Error("Select at least one export format.");
   }
 
-  const unsupported = targets.filter((target) => !EXPORT_TARGETS[target]);
+  const unsupported = targets.filter((target) => !supportedTargets[target]);
   if (unsupported.length) {
-    throw new Error(`These targets need a separate packaging pipeline: ${unsupported.join(", ")}`);
+    throw new Error(`Unsupported export targets: ${unsupported.join(", ")}`);
   }
 
   return [...new Set(targets)];
 }
 
+function validateDesktopExportTargets(targets) {
+  return validateTargetSelection(targets, DESKTOP_EXPORT_TARGETS);
+}
+
+function validateMobileExportTargets(targets) {
+  return validateTargetSelection(targets, MOBILE_EXPORT_TARGETS);
+}
+
 function getExportCapabilities() {
-  return Object.entries(EXPORT_TARGETS).map(([key, target]) => {
+  const desktop = Object.entries(DESKTOP_EXPORT_TARGETS).map(([key, target]) => {
     try {
       const platformInfo = getRuntimePlatformInfo(target.platform);
       findRuntimeSource(platformInfo);
-      return { key, available: true };
+      return { key, pipeline: "desktop", available: true };
     } catch (error) {
       return {
         key,
+        pipeline: "desktop",
         available: false,
         reason: String(error.message || error)
       };
     }
   });
+
+  const mobile = Object.entries(MOBILE_EXPORT_TARGETS).map(([key, target]) => ({
+    key,
+    pipeline: "mobile",
+    available: true,
+    note: target.platform === "ios"
+      ? "iOS 최종 빌드는 macOS + Xcode에서 진행합니다."
+      : "Android 최종 빌드는 Android SDK가 준비된 환경에서 진행합니다."
+  }));
+
+  return [...desktop, ...mobile];
 }
 
 async function exportRuntimeTarget(project, options, targetKey, outputDir) {
-  const target = EXPORT_TARGETS[targetKey];
+  const target = DESKTOP_EXPORT_TARGETS[targetKey];
   const tempDir = await ensureRuntimeExport(project, {
     ...options,
     targetPlatform: target.platform
@@ -912,13 +725,194 @@ async function exportRuntimeTarget(project, options, targetKey, outputDir) {
   }
 }
 
+function sanitizeBundleId(rawBundleId) {
+  const fallback = "com.minyangtech.mytixo";
+  const cleaned = String(rawBundleId || fallback)
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_.]/g, "")
+    .replace(/\.+/g, ".")
+    .replace(/^\.+|\.+$/g, "");
+  return cleaned.includes(".") ? cleaned : fallback;
+}
+
+function sanitizeNpmPackageName(rawName) {
+  const cleaned = String(rawName || DEFAULT_EXPORT_APP_STEM)
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, "-")
+    .replace(/^[._-]+|[._-]+$/g, "");
+  return cleaned || DEFAULT_EXPORT_APP_STEM;
+}
+
+function getCapacitorPackageJson(target, manifest) {
+  return {
+    name: sanitizeNpmPackageName(manifest.displayName),
+    version: manifest.versionName,
+    private: true,
+    type: "module",
+    scripts: {
+      "mobile:check": "node ./scripts/check-workspace.mjs",
+      "mobile:add": `cap add ${target.platform}`,
+      "mobile:sync": "cap sync",
+      "mobile:open": `cap open ${target.platform}`
+    },
+    dependencies: {
+      "@capacitor/core": "latest",
+      [`@capacitor/${target.platform}`]: "latest"
+    },
+    devDependencies: {
+      "@capacitor/cli": "latest"
+    }
+  };
+}
+
+function getCapacitorConfig(manifest) {
+  return {
+    appId: manifest.bundleId,
+    appName: manifest.displayName,
+    webDir: "web",
+    bundledWebRuntime: false,
+    server: {
+      androidScheme: "https"
+    }
+  };
+}
+
+function getCapacitorWorkspaceCheckScript() {
+  return [
+    "import { existsSync } from 'node:fs';",
+    "",
+    "const requiredFiles = [",
+    "  'web/runtime.html',",
+    "  'web/project.json',",
+    "  'mobile-export.json',",
+    "  'capacitor.config.json'",
+    "];",
+    "",
+    "const missing = requiredFiles.filter((file) => !existsSync(file));",
+    "if (missing.length) {",
+    "  console.error(`Missing required mobile workspace files: ${missing.join(', ')}`);",
+    "  process.exit(1);",
+    "}",
+    "",
+    "console.log('Mobile workspace looks ready.');"
+  ].join("\n");
+}
+
+function getMobileBuildReadme(target, manifest) {
+  const common = [
+    `# ${manifest.displayName} ${target.artifactExtension} Pipeline`,
+    "",
+    "이 폴더는 IXO Engine에서 분리 생성한 모바일 패키징 워크스페이스입니다.",
+    "",
+    "## 포함 파일",
+    "- `web/`: exported runtime과 동일한 웹 런타임",
+    "- `web/runtime.html`: 모바일 WebView가 여는 런타임 진입점",
+    "- `project.json`: IXO 프로젝트 데이터",
+    "- `mobile-export.json`: 모바일 빌드 메타데이터",
+    "- `package.json`: Capacitor 워크스페이스 의존성과 명령",
+    "- `capacitor.config.json`: 앱 ID, 앱 이름, webDir 설정",
+    "",
+    "## 빌드 흐름",
+    "1. `npm install`",
+    "2. `npm run mobile:check`",
+    "3. `npm run mobile:add`",
+    "4. `npm run mobile:sync`",
+    "5. `npm run mobile:open`",
+    "6. 플랫폼별 서명과 스토어 설정을 적용합니다."
+  ];
+
+  const platformSteps = target.platform === "android"
+    ? [
+        "",
+        "## Android",
+        "- Android Studio 또는 CI에서 `applicationId`를 `mobile-export.json`의 `bundleId`와 맞춥니다.",
+        "- release keystore를 연결한 뒤 `.apk` 또는 `.aab`를 빌드합니다.",
+        "- 현재 워크스페이스는 Android SDK가 없는 PC에서도 생성할 수 있습니다."
+      ]
+    : [
+        "",
+        "## iOS",
+        "- macOS의 Xcode 프로젝트에서 `bundleIdentifier`를 `mobile-export.json`의 `bundleId`와 맞춥니다.",
+        "- Apple Developer 서명 설정을 연결한 뒤 `.ipa`를 archive/export 합니다.",
+        "- iOS 최종 산출물은 macOS + Xcode 환경에서만 빌드합니다."
+      ];
+
+  return [...common, ...platformSteps].join("\n");
+}
+
+function copyRendererIntoMobileWorkspace(destination) {
+  const rendererSource = path.join(__dirname, "..", "dist", "renderer");
+  if (!fs.existsSync(rendererSource)) {
+    throw new Error("Renderer build is missing. Run the renderer build before mobile export.");
+  }
+  const webDir = path.join(destination, "web");
+  originalFs.cpSync(rendererSource, webDir, { recursive: true });
+  return webDir;
+}
+
+function exportMobileWorkspace(project, options, targetKey, outputDir) {
+  const target = MOBILE_EXPORT_TARGETS[targetKey];
+  const appStem = sanitizeExportAppStem(options?.appName);
+  const destination = path.join(outputDir, `${appStem}-${target.folderSuffix}`);
+  originalFs.rmSync(destination, { recursive: true, force: true });
+  originalFs.mkdirSync(destination, { recursive: true });
+
+  const webDir = copyRendererIntoMobileWorkspace(destination);
+  fs.writeFileSync(path.join(destination, "project.json"), JSON.stringify(project, null, 2), "utf-8");
+  fs.writeFileSync(path.join(webDir, "project.json"), JSON.stringify(project, null, 2), "utf-8");
+  fs.writeFileSync(
+    path.join(webDir, "runtime.html"),
+    "<!doctype html><meta charset=\"utf-8\"><script>location.replace('./index.html?runtime=1')</script>",
+    "utf-8"
+  );
+
+  const manifest = {
+    target: target.platform,
+    requestedArtifact: target.artifactExtension,
+    displayName: appStem,
+    bundleId: sanitizeBundleId(options?.bundleId),
+    versionName: String(options?.versionName || "1.0.0"),
+    generatedAt: new Date().toISOString(),
+    runtimeMode: "shared-renderer",
+    sourceProject: "project.json",
+    webRoot: "web",
+    launchPath: "runtime.html",
+    wrapper: "capacitor",
+    commands: {
+      install: "npm install",
+      check: "npm run mobile:check",
+      add: "npm run mobile:add",
+      sync: "npm run mobile:sync",
+      open: "npm run mobile:open"
+    }
+  };
+  fs.writeFileSync(path.join(destination, "mobile-export.json"), JSON.stringify(manifest, null, 2), "utf-8");
+  fs.writeFileSync(path.join(destination, "README.md"), getMobileBuildReadme(target, manifest), "utf-8");
+  fs.writeFileSync(path.join(destination, "package.json"), JSON.stringify(getCapacitorPackageJson(target, manifest), null, 2), "utf-8");
+  fs.writeFileSync(path.join(destination, "capacitor.config.json"), JSON.stringify(getCapacitorConfig(manifest), null, 2), "utf-8");
+  fs.writeFileSync(path.join(destination, ".gitignore"), "node_modules/\nandroid/\nios/\n", "utf-8");
+  fs.mkdirSync(path.join(destination, "scripts"), { recursive: true });
+  fs.writeFileSync(path.join(destination, "scripts", "check-workspace.mjs"), getCapacitorWorkspaceCheckScript(), "utf-8");
+
+  const decodedIcon = decodeIconDataUrl(options?.icon);
+  if (decodedIcon) {
+    const extension = path.extname(decodedIcon.originalName) || (decodedIcon.mime === "image/png" ? ".png" : ".ico");
+    fs.mkdirSync(path.join(destination, "assets"), { recursive: true });
+    fs.writeFileSync(path.join(destination, "assets", `app-icon${extension}`), decodedIcon.buffer);
+  }
+
+  return destination;
+}
+
 function createMainWindow() {
   const mainWindow = new BrowserWindow({
     width: 1600,
     height: 1000,
     minWidth: 1024,
     minHeight: 640,
-    // autoHideMenuBar: true, // 만약 Alt키로 메뉴를 보고 싶다면 이 주석을 해제하세요.
+    // autoHideMenuBar: true, // 留뚯빟 Alt?ㅻ줈 硫붾돱瑜?蹂닿퀬 ?띕떎硫???二쇱꽍???댁젣?섏꽭??
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -938,7 +932,7 @@ function createMainWindow() {
     }
   });
 
-  // 2. 상단 메뉴바(File, Edit 등)를 완전히 제거
+  // 2. ?곷떒 硫붾돱諛?File, Edit ??瑜??꾩쟾???쒓굅
   Menu.setApplicationMenu(null); 
   mainWindow.maximize();
 
@@ -950,8 +944,8 @@ function createMainWindow() {
     const answer = await dialog.showMessageBox(mainWindow, {
       type: "warning",
       title: "Unsaved Changes",
-      message: "저장하지 않은 변경 사항이 있습니다. 저장하시겠습니까?",
-      buttons: ["예", "아니오", "취소"],
+      message: "There are unsaved changes. Save before closing?",
+      buttons: ["Save", "Don't Save", "Cancel"],
       cancelId: 2,
       defaultId: 0
     });
@@ -982,14 +976,16 @@ function createMainWindow() {
   
   if (!app.isPackaged) {
     mainWindow.loadURL(devUrl);
-    // 개발 모드에서 DevTools(검사)를 자동으로 열고 싶다면 아래 주석을 해제하세요.
+    // 媛쒕컻 紐⑤뱶?먯꽌 DevTools(寃??瑜??먮룞?쇰줈 ?닿퀬 ?띕떎硫??꾨옒 二쇱꽍???댁젣?섏꽭??
     // mainWindow.webContents.openDevTools(); 
     return;
   }
 
-  const exportedRuntimePath = path.join(process.resourcesPath, "export", "runtime.html");
-  if (fs.existsSync(exportedRuntimePath)) {
-    mainWindow.loadFile(exportedRuntimePath);
+  const exportedRuntimeProjectPath = path.join(process.resourcesPath, "export", "project.json");
+  if (fs.existsSync(exportedRuntimeProjectPath)) {
+    mainWindow.loadFile(path.join(__dirname, "..", "dist", "renderer", "index.html"), {
+      query: { runtime: "1" }
+    });
     return;
   }
 
@@ -1148,6 +1144,15 @@ app.whenReady().then(() => {
     return getExportCapabilities();
   });
 
+  ipcMain.handle("project:getEmbeddedRuntimeProject", (event) => {
+    assertTrustedSender(event);
+    const projectPath = path.join(process.resourcesPath, "export", "project.json");
+    if (!fs.existsSync(projectPath)) {
+      return null;
+    }
+    return JSON.parse(fs.readFileSync(projectPath, "utf-8"));
+  });
+
   ipcMain.handle("project:export", async (event, payload, options = {}) => {
     assertTrustedSender(event);
     try {
@@ -1155,7 +1160,7 @@ app.whenReady().then(() => {
       if (!outputDir) {
         throw new Error("Choose an export folder before exporting.");
       }
-      const targets = validateExportTargets(options?.targets);
+      const targets = validateDesktopExportTargets(options?.targets);
       originalFs.mkdirSync(outputDir, { recursive: true });
 
       const outputs = [];
@@ -1167,6 +1172,24 @@ app.whenReady().then(() => {
       return { ok: true, path: outputDir, outputs };
     } catch (error) {
       return { ok: false, error: error.message || "Export failed." };
+    }
+  });
+
+  ipcMain.handle("project:exportMobile", async (event, payload, options = {}) => {
+    assertTrustedSender(event);
+    try {
+      const outputDir = normalizeOutputDirectory(options?.outputDir);
+      if (!outputDir) {
+        throw new Error("Choose an export folder before exporting.");
+      }
+      const targets = validateMobileExportTargets(options?.targets);
+      originalFs.mkdirSync(outputDir, { recursive: true });
+
+      const outputs = targets.map((target) => exportMobileWorkspace(payload, options, target, outputDir));
+      shell.showItemInFolder(outputs[0]);
+      return { ok: true, path: outputDir, outputs, pipeline: "mobile" };
+    } catch (error) {
+      return { ok: false, error: error.message || "Mobile export failed." };
     }
   });
 

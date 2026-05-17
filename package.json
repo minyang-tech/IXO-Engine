@@ -36,7 +36,8 @@
     "files": [
       "dist/renderer/**/*",
       "electron/**/*",
-      "package.json"
+      "package.json",
+      "notice for safety.md"
     ],
     "asarUnpack": [
       "node_modules/rcedit/bin/**/*"

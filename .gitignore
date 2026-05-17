@@ -17,6 +17,7 @@ release/
 *.zip
 *.blockmap
 *.yml
+!.github/workflows/*.yml
 
 # --- Electron-builder Specific ---
 win-unpacked/

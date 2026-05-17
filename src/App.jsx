@@ -35,6 +35,7 @@ const GROUP_ICON = {
   utility: "⊕",
   data: "◈",
   network: "⇄",
+  function: "ƒ",
   start: "◆"
 };
 
@@ -46,7 +47,8 @@ const NODE_COLOR = {
   logic: "#56d9a5",
   utility: "#7ae0cf",
   data: "#7bc8a8",
-  network: "#57d8bc"
+  network: "#57d8bc",
+  function: "#f0b36d"
 };
 
 const TRACE_SPEED = {
@@ -58,6 +60,20 @@ const TRACE_SPEED = {
 
 const DEFAULT_LOG_LIMIT = 150;
 const LOCAL_AUTOSAVE_KEY = "ixo-engine-local-autosave-v1";
+const LOCAL_BACKUPS_KEY = "ixo-engine-local-backups-v1";
+const LOCAL_SAFE_MODE_KEY = "ixo-engine-safe-mode-v1";
+const PROJECT_SCHEMA_VERSION = 2;
+const MAX_LOCAL_BACKUPS = 5;
+const NETWORK_SAFETY_NOTICE = [
+  "## 네트워크 사용 안내",
+  "이 애플리케이션은 다음 기능을 위해 HTTPS 기반 네트워크 요청을 사용합니다:",
+  "- GitHub API를 통한 최신 버전 확인",
+  "- 기능 동작에 필요한 외부 데이터 로딩 (필요한 경우)",
+  "",
+  "이 앱은 개인 정보를 수집, 저장 또는 외부로 전송하지 않습니다.",
+  "사용자의 계정 정보나 식별 가능한 데이터는 처리되지 않습니다.",
+  "본 애플리케이션의 주요 기능은 로컬 환경에서 실행되며, 네트워크 연결은 업데이트 확인 및 일부 기능 제공에만 제한적으로 사용됩니다."
+].join("\n");
 
 const LANGUAGE_OPTIONS = [
   { value: "ko", label: "\uD55C\uAD6D\uC5B4" },
@@ -96,29 +112,13 @@ const PREVIEW_DEVICE_OPTIONS = {
   mobile: { label: "Mobile", width: "390px" }
 };
 
-const EXPORT_TARGET_OPTIONS = [
+const DESKTOP_EXPORT_TARGET_OPTIONS = [
   {
     key: "windows-portable",
     label: ".exe",
     platform: "PC, Windows",
     detail: "즉시 실행형",
     supported: true
-  },
-  {
-    key: "windows-installer",
-    label: ".exe",
-    platform: "PC, Windows",
-    detail: "설치형",
-    supported: false,
-    note: "설치형은 별도 패키징 단계가 필요한 배포 산출물입니다."
-  },
-  {
-    key: "windows-msi",
-    label: ".msi",
-    platform: "PC, Windows",
-    detail: "설치 패키지",
-    supported: false,
-    note: "MSI는 별도 패키징 단계가 필요한 배포 산출물입니다."
   },
   {
     key: "mac-app",
@@ -128,26 +128,27 @@ const EXPORT_TARGET_OPTIONS = [
     supported: true
   },
   {
+    key: "linux-bundle",
+    label: "Linux bundle",
+    platform: "PC, Linux",
+    detail: "실행 파일 + 필요 리소스",
+    supported: true
+  }
+];
+
+const MOBILE_EXPORT_TARGET_OPTIONS = [
+  {
     key: "android-apk",
     label: ".apk",
     platform: "Mobile, Android",
-    detail: "모바일 앱",
-    supported: false,
-    note: "별도 Android 앱 빌드 체인이 필요합니다."
+    detail: "Android 패키징 파이프라인",
+    supported: true
   },
   {
     key: "ios-ipa",
     label: ".ipa",
     platform: "Mobile, iPhone / iPad",
-    detail: "모바일 앱",
-    supported: false,
-    note: "별도 iOS 앱 빌드 체인이 필요합니다."
-  },
-  {
-    key: "linux-bundle",
-    label: "Linux bundle",
-    platform: "PC, Linux",
-    detail: "실행 파일 + 필요 리소스",
+    detail: "iOS 패키징 파이프라인",
     supported: true
   }
 ];
@@ -421,7 +422,8 @@ const NODE_TEXT = {
     "text-replace": "문자 바꾸기",
     "text-case": "대소문자 변환",
     "rgb-hex": "RGB를 HEX로",
-    "hex-channel": "HEX 채널"
+    "hex-channel": "HEX 채널",
+    "function-call": "함수 호출"
   },
   en: {
     start: "Start Point",
@@ -516,7 +518,8 @@ const NODE_TEXT = {
     "text-replace": "Replace Text",
     "text-case": "Text Case",
     "rgb-hex": "RGB to HEX",
-    "hex-channel": "HEX Channel"
+    "hex-channel": "HEX Channel",
+    "function-call": "Function Call"
   },
   zh: {},
   ja: {}
@@ -852,12 +855,14 @@ const initialUiElements = [
 ];
 
 // [상태 스냅샷] Undo/Redo에서 그대로 복구할 프로젝트 상태를 묶습니다.
-const cloneState = (nodes, edges, inputValues, nodeCounter, uiElements) => ({
+const cloneState = (nodes, edges, inputValues, nodeCounter, uiElements, functions = [], activeFunctionId = null) => ({
   nodes: JSON.parse(JSON.stringify(nodes)),
   edges: JSON.parse(JSON.stringify(edges)),
   inputValues: JSON.parse(JSON.stringify(inputValues)),
   nodeCounter,
-  uiElements: JSON.parse(JSON.stringify(uiElements))
+  uiElements: JSON.parse(JSON.stringify(uiElements)),
+  functions: JSON.parse(JSON.stringify(functions)),
+  activeFunctionId
 });
 
 // [로그] 콘솔에 쌓일 로그 엔트리를 공통 포맷으로 생성합니다.
@@ -893,6 +898,133 @@ function normalizeUiElements(items = []) {
     actionValue: item.actionValue ?? "",
     linkedNodeId: item.linkedNodeId ?? ""
   }));
+}
+
+function normalizeFunctions(items = []) {
+  return items.map((item, index) => ({
+    id: item.id || `function-${index + 1}`,
+    name: item.name || `function_${index + 1}`,
+    description: String(item.description || ""),
+    parameters: Array.isArray(item.parameters)
+      ? item.parameters
+          .map((parameter, parameterIndex) => (
+            typeof parameter === "string"
+              ? {
+                  id: `param-${parameterIndex + 1}`,
+                  name: parameter,
+                  defaultValue: "",
+                  description: ""
+                }
+              : {
+                  id: parameter.id || `param-${parameterIndex + 1}`,
+                  name: String(parameter.name || ""),
+                  defaultValue: String(parameter.defaultValue || ""),
+                  description: String(parameter.description || "")
+                }
+          ))
+          .filter((parameter) => parameter.name)
+      : [],
+    returnRef: String(item.returnRef || ""),
+    nodes: applyNodeSelectionState(item.nodes || [], []),
+    edges: (item.edges || []).map((edge) => ({ ...edge, selected: false })),
+    inputValues: item.inputValues || {},
+    nodeCounter: Number(item.nodeCounter || 1)
+  }));
+}
+
+function getDefaultProjectState() {
+  return {
+    schemaVersion: PROJECT_SCHEMA_VERSION,
+    nodes: applyNodeSelectionState(initialNodes, []),
+    edges: initialEdges.map((edge) => ({ ...edge, selected: false })),
+    inputValues: {},
+    nodeCounter: 6,
+    uiElements: normalizeUiElements(initialUiElements),
+    functions: []
+  };
+}
+
+function createFunctionDefinition(index = 1) {
+  const id = `function-${Date.now()}-${index}`;
+  return {
+    id,
+    name: `function_${index}`,
+    description: "",
+    parameters: [],
+    returnRef: "",
+    nodes: [
+      {
+        id: `${id}-start`,
+        type: "ixoNode",
+        data: {
+          label: "Start",
+          kind: "start",
+          category: "CORE",
+          value: "",
+          nodeType: "start",
+          refKey: `${id.replace(/[^a-z0-9]/gi, "").toLowerCase()}Start`,
+          groupLabel: "Function"
+        },
+        position: { x: 80, y: 180 }
+      }
+    ],
+    edges: [],
+    inputValues: {},
+    nodeCounter: 1
+  };
+}
+
+function createFunctionParameter(index = 1) {
+  return {
+    id: `param-${Date.now()}-${index}`,
+    name: `arg${index}`,
+    defaultValue: "",
+    description: ""
+  };
+}
+
+function migrateProjectState(input = {}) {
+  const parsed = typeof input === "string" ? JSON.parse(input) : input;
+  const migrated = {
+    schemaVersion: Number(parsed.schemaVersion || 1),
+    nodes: Array.isArray(parsed.nodes) ? parsed.nodes : [],
+    edges: Array.isArray(parsed.edges) ? parsed.edges : [],
+    inputValues: parsed.inputValues && typeof parsed.inputValues === "object" ? parsed.inputValues : {},
+    nodeCounter: Number(parsed.nodeCounter || 1),
+    uiElements: normalizeUiElements(parsed.uiElements || []),
+    functions: normalizeFunctions(parsed.functions || []),
+    viewMode: parsed.viewMode,
+    language: parsed.language,
+    themeKey: parsed.themeKey,
+    previewDevice: parsed.previewDevice,
+    savedAt: parsed.savedAt
+  };
+
+  if (migrated.schemaVersion < 2) {
+    migrated.schemaVersion = 2;
+  }
+
+  return migrated;
+}
+
+function validateProjectState(state) {
+  return Boolean(
+    state
+    && Array.isArray(state.nodes)
+    && Array.isArray(state.edges)
+    && Array.isArray(state.uiElements)
+    && Array.isArray(state.functions)
+    && Number.isFinite(state.nodeCounter)
+  );
+}
+
+function parseStoredProject(raw) {
+  try {
+    const migrated = migrateProjectState(raw);
+    return validateProjectState(migrated) ? { ok: true, data: migrated } : { ok: false, error: "Invalid project shape." };
+  } catch (error) {
+    return { ok: false, error: String(error.message || error) };
+  }
 }
 
 function applyNodeSelectionState(nodes, selectedIds) {
@@ -998,11 +1130,31 @@ function createUiElement(kind, bindingKey = "", accentColor = ACCENT) {
   };
 }
 
+function getUiNodeDefinition(kind) {
+  if (kind === "image") return { label: "Add Image", group: "visual", type: "image" };
+  if (kind === "button") return { label: "Button", group: "visual", type: "trigger" };
+  if (kind === "container") return { label: "Layout Container", group: "visual", type: "layout" };
+  return { label: "Add Text", group: "visual", type: "text" };
+}
+
 function getUiNodeTypeFromKind(kind) {
-  if (kind === "image") return "ui-image";
-  if (kind === "button") return "ui-button";
-  if (kind === "container") return "ui-container";
-  return "ui-text";
+  return getUiNodeDefinition(kind).type;
+}
+
+function getUiNodeValue(element) {
+  return element.kind === "image" ? element.src : element.text;
+}
+
+function getUiNodePatch(element) {
+  const definition = getUiNodeDefinition(element.kind);
+  return {
+    label: definition.label,
+    kind: definition.group,
+    category: definition.group.toUpperCase(),
+    nodeType: definition.type,
+    value: getUiNodeValue(element),
+    linkedUiElementId: element.id
+  };
 }
 
 // [템플릿] 노드 값이나 UI 텍스트에서 {{refKey}} 문법을 치환합니다.
@@ -1272,6 +1424,7 @@ function getDefaultNodeValue(nodeType, label) {
     "text-case": "upper {{text}}",
     "rgb-hex": "255, 0, 0",
     "hex-channel": "#ff0000 R",
+    "function-call": label || "Function",
     "ui-text": "UI Text Binding",
     "ui-image": "UI Image Binding",
     "ui-button": "UI Button Binding",
@@ -1282,10 +1435,20 @@ function getDefaultNodeValue(nodeType, label) {
 }
 
 // [런타임] 노드 그래프를 실제로 계산하고 실행 하이라이트 및 로그 이벤트를 생성합니다.
-function runPipeline(nodes, edges, inputValues, paused, allowScripts = false, interactionState = {}) {
+function runPipeline(
+  nodes,
+  edges,
+  inputValues,
+  paused,
+  allowScripts = false,
+  interactionState = {},
+  functionDefinitions = [],
+  seedContext = {},
+  callDepth = 0
+) {
   const nodeMap = Object.fromEntries(nodes.map((node) => [node.id, node]));
   const outgoing = {};
-  const context = {};
+  const context = { ...seedContext };
   const outputTexts = [];
   const outputImages = [];
   const outputSounds = [];
@@ -1611,6 +1774,47 @@ function runPipeline(nodes, edges, inputValues, paused, allowScripts = false, in
       const watchPath = applyTemplate(value, context);
       const watchEvent = interactionState.fileWatchEvents?.[watchPath];
       produced = watchEvent ? `${watchEvent.eventType}:${watchEvent.filename || ""}` : "";
+    } else if (type === "function-call") {
+      const functionId = node.data?.functionId;
+      const definition = functionDefinitions.find((item) => item.id === functionId);
+      if (!definition) {
+        produced = "";
+        events.push(makeLog("error", node.data?.label || "Function Call", "연결된 함수를 찾지 못했습니다."));
+      } else if (callDepth >= 24) {
+        produced = "";
+        events.push(makeLog("error", node.data?.label || "Function Call", "재귀 호출 한도(24)를 초과했습니다."));
+      } else {
+        const parameterContext = Object.fromEntries(
+          (definition.parameters || []).map((parameter) => [
+            parameter.name,
+            applyTemplate(
+              node.data?.functionArgs?.[parameter.id]
+                ?? node.data?.functionArgs?.[parameter.name]
+                ?? parameter.defaultValue
+                ?? "",
+              context
+            )
+          ])
+        );
+        const nested = runPipeline(
+          definition.nodes,
+          definition.edges,
+          definition.inputValues || {},
+          paused,
+          allowScripts,
+          interactionState,
+          functionDefinitions,
+          {
+            ...context,
+            ...parameterContext
+          },
+          callDepth + 1
+        );
+        produced = definition.returnRef
+          ? nested.context[definition.returnRef] ?? ""
+          : nested.liveValues[nested.focusedNodeId] ?? "";
+        events.push(...nested.events);
+      }
     } else if (type === "particle" || type === "switch" || type === "browser" || type === "http") {
       produced = applyTemplate(value, context);
     } else {
@@ -1834,7 +2038,8 @@ function RuntimePanel({
   previewDevice,
   setPreviewDevice,
   onUiElementSelect,
-  onOpenSettings
+  onOpenSettings,
+  runtimeOnly = false
 }) {
   const inputNodes = nodes.filter((node) => node.data?.nodeType === "input");
   const editable = viewMode === "builder";
@@ -1843,21 +2048,25 @@ function RuntimePanel({
   return (
     <div className="preview-shell">
       <div className="viewer-header">
-        <div className="viewer-tabs-row">
-          <div className="viewer-tabs">
-            <button className={viewMode === "preview" ? "active" : ""} onClick={() => setViewMode("preview")}>{uiText.preview}</button>
-            <button className={viewMode === "viewer" ? "active" : ""} onClick={() => setViewMode("viewer")}>{uiText.viewer}</button>
-            <button className={viewMode === "builder" ? "active" : ""} onClick={() => setViewMode("builder")}>{uiText.builder}</button>
-          </div>
-          <button className="settings-gear-btn" onClick={onOpenSettings} aria-label={uiText.settings}>
-            {uiText.settingsIcon}
-          </button>
-        </div>
-        <p>
-          {viewMode === "builder"
-            ? uiText.viewerBuilderHint
-            : uiText.viewerSimpleHint}
-        </p>
+        {runtimeOnly ? null : (
+          <>
+            <div className="viewer-tabs-row">
+              <div className="viewer-tabs">
+                <button className={viewMode === "preview" ? "active" : ""} onClick={() => setViewMode("preview")}>{uiText.preview}</button>
+                <button className={viewMode === "viewer" ? "active" : ""} onClick={() => setViewMode("viewer")}>{uiText.viewer}</button>
+                <button className={viewMode === "builder" ? "active" : ""} onClick={() => setViewMode("builder")}>{uiText.builder}</button>
+              </div>
+              <button className="settings-gear-btn" onClick={onOpenSettings} aria-label={uiText.settings}>
+                {uiText.settingsIcon}
+              </button>
+            </div>
+            <p>
+              {viewMode === "builder"
+                ? uiText.viewerBuilderHint
+                : uiText.viewerSimpleHint}
+            </p>
+          </>
+        )}
       </div>
 
       {editable ? (
@@ -2287,11 +2496,17 @@ function ExportModal({
   outputPath,
   targets,
   targetOptions,
+  pipeline,
+  mobileBundleId,
+  mobileVersionName,
   busy,
   onAppNameChange,
   onIconChange,
   onPickPath,
   onToggleTarget,
+  onPipelineChange,
+  onMobileBundleIdChange,
+  onMobileVersionNameChange,
   onExport,
   onCancel
 }) {
@@ -2343,6 +2558,16 @@ function ExportModal({
               <strong>산출물 형식을 선택하세요.</strong>
               <span>경로와 형식을 모두 지정해야 내보내기를 진행할 수 있습니다.</span>
             </div>
+            <div className="export-pipeline-tabs">
+              <button className={pipeline === "desktop" ? "active" : ""} onClick={() => onPipelineChange("desktop")}>Desktop</button>
+              <button className={pipeline === "mobile" ? "active" : ""} onClick={() => onPipelineChange("mobile")}>Mobile</button>
+            </div>
+            {pipeline === "mobile" ? (
+              <div className="mobile-export-note">
+                <strong>모바일은 별도 패키징 파이프라인으로 처리됩니다.</strong>
+                <span>웹 런타임과 프로젝트 데이터를 모바일 워크스페이스로 내보내고, Android/iOS 전용 도구 체인에서 최종 `.apk` 또는 `.ipa`를 빌드합니다.</span>
+              </div>
+            ) : null}
             <div className="export-target-grid">
               {targetOptions.map((target) => (
                 <label key={target.key} className={`export-target-card ${target.enabled ? "" : "is-disabled"}`}>
@@ -2391,8 +2616,31 @@ function ExportModal({
             />
           </label>
 
+          {pipeline === "mobile" ? (
+            <div className="mobile-export-fields">
+              <label className="settings-field">
+                <span>Bundle ID / Application ID</span>
+                <input
+                  type="text"
+                  value={mobileBundleId}
+                  onChange={(event) => onMobileBundleIdChange(event.target.value)}
+                  placeholder="com.minyangtech.myapp"
+                />
+              </label>
+              <label className="settings-field">
+                <span>버전</span>
+                <input
+                  type="text"
+                  value={mobileVersionName}
+                  onChange={(event) => onMobileVersionNameChange(event.target.value)}
+                  placeholder="1.0.0"
+                />
+              </label>
+            </div>
+          ) : null}
+
           <p className="export-help">
-            아이콘 또는 이름을 지정하지 않을 시 기본 아이콘과 기본 이름 (myt-ixo.exe)로 지정됩니다.
+            아이콘 또는 이름을 지정하지 않을 시 기본 아이콘과 기본 이름이 사용됩니다.
           </p>
         </div>
 
@@ -2412,10 +2660,12 @@ function ExportModal({
 
 // [메인 에디터] 노드 편집기, Viewer, Builder, 로그, 저장 기능을 총괄합니다.
 function EngineEditor() {
-  const { screenToFlowPosition } = useReactFlow();
+  const { screenToFlowPosition, setCenter } = useReactFlow();
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [libraryTab, setLibraryTab] = useState("pro");
+  const [functions, setFunctions] = useState([]);
+  const [activeFunctionId, setActiveFunctionId] = useState(null);
   const [collapsed, setCollapsed] = useState({});
   const [selectedNodeId, setSelectedNodeId] = useState(null);
   const [selectedNodeIds, setSelectedNodeIds] = useState([]);
@@ -2461,6 +2711,9 @@ function EngineEditor() {
   const [exportIcon, setExportIcon] = useState(null);
   const [exportOutputPath, setExportOutputPath] = useState("");
   const [exportTargets, setExportTargets] = useState([]);
+  const [exportPipeline, setExportPipeline] = useState("desktop");
+  const [mobileBundleId, setMobileBundleId] = useState("com.minyangtech.mytixo");
+  const [mobileVersionName, setMobileVersionName] = useState("1.0.0");
   const [exportCapabilities, setExportCapabilities] = useState({});
   const [exportBusy, setExportBusy] = useState(false);
   const [interactionState, setInteractionState] = useState({
@@ -2480,10 +2733,13 @@ function EngineEditor() {
   const lastExecutionKeyRef = useRef("");
   const lastActionSignatureRef = useRef("");
   const autoSaveTimerRef = useRef(null);
+  const mainGraphRef = useRef(null);
+  const uiLinkBootstrapRef = useRef(false);
   const securityDecisionRef = useRef({ external: "pending", httpsNode: "pending", script: "pending" });
   const securityApprovalPromiseRef = useRef({});
   const startupHttpsPreferencePromiseRef = useRef(null);
   const inFlightExternalActionsRef = useRef(new Set());
+  const [safeModeInfo, setSafeModeInfo] = useState(null);
 
   useEffect(() => {
     nodeCounterRef.current = nodeCounter;
@@ -2528,9 +2784,9 @@ function EngineEditor() {
         : {
             approved: window.confirm(
               scope === "external"
-                ? "This project wants to use HTTPS requests or open an external browser. Allow for this session?"
+                ? `네트워크 계열 노드 사용을 동의하십니까?\n\n${NETWORK_SAFETY_NOTICE}`
                 : scope === "httpsNode"
-                  ? "https:// 통신 노드의 사용을 원하십니까?"
+                  ? `네트워크 계열 노드 사용을 동의하십니까?\n\n${NETWORK_SAFETY_NOTICE}`
                 : "This project contains script nodes that can run custom code. Allow for this session?"
             )
           };
@@ -2600,7 +2856,7 @@ function EngineEditor() {
   }, [appendLog]);
 
   const exportTargetOptions = useMemo(
-    () => EXPORT_TARGET_OPTIONS.map((target) => {
+    () => (exportPipeline === "mobile" ? MOBILE_EXPORT_TARGET_OPTIONS : DESKTOP_EXPORT_TARGET_OPTIONS).map((target) => {
       const capability = exportCapabilities[target.key];
       const runtimeAvailable = capability?.available !== false;
       return {
@@ -2609,11 +2865,11 @@ function EngineEditor() {
         note: !target.supported
           ? target.note
           : runtimeAvailable
-            ? target.note
-            : "현재 기기에 이 플랫폼 런타임이 준비되어 있지 않습니다."
+            ? capability?.note || target.note
+            : capability?.reason || "현재 기기에 이 플랫폼 런타임이 준비되어 있지 않습니다."
       };
     }),
-    [exportCapabilities]
+    [exportCapabilities, exportPipeline]
   );
 
   useEffect(() => {
@@ -2741,9 +2997,25 @@ function EngineEditor() {
     return validation.url;
   }, [requestSecurityApproval]);
 
+  const runtimeFunctions = useMemo(() => (
+    activeFunctionId
+      ? functions.map((item) => (
+          item.id === activeFunctionId
+            ? {
+                ...item,
+                nodes,
+                edges,
+                inputValues,
+                nodeCounter: nodeCounterRef.current
+              }
+            : item
+        ))
+      : functions
+  ), [activeFunctionId, edges, functions, inputValues, nodes]);
+
   const runtime = useMemo(
-    () => runPipeline(nodes, edges, inputValues, paused, scriptExecutionAllowed, interactionState),
-    [edges, inputValues, interactionState, nodes, paused, scriptExecutionAllowed]
+    () => runPipeline(nodes, edges, inputValues, paused, scriptExecutionAllowed, interactionState, runtimeFunctions),
+    [edges, inputValues, interactionState, nodes, paused, runtimeFunctions, scriptExecutionAllowed]
   );
   const runtimeExecutionKey = useMemo(
     () => JSON.stringify({ activeNodeIds: runtime.activeNodeIds, activeEdgeIds: runtime.activeEdgeIds, liveValues: runtime.liveValues, paused }),
@@ -2772,6 +3044,10 @@ function EngineEditor() {
   );
 
   const selectedNode = useMemo(() => nodes.find((node) => node.id === selectedNodeId) || null, [nodes, selectedNodeId]);
+  const selectedFunctionDefinition = useMemo(
+    () => functions.find((item) => item.id === selectedNode?.data?.functionId) || null,
+    [functions, selectedNode]
+  );
   const selectedUiElement = useMemo(
     () => uiElements.find((item) => item.id === selectedUiElementId) || null,
     [uiElements, selectedUiElementId]
@@ -2780,11 +3056,23 @@ function EngineEditor() {
   const uiText = UI_TEXT[language] || UI_TEXT.ko;
 
   const normalizedLibrarySearchTerm = librarySearchTerm.trim().toLowerCase();
+  const functionLibraryItems = useMemo(
+    () => functions.map((item) => ({
+      key: `function-call-${item.id}`,
+      label: item.name,
+      group: "function",
+      type: "function-call",
+      functionId: item.id
+    })),
+    [functions]
+  );
 
   const visibleLibraryItems = useMemo(() => {
     const source = normalizedLibrarySearchTerm
-      ? Object.values(LIBRARY_TABS).flat()
-      : LIBRARY_TABS[libraryTab];
+      ? [...Object.values(LIBRARY_TABS).flat(), ...functionLibraryItems]
+      : libraryTab === "functions"
+        ? functionLibraryItems
+        : LIBRARY_TABS[libraryTab];
 
     if (!normalizedLibrarySearchTerm) {
       return source;
@@ -2795,7 +3083,7 @@ function EngineEditor() {
       return [translatedLabel, item.label, item.type, item.group]
         .some((value) => String(value || "").toLowerCase().includes(normalizedLibrarySearchTerm));
     });
-  }, [language, libraryTab, normalizedLibrarySearchTerm]);
+  }, [functionLibraryItems, language, libraryTab, normalizedLibrarySearchTerm]);
 
   const sidebarGroups = useMemo(() => {
     const list = visibleLibraryItems;
@@ -2809,19 +3097,52 @@ function EngineEditor() {
 
   const searchCandidates = useMemo(
     () =>
-      Object.values(LIBRARY_TABS)
-        .flat()
+      [...Object.values(LIBRARY_TABS).flat(), ...functionLibraryItems]
         .filter((item) => getNodeLabel(item.type, language, item.label).toLowerCase().includes(searchTerm.toLowerCase())),
-    [language, searchTerm]
+    [functionLibraryItems, language, searchTerm]
   );
 
   const nodeTypes = useMemo(() => ({ ixoNode: IXONode, ixoGroup: IXOGroupNode }), []);
 
   // [이력 저장] 의미 있는 편집 직전마다 상태를 보관해 Undo/Redo를 안정적으로 유지합니다.
+  const getSerializableProject = useCallback(() => {
+    const serializedFunctions = activeFunctionId
+      ? functions.map((item) => (
+          item.id === activeFunctionId
+            ? {
+                ...item,
+                nodes,
+                edges,
+                inputValues,
+                nodeCounter: nodeCounterRef.current
+              }
+            : item
+        ))
+      : functions;
+    const mainGraph = activeFunctionId
+      ? mainGraphRef.current || getDefaultProjectState()
+      : { nodes, edges, inputValues, nodeCounter: nodeCounterRef.current };
+
+    return {
+      schemaVersion: PROJECT_SCHEMA_VERSION,
+      nodes: mainGraph.nodes,
+      edges: mainGraph.edges,
+      inputValues: mainGraph.inputValues,
+      nodeCounter: mainGraph.nodeCounter,
+      uiElements,
+      functions: serializedFunctions,
+      viewMode,
+      language,
+      themeKey,
+      previewDevice,
+      savedAt: Date.now()
+    };
+  }, [activeFunctionId, edges, functions, inputValues, language, nodes, previewDevice, themeKey, uiElements, viewMode]);
+
   const snapshot = useCallback(() => {
-    setHistory((current) => [...current.slice(-79), cloneState(nodes, edges, inputValues, nodeCounterRef.current, uiElements)]);
+    setHistory((current) => [...current.slice(-79), cloneState(nodes, edges, inputValues, nodeCounterRef.current, uiElements, functions, activeFunctionId)]);
     setFuture([]);
-  }, [nodes, edges, inputValues, uiElements]);
+  }, [activeFunctionId, edges, functions, inputValues, nodes, uiElements]);
 
   // [이력 적용] 되돌리기 시 복구할 상태를 일관된 방식으로 반영합니다.
   const applyState = useCallback((state) => {
@@ -2829,8 +3150,11 @@ function EngineEditor() {
     setEdges((state.edges || []).map((edge) => ({ ...edge, selected: false })));
     setInputValues(state.inputValues || {});
     setUiElements(normalizeUiElements(state.uiElements || []));
+    setFunctions(normalizeFunctions(state.functions || []));
     setNodeCounter(state.nodeCounter || 1);
     nodeCounterRef.current = state.nodeCounter || 1;
+    setActiveFunctionId(state.activeFunctionId || null);
+    mainGraphRef.current = null;
     setSelectedNodeId(null);
     setSelectedNodeIds([]);
     setSelectedEdgeIds([]);
@@ -2842,33 +3166,33 @@ function EngineEditor() {
     window.ixo?.setDirtyState?.({
       isDirty,
       project: {
-        nodes,
-        edges,
-        nodeCounter,
-        inputValues,
-        uiElements
+        ...getSerializableProject()
       }
     });
-  }, [isDirty, nodes, edges, nodeCounter, inputValues, uiElements]);
+  }, [getSerializableProject, isDirty]);
 
   // [로컬 자동 저장] 작업 상태를 브라우저 로컬 저장소에 주기적으로 반영합니다.
   useEffect(() => {
-    const payload = {
-      nodes,
-      edges,
-      nodeCounter,
-      inputValues,
-      uiElements,
-      viewMode,
-      language,
-      themeKey,
-      previewDevice,
-      savedAt: Date.now()
-    };
+    const payload = getSerializableProject();
 
     window.clearTimeout(autoSaveTimerRef.current);
     autoSaveTimerRef.current = window.setTimeout(() => {
       try {
+        const previousRaw = window.localStorage?.getItem(LOCAL_AUTOSAVE_KEY);
+        const previous = previousRaw ? parseStoredProject(previousRaw) : null;
+        if (previous?.ok) {
+          const rawBackups = window.localStorage?.getItem(LOCAL_BACKUPS_KEY);
+          const parsedBackups = rawBackups ? JSON.parse(rawBackups) : [];
+          const backups = Array.isArray(parsedBackups) ? parsedBackups : [];
+          const nextBackups = [
+            {
+              savedAt: previous.data.savedAt || Date.now(),
+              payload: previous.data
+            },
+            ...backups
+          ].slice(0, MAX_LOCAL_BACKUPS);
+          window.localStorage?.setItem(LOCAL_BACKUPS_KEY, JSON.stringify(nextBackups));
+        }
         window.localStorage?.setItem(LOCAL_AUTOSAVE_KEY, JSON.stringify(payload));
       } catch (error) {
         appendLog(makeLog("error", "Local Auto-Save", "자동 저장에 실패했습니다.", String(error.message || error)));
@@ -2876,23 +3200,52 @@ function EngineEditor() {
     }, 250);
 
     return () => window.clearTimeout(autoSaveTimerRef.current);
-  }, [appendLog, edges, inputValues, language, nodeCounter, nodes, previewDevice, themeKey, uiElements, viewMode]);
+  }, [appendLog, getSerializableProject]);
 
   // [로컬 자동 복구] 새로고침이나 재실행 뒤 마지막 작업 상태를 복구합니다.
   useEffect(() => {
     try {
       const raw = window.localStorage?.getItem(LOCAL_AUTOSAVE_KEY);
       if (!raw) return;
-      const parsed = JSON.parse(raw);
-      if (!parsed?.nodes || !parsed?.edges) return;
-      applyState(parsed);
-      if (parsed.viewMode) setViewMode(parsed.viewMode);
-      if (parsed.language) setLanguage(parsed.language);
-      if (parsed.themeKey) setThemeKey(parsed.themeKey);
-      if (parsed.previewDevice) setPreviewDevice(parsed.previewDevice);
-      if (parsed.language) setDraftLanguage(parsed.language);
-      if (parsed.themeKey) setDraftThemeKey(parsed.themeKey);
-      if (parsed.previewDevice) setDraftPreviewDevice(parsed.previewDevice);
+      const parsed = parseStoredProject(raw);
+      let restored = parsed.ok ? parsed.data : null;
+      let recoverySource = parsed.ok ? "autosave" : "";
+
+      if (!restored) {
+        const rawBackups = window.localStorage?.getItem(LOCAL_BACKUPS_KEY);
+        const backups = rawBackups ? JSON.parse(rawBackups) : [];
+        const validBackup = Array.isArray(backups)
+          ? backups.map((entry) => parseStoredProject(entry.payload)).find((entry) => entry.ok)
+          : null;
+        if (validBackup?.ok) {
+          restored = validBackup.data;
+          recoverySource = "backup";
+        }
+      }
+
+      if (!restored) {
+        restored = getDefaultProjectState();
+        recoverySource = "reset";
+      }
+
+      applyState(restored);
+      if (recoverySource !== "autosave") {
+        setSafeModeInfo({
+          active: true,
+          source: recoverySource,
+          message: recoverySource === "backup"
+            ? "자동 저장이 손상되어 가장 최근 백업으로 복구했습니다."
+            : "자동 저장과 백업을 복구할 수 없어 안전한 기본 상태로 초기화했습니다."
+        });
+        window.localStorage?.setItem(LOCAL_SAFE_MODE_KEY, JSON.stringify({ source: recoverySource, at: Date.now() }));
+      }
+      if (restored.viewMode) setViewMode(restored.viewMode);
+      if (restored.language) setLanguage(restored.language);
+      if (restored.themeKey) setThemeKey(restored.themeKey);
+      if (restored.previewDevice) setPreviewDevice(restored.previewDevice);
+      if (restored.language) setDraftLanguage(restored.language);
+      if (restored.themeKey) setDraftThemeKey(restored.themeKey);
+      if (restored.previewDevice) setDraftPreviewDevice(restored.previewDevice);
       setStatus("Local auto-save restored.");
       appendLog(makeLog("info", "Local Auto-Save", "로컬 자동 저장 상태를 복구했습니다."));
     } catch (error) {
@@ -3062,25 +3415,25 @@ function EngineEditor() {
     setHistory((current) => {
       if (current.length === 0) return current;
       const previous = current[current.length - 1];
-      setFuture((futureState) => [...futureState, cloneState(nodes, edges, inputValues, nodeCounterRef.current, uiElements)]);
+      setFuture((futureState) => [...futureState, cloneState(nodes, edges, inputValues, nodeCounterRef.current, uiElements, functions, activeFunctionId)]);
       applyState(previous);
       setIsDirty(true);
       setStatus("Undo applied.");
       return current.slice(0, -1);
     });
-  }, [applyState, edges, inputValues, nodes, uiElements]);
+  }, [activeFunctionId, applyState, edges, functions, inputValues, nodes, uiElements]);
 
   const redo = useCallback(() => {
     setFuture((current) => {
       if (current.length === 0) return current;
       const next = current[current.length - 1];
-      setHistory((historyState) => [...historyState, cloneState(nodes, edges, inputValues, nodeCounterRef.current, uiElements)]);
+      setHistory((historyState) => [...historyState, cloneState(nodes, edges, inputValues, nodeCounterRef.current, uiElements, functions, activeFunctionId)]);
       applyState(next);
       setIsDirty(true);
       setStatus("Redo applied.");
       return current.slice(0, -1);
     });
-  }, [applyState, edges, inputValues, nodes, uiElements]);
+  }, [activeFunctionId, applyState, edges, functions, inputValues, nodes, uiElements]);
 
   const updateInputValue = useCallback((nodeId, value) => {
     setInputValues((current) => ({ ...current, [nodeId]: value }));
@@ -3110,10 +3463,263 @@ function EngineEditor() {
         value: getDefaultNodeValue(nodeType, nodeDef.label),
         nodeType,
         refKey: `${nodeType.replace(/[^a-z0-9]/gi, "").toLowerCase()}${id.replace("node-", "")}`,
-        groupLabel: ""
+        groupLabel: "",
+        ...(nodeDef.functionId ? { functionId: nodeDef.functionId, functionArgs: {} } : {})
       }
     };
   }, [createNodeId]);
+
+  const getCommittedFunctions = useCallback(() => (
+    activeFunctionId
+      ? functions.map((item) => (
+          item.id === activeFunctionId
+            ? {
+                ...item,
+                nodes,
+                edges,
+                inputValues,
+                nodeCounter: nodeCounterRef.current
+              }
+            : item
+        ))
+      : functions
+  ), [activeFunctionId, edges, functions, inputValues, nodes]);
+
+  const loadGraphIntoEditor = useCallback((graph) => {
+    setNodes(applyNodeSelectionState(graph.nodes || [], []));
+    setEdges((graph.edges || []).map((edge) => ({ ...edge, selected: false })));
+    setInputValues(graph.inputValues || {});
+    setNodeCounter(graph.nodeCounter || 1);
+    nodeCounterRef.current = graph.nodeCounter || 1;
+    setSelectedNodeId(null);
+    setSelectedNodeIds([]);
+    setSelectedEdgeIds([]);
+    setSelectedUiElementId(null);
+  }, [setEdges, setNodes]);
+
+  const enterFunctionEditor = useCallback((functionId) => {
+    const committedFunctions = getCommittedFunctions();
+    const target = committedFunctions.find((item) => item.id === functionId);
+    if (!target) return;
+
+    snapshot();
+    if (!activeFunctionId) {
+      mainGraphRef.current = {
+        nodes,
+        edges,
+        inputValues,
+        nodeCounter: nodeCounterRef.current
+      };
+    }
+    setFunctions(committedFunctions);
+    loadGraphIntoEditor(target);
+    setActiveFunctionId(functionId);
+    setLibraryTab("functions");
+    setStatus(`Editing function: ${target.name}`);
+  }, [activeFunctionId, edges, getCommittedFunctions, inputValues, loadGraphIntoEditor, nodes, snapshot]);
+
+  const exitFunctionEditor = useCallback(() => {
+    if (!activeFunctionId) return;
+
+    snapshot();
+    setFunctions(getCommittedFunctions());
+    const mainGraph = mainGraphRef.current || getDefaultProjectState();
+    loadGraphIntoEditor(mainGraph);
+    mainGraphRef.current = null;
+    setActiveFunctionId(null);
+    setStatus("Returned to main workspace.");
+  }, [activeFunctionId, getCommittedFunctions, loadGraphIntoEditor, snapshot]);
+
+  const createFunction = useCallback(() => {
+    snapshot();
+    const definition = createFunctionDefinition(functions.length + 1);
+    const committedFunctions = [...getCommittedFunctions(), definition];
+    if (!activeFunctionId) {
+      mainGraphRef.current = {
+        nodes,
+        edges,
+        inputValues,
+        nodeCounter: nodeCounterRef.current
+      };
+    }
+    setFunctions(committedFunctions);
+    loadGraphIntoEditor(definition);
+    setActiveFunctionId(definition.id);
+    setLibraryTab("functions");
+    setStatus(`Function created: ${definition.name}`);
+    setIsDirty(true);
+  }, [activeFunctionId, edges, functions.length, getCommittedFunctions, inputValues, loadGraphIntoEditor, nodes, snapshot]);
+
+  const renameFunction = useCallback((functionId, name) => {
+    const nextName = String(name || "").trim() || "function";
+    setFunctions((current) => current.map((item) => (
+      item.id === functionId
+        ? { ...item, name: nextName }
+        : item
+    )));
+    setIsDirty(true);
+  }, []);
+
+  const updateFunctionSignature = useCallback((functionId, field, value) => {
+    setFunctions((current) => current.map((item) => (
+      item.id === functionId
+        ? {
+            ...item,
+            [field]: value
+          }
+        : item
+    )));
+    setIsDirty(true);
+  }, []);
+
+  const addFunctionParameter = useCallback((functionId) => {
+    setFunctions((current) => current.map((item) => (
+      item.id === functionId
+        ? {
+            ...item,
+            parameters: [
+              ...item.parameters,
+              createFunctionParameter(item.parameters.length + 1)
+            ]
+          }
+        : item
+    )));
+    setIsDirty(true);
+  }, []);
+
+  const updateFunctionParameter = useCallback((functionId, parameterId, field, value) => {
+    setFunctions((current) => current.map((item) => (
+      item.id === functionId
+        ? {
+            ...item,
+            parameters: item.parameters.map((parameter) => (
+              parameter.id === parameterId
+                ? { ...parameter, [field]: value }
+                : parameter
+            ))
+          }
+        : item
+    )));
+    setIsDirty(true);
+  }, []);
+
+  const removeFunctionParameter = useCallback((functionId, parameterId) => {
+    setFunctions((current) => current.map((item) => (
+      item.id === functionId
+        ? {
+            ...item,
+            parameters: item.parameters.filter((parameter) => parameter.id !== parameterId)
+          }
+        : item
+    )));
+    setIsDirty(true);
+  }, []);
+
+  const updateNodeFunctionArg = useCallback((parameterId, value) => {
+    if (!selectedNode || selectedNode.data?.nodeType !== "function-call") return;
+    snapshot();
+    setNodes((current) => current.map((node) => (
+      node.id === selectedNode.id
+        ? {
+            ...node,
+            data: {
+              ...node.data,
+              functionArgs: {
+                ...(node.data.functionArgs || {}),
+                [parameterId]: value
+              }
+            }
+          }
+        : node
+    )));
+    setIsDirty(true);
+  }, [selectedNode, setNodes, snapshot]);
+
+  const deleteFunction = useCallback((functionId) => {
+    snapshot();
+    const nextFunctions = getCommittedFunctions().filter((item) => item.id !== functionId);
+    setFunctions(nextFunctions);
+    setNodes((current) => current.filter((node) => node.data?.functionId !== functionId));
+    setEdges((current) => current.filter((edge) => {
+      const source = nodes.find((node) => node.id === edge.source);
+      const target = nodes.find((node) => node.id === edge.target);
+      return source?.data?.functionId !== functionId && target?.data?.functionId !== functionId;
+    }));
+    if (activeFunctionId === functionId) {
+      const mainGraph = mainGraphRef.current || getDefaultProjectState();
+      loadGraphIntoEditor(mainGraph);
+      mainGraphRef.current = null;
+      setActiveFunctionId(null);
+    }
+    setStatus("Function removed.");
+    setIsDirty(true);
+  }, [activeFunctionId, getCommittedFunctions, loadGraphIntoEditor, nodes, setEdges, setNodes, snapshot]);
+
+  // [UI ↔ Node 동기화] 모든 Canvas UI가 메인 워크스페이스의 기존 표준 노드와 1:1로 연결되도록 유지합니다.
+  useEffect(() => {
+    if (activeFunctionId) return;
+
+    const nodeMap = new Map(nodes.map((node) => [node.id, node]));
+    const missingElements = uiElements.filter((element) => !element.linkedNodeId || !nodeMap.has(element.linkedNodeId));
+
+    if (missingElements.length) {
+      const createdNodes = missingElements.map((element, index) => {
+        const definition = getUiNodeDefinition(element.kind);
+        const node = makeNode(definition, {
+          x: 980,
+          y: 120 + (uiElements.length + index) * 92
+        });
+        return {
+          elementId: element.id,
+          node: {
+            ...node,
+            data: {
+              ...node.data,
+              ...getUiNodePatch(element),
+              refKey: node.data.refKey
+            }
+          }
+        };
+      });
+
+      const linkByElementId = Object.fromEntries(createdNodes.map((item) => [item.elementId, item.node.id]));
+      setUiElements((current) =>
+        current.map((element) => (
+          linkByElementId[element.id]
+            ? { ...element, linkedNodeId: linkByElementId[element.id] }
+            : element
+        ))
+      );
+      setNodes((current) => [...current, ...createdNodes.map((item) => item.node)]);
+      if (uiLinkBootstrapRef.current) {
+        setIsDirty(true);
+      }
+      uiLinkBootstrapRef.current = true;
+      return;
+    }
+
+    let changed = false;
+    const nextNodes = nodes.map((node) => {
+      const linkedElement = uiElements.find((element) => element.linkedNodeId === node.id);
+      if (!linkedElement) return node;
+      const patch = getUiNodePatch(linkedElement);
+      const needsPatch = Object.entries(patch).some(([key, value]) => node.data?.[key] !== value);
+      if (!needsPatch) return node;
+      changed = true;
+      return {
+        ...node,
+        data: {
+          ...node.data,
+          ...patch
+        }
+      };
+    });
+
+    if (changed) {
+      setNodes(nextNodes);
+    }
+    uiLinkBootstrapRef.current = true;
+  }, [activeFunctionId, makeNode, nodes, setNodes, uiElements]);
 
   const createGroupBox = useCallback(() => {
     const targets = nodes.filter((node) => selectedNodeIds.includes(node.id));
@@ -3253,13 +3859,13 @@ function EngineEditor() {
       return;
     }
 
-    const payload = { nodes, edges, nodeCounter: nodeCounterRef.current, inputValues, uiElements };
+    const payload = getSerializableProject();
     const result = await window.ixo.saveProject(payload);
     if (result.ok) {
       setStatus(`Saved .ixo: ${result.path}`);
       setIsDirty(false);
     }
-  }, [edges, inputValues, nodes, uiElements]);
+  }, [getSerializableProject]);
 
   const loadProject = useCallback(async () => {
     if (!window.ixo?.loadProject) {
@@ -3271,21 +3877,17 @@ function EngineEditor() {
     if (result.ok && result.data) {
       await resetSecurityState();
       snapshot();
-      setNodes(applyNodeSelectionState(result.data.nodes || [], []));
-      setEdges((result.data.edges || []).map((edge) => ({ ...edge, selected: false })));
-      setNodeCounter(result.data.nodeCounter || 1);
-      nodeCounterRef.current = result.data.nodeCounter || 1;
-      setInputValues(result.data.inputValues || {});
-      setUiElements(normalizeUiElements(result.data.uiElements || []));
-      setSelectedNodeId(null);
-      setSelectedNodeIds([]);
-      setSelectedEdgeIds([]);
-      setSelectedUiElementId(null);
+      const migrated = migrateProjectState(result.data);
+      applyState(migrated);
+      if (migrated.viewMode) setViewMode(migrated.viewMode);
+      if (migrated.language) setLanguage(migrated.language);
+      if (migrated.themeKey) setThemeKey(migrated.themeKey);
+      if (migrated.previewDevice) setPreviewDevice(migrated.previewDevice);
       setLogs([]);
       setStatus(`Loaded .ixo: ${result.path}`);
       setIsDirty(false);
     }
-  }, [resetSecurityState, setEdges, setNodes, snapshot]);
+  }, [applyState, resetSecurityState, snapshot]);
 
   const pickExportPath = useCallback(async () => {
     if (!window.ixo?.chooseExportPath) {
@@ -3314,7 +3916,15 @@ function EngineEditor() {
     setExportIcon(null);
     setExportOutputPath("");
     setExportTargets([]);
+    setExportPipeline("desktop");
+    setMobileBundleId("com.minyangtech.mytixo");
+    setMobileVersionName("1.0.0");
     setShowExportModal(true);
+  }, []);
+
+  const changeExportPipeline = useCallback((pipeline) => {
+    setExportPipeline(pipeline);
+    setExportTargets([]);
   }, []);
 
   const toggleExportTarget = useCallback((targetKey) => {
@@ -3346,18 +3956,17 @@ function EngineEditor() {
         return;
       }
 
-      const result = await window.ixo.exportProject({
-        nodes,
-        edges,
-        nodeCounter: nodeCounterRef.current,
-        inputValues,
-        uiElements
-      }, {
+      const exportOptions = {
         outputDir: exportOutputPath,
         targets: exportTargets,
         appName: exportAppName,
-        icon: exportIcon
-      });
+        icon: exportIcon,
+        bundleId: mobileBundleId,
+        versionName: mobileVersionName
+      };
+      const result = exportPipeline === "mobile"
+        ? await window.ixo.exportMobileProject(getSerializableProject(), exportOptions)
+        : await window.ixo.exportProject(getSerializableProject(), exportOptions);
 
       if (result.ok) {
         setStatus(`Exported outputs: ${result.path}`);
@@ -3373,7 +3982,7 @@ function EngineEditor() {
     } finally {
       setExportBusy(false);
     }
-  }, [appendLog, edges, exportAppName, exportIcon, exportOutputPath, exportTargets, inputValues, nodes, uiElements]);
+  }, [appendLog, exportAppName, exportIcon, exportOutputPath, exportPipeline, exportTargets, getSerializableProject, mobileBundleId, mobileVersionName]);
 
   const checkForUpdates = useCallback(async ({ silent = false } = {}) => {
     if (!window.ixo?.checkForUpdates) {
@@ -3571,6 +4180,31 @@ function EngineEditor() {
     setEdges((current) => current.map((edge) => ({ ...edge, selected: selectedSet.has(edge.id) })));
   }, [setEdges, setNodes]);
 
+  // [Builder 탐색] UI를 선택한 상태에서 P를 누르면 대응 노드 위치로 즉시 이동합니다.
+  useEffect(() => {
+    const onBuilderShortcut = (event) => {
+      const tag = (event.target?.tagName || "").toLowerCase();
+      const editing = tag === "input" || tag === "textarea" || tag === "select";
+      if (editing || viewMode !== "builder" || event.key.toLowerCase() !== "p") return;
+      const linkedNodeId = selectedUiElement?.linkedNodeId;
+      if (!linkedNodeId) return;
+      const linkedNode = nodes.find((node) => node.id === linkedNodeId);
+      if (!linkedNode) return;
+
+      event.preventDefault();
+      syncSelectedNodes([linkedNode.id], linkedNode.id);
+      setCenter(
+        linkedNode.position.x + (linkedNode.width || 220) / 2,
+        linkedNode.position.y + (linkedNode.height || 120) / 2,
+        { zoom: 1.1, duration: 420 }
+      );
+      setStatus(`Jumped to linked node: ${linkedNode.data?.label || linkedNode.id}`);
+    };
+
+    window.addEventListener("keydown", onBuilderShortcut);
+    return () => window.removeEventListener("keydown", onBuilderShortcut);
+  }, [nodes, selectedUiElement, setCenter, syncSelectedNodes, viewMode]);
+
   const magicAlign = useCallback(() => {
     snapshot();
 
@@ -3690,7 +4324,7 @@ function EngineEditor() {
             ? {
                 ...item,
                 ...(field === "value"
-                  ? selectedNode.data.nodeType === "ui-image"
+                  ? item.kind === "image"
                     ? { src: value }
                     : { text: value }
                   : { bindingKey: value })
@@ -3739,14 +4373,10 @@ function EngineEditor() {
   const createUiElementFromPalette = useCallback((kind, point = null) => {
     snapshot();
 
-    const selectedBindingKey = selectedNode?.data?.refKey || "";
-    const next = createUiElement(kind, selectedBindingKey, currentTheme.accent);
+    const next = createUiElement(kind, "", currentTheme.accent);
+    const definition = getUiNodeDefinition(kind);
     const linkedNode = makeNode(
-      {
-        label: kind === "image" ? "UI Image" : kind === "button" ? "UI Button" : kind === "container" ? "UI Container" : "UI Text",
-        group: "visual",
-        type: getUiNodeTypeFromKind(kind)
-      },
+      definition,
       {
         x: 980,
         y: 120 + uiElements.length * 92
@@ -3754,8 +4384,8 @@ function EngineEditor() {
     );
     linkedNode.data = {
       ...linkedNode.data,
-      value: kind === "image" ? next.src : next.text,
-      refKey: next.bindingKey || linkedNode.data.refKey,
+      ...getUiNodePatch(next),
+      refKey: linkedNode.data.refKey,
       linkedUiElementId: next.id
     };
     const finalElement = {
@@ -3769,7 +4399,7 @@ function EngineEditor() {
     setViewMode("builder");
     setStatus(`UI element added: ${kind}`);
     setIsDirty(true);
-  }, [currentTheme.accent, makeNode, selectedNode, setNodes, snapshot, uiElements.length]);
+  }, [currentTheme.accent, makeNode, setNodes, snapshot, uiElements.length]);
 
   const handleBuilderDragOver = useCallback((event) => {
     event.preventDefault();
@@ -3886,6 +4516,52 @@ function EngineEditor() {
     appendLog(makeLog("info", "Local Auto-Save", "로컬 자동 저장 데이터를 삭제했습니다."));
     setStatus("Local auto-save cleared.");
   }, [appendLog]);
+
+  const restoreLatestBackup = useCallback(() => {
+    try {
+      const rawBackups = window.localStorage?.getItem(LOCAL_BACKUPS_KEY);
+      const backups = rawBackups ? JSON.parse(rawBackups) : [];
+      const validBackup = Array.isArray(backups)
+        ? backups.map((entry) => parseStoredProject(entry.payload)).find((entry) => entry.ok)
+        : null;
+      if (!validBackup?.ok) {
+        setStatus("No valid backup is available.");
+        appendLog(makeLog("error", "Safe Mode", "복구 가능한 백업이 없습니다."));
+        return;
+      }
+
+      applyState(validBackup.data);
+      window.localStorage?.setItem(LOCAL_AUTOSAVE_KEY, JSON.stringify(validBackup.data));
+      setSafeModeInfo({
+        active: true,
+        source: "manual-backup",
+        message: "가장 최근 백업을 수동으로 복원했습니다."
+      });
+      setStatus("Latest backup restored.");
+      appendLog(makeLog("info", "Safe Mode", "가장 최근 백업을 복원했습니다."));
+    } catch (error) {
+      appendLog(makeLog("error", "Safe Mode", "백업 복원에 실패했습니다.", String(error.message || error)));
+    }
+  }, [appendLog, applyState]);
+
+  const resetProjectToSafeDefaults = useCallback(() => {
+    snapshot();
+    const fallback = getDefaultProjectState();
+    applyState(fallback);
+    window.localStorage?.setItem(LOCAL_AUTOSAVE_KEY, JSON.stringify(fallback));
+    setSafeModeInfo({
+      active: true,
+      source: "manual-reset",
+      message: "안전한 기본 프로젝트로 초기화했습니다."
+    });
+    setStatus("Project reset to safe defaults.");
+    appendLog(makeLog("info", "Safe Mode", "안전한 기본 프로젝트로 초기화했습니다."));
+  }, [appendLog, applyState, snapshot]);
+
+  const dismissSafeMode = useCallback(() => {
+    setSafeModeInfo(null);
+    window.localStorage?.removeItem(LOCAL_SAFE_MODE_KEY);
+  }, []);
 
   const handleNodeDropToSidebar = useCallback((event, node) => {
     const sidebarElement = sidebarRef.current;
@@ -4128,6 +4804,18 @@ function EngineEditor() {
             <button className="ghost-btn" onClick={createGroupBox}>Group Selected</button>
           </div>
 
+          {safeModeInfo?.active ? (
+            <section className="safe-mode-card">
+              <strong>Safe Mode</strong>
+              <span>{safeModeInfo.message}</span>
+              <div>
+                <button className="ghost-btn" onClick={restoreLatestBackup}>백업 복원</button>
+                <button className="ghost-btn" onClick={resetProjectToSafeDefaults}>자동 초기화</button>
+                <button className="ghost-btn" onClick={dismissSafeMode}>닫기</button>
+              </div>
+            </section>
+          ) : null}
+
           <label className="library-search">
             <span>Find node</span>
             <div className="library-search-field">
@@ -4151,7 +4839,94 @@ function EngineEditor() {
           <div className="sidebar-tabs">
             <button className={libraryTab === "core" ? "active" : ""} onClick={() => setLibraryTab("core")}>Core</button>
             <button className={libraryTab === "pro" ? "active" : ""} onClick={() => setLibraryTab("pro")}>Pro</button>
+            <button className={libraryTab === "functions" ? "active" : ""} onClick={() => setLibraryTab("functions")}>Functions</button>
           </div>
+
+          {libraryTab === "functions" ? (
+            <section className="function-hub">
+              <div className="function-hub-head">
+                <strong>Functions</strong>
+                <button className="ghost-btn" onClick={createFunction}>함수 만들기</button>
+              </div>
+              {activeFunctionId ? (
+                <div className="function-editor-state">
+                  <span>현재 함수 편집 중</span>
+                  <strong>{functions.find((item) => item.id === activeFunctionId)?.name || "function"}</strong>
+                  <button className="ghost-btn" onClick={exitFunctionEditor}>메인으로 돌아가기</button>
+                </div>
+              ) : null}
+              {activeFunctionId ? (
+                <div className="function-signature-editor">
+                  <label>
+                    <span>함수 설명</span>
+                    <textarea
+                      value={functions.find((item) => item.id === activeFunctionId)?.description || ""}
+                      onChange={(event) => updateFunctionSignature(activeFunctionId, "description", event.target.value)}
+                      placeholder="이 함수가 하는 일을 적어주세요."
+                    />
+                  </label>
+                  <label>
+                    <span>반환 Ref Key</span>
+                    <input
+                      value={functions.find((item) => item.id === activeFunctionId)?.returnRef || ""}
+                      onChange={(event) => updateFunctionSignature(activeFunctionId, "returnRef", event.target.value)}
+                      placeholder="result"
+                    />
+                  </label>
+                  <div className="function-parameter-head">
+                    <strong>매개변수</strong>
+                    <button className="ghost-btn" onClick={() => addFunctionParameter(activeFunctionId)}>매개변수 추가</button>
+                  </div>
+                  <div className="function-parameter-list">
+                    {(functions.find((item) => item.id === activeFunctionId)?.parameters || []).map((parameter) => (
+                      <div key={parameter.id} className="function-parameter-row">
+                        <input
+                          value={parameter.name}
+                          onChange={(event) => updateFunctionParameter(activeFunctionId, parameter.id, "name", event.target.value)}
+                          placeholder="name"
+                        />
+                        <input
+                          value={parameter.defaultValue}
+                          onChange={(event) => updateFunctionParameter(activeFunctionId, parameter.id, "defaultValue", event.target.value)}
+                          placeholder="기본값"
+                        />
+                        <input
+                          value={parameter.description}
+                          onChange={(event) => updateFunctionParameter(activeFunctionId, parameter.id, "description", event.target.value)}
+                          placeholder="설명"
+                        />
+                        <button className="ghost-btn danger-lite" onClick={() => removeFunctionParameter(activeFunctionId, parameter.id)}>삭제</button>
+                      </div>
+                    ))}
+                    {!(functions.find((item) => item.id === activeFunctionId)?.parameters || []).length ? (
+                      <span className="field-hint">필요할 때 매개변수를 추가하세요.</span>
+                    ) : null}
+                  </div>
+                </div>
+              ) : null}
+              {functions.length ? (
+                <div className="function-list">
+                  {functions.map((item) => (
+                    <div key={item.id} className={`function-list-item ${item.id === activeFunctionId ? "is-active" : ""}`}>
+                      <input
+                        value={item.name}
+                        onChange={(event) => renameFunction(item.id, event.target.value)}
+                        aria-label="Function name"
+                      />
+                      <small>{item.parameters.length ? `(${item.parameters.map((parameter) => parameter.name).join(", ")})` : "(no params)"}</small>
+                      <button className="ghost-btn" onClick={() => enterFunctionEditor(item.id)}>편집</button>
+                      <button className="ghost-btn danger-lite" onClick={() => deleteFunction(item.id)}>삭제</button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="library-empty-state compact">
+                  <strong>아직 함수가 없습니다</strong>
+                  <span>직접 만든 함수는 재귀 호출도 가능합니다.</span>
+                </div>
+              )}
+            </section>
+          ) : null}
 
           {visibleLibraryNodeCount ? (
             Object.entries(sidebarGroups).map(([group, items]) => (
@@ -4366,6 +5141,31 @@ function EngineEditor() {
                   Node Type
                   <input type="text" value={selectedNode.data.nodeType || ""} onChange={(event) => updateNodeField("nodeType", event.target.value)} />
                 </label>
+                {selectedNode.data.nodeType === "function-call" && selectedFunctionDefinition ? (
+                  <div className="function-call-args">
+                    <strong>Function Arguments</strong>
+                    {selectedFunctionDefinition.parameters.length ? (
+                      selectedFunctionDefinition.parameters.map((parameter) => (
+                        <label key={parameter.id}>
+                          <span>{parameter.name}</span>
+                          <input
+                            type="text"
+                            value={selectedNode.data.functionArgs?.[parameter.id] ?? selectedNode.data.functionArgs?.[parameter.name] ?? ""}
+                            onChange={(event) => updateNodeFunctionArg(parameter.id, event.target.value)}
+                            placeholder={parameter.defaultValue || `{{${parameter.name}}}`}
+                          />
+                          {parameter.description ? <em>{parameter.description}</em> : null}
+                          {parameter.defaultValue ? <small>기본값: {parameter.defaultValue}</small> : null}
+                        </label>
+                      ))
+                    ) : (
+                      <span className="field-hint">이 함수는 매개변수가 없습니다.</span>
+                    )}
+                    <span className="field-hint">
+                      반환값은 `{selectedFunctionDefinition.returnRef || "마지막 실행 노드"}` 기준으로 전달됩니다.
+                    </span>
+                  </div>
+                ) : null}
                 <label>
                   Numeric Slider
                   <input type="range" min="0" max="100" value={Number(selectedNode.data.sliderValue || 0)} onChange={(event) => updateNodeField("sliderValue", event.target.value)} />
@@ -4441,11 +5241,17 @@ function EngineEditor() {
         outputPath={exportOutputPath}
         targets={exportTargets}
         targetOptions={exportTargetOptions}
+        pipeline={exportPipeline}
+        mobileBundleId={mobileBundleId}
+        mobileVersionName={mobileVersionName}
         busy={exportBusy}
         onAppNameChange={setExportAppName}
         onIconChange={setExportIcon}
         onPickPath={pickExportPath}
         onToggleTarget={toggleExportTarget}
+        onPipelineChange={changeExportPipeline}
+        onMobileBundleIdChange={setMobileBundleId}
+        onMobileVersionNameChange={setMobileVersionName}
         onExport={exportProject}
         onCancel={() => {
           if (!exportBusy) {
@@ -4459,10 +5265,343 @@ function EngineEditor() {
   );
 }
 
+function ExportRuntimeApp() {
+  const [project, setProject] = useState(null);
+  const [loadError, setLoadError] = useState("");
+  const [inputValues, setInputValues] = useState({});
+  const [previewDevice, setPreviewDevice] = useState("desktop");
+  const [httpsNodesEnabled, setHttpsNodesEnabled] = useState(false);
+  const [scriptExecutionAllowed, setScriptExecutionAllowed] = useState(false);
+  const [interactionState, setInteractionState] = useState({
+    pointerDown: false,
+    pointerX: 0,
+    pointerY: 0,
+    keysDown: [],
+    hoveredIds: [],
+    clickedIds: [],
+    fileWatchEvents: {}
+  });
+  const builderCanvasRef = useRef(null);
+  const inFlightExternalActionsRef = useRef(new Set());
+  const lastActionSignatureRef = useRef("");
+
+  useEffect(() => {
+    let mounted = true;
+    const loadProject = async () => {
+      try {
+        const embedded = await window.ixo?.getEmbeddedRuntimeProject?.();
+        const raw = embedded || await fetch("./project.json").then((response) => {
+          if (!response.ok) {
+            throw new Error("Runtime project file was not found.");
+          }
+          return response.json();
+        });
+        const migrated = migrateProjectState(raw || {});
+        if (!validateProjectState(migrated)) {
+          throw new Error("Embedded runtime project is invalid.");
+        }
+        if (!mounted) return;
+        setProject(migrated);
+        setInputValues(migrated.inputValues || {});
+        setPreviewDevice(migrated.previewDevice || "desktop");
+      } catch (error) {
+        if (mounted) {
+          setLoadError(String(error.message || error));
+        }
+      }
+    };
+    loadProject();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    const loadSecurityPreference = async () => {
+      try {
+        const preferences = await window.ixo?.getSecurityPreferences?.();
+        const startupPreference = preferences?.httpsNodesEnabled === null
+          ? await window.ixo?.promptStartupHttpsPreference?.()
+          : preferences;
+        if (mounted) {
+          setHttpsNodesEnabled(Boolean(startupPreference?.httpsNodesEnabled));
+        }
+      } catch {
+        if (mounted) {
+          setHttpsNodesEnabled(false);
+        }
+      }
+    };
+    loadSecurityPreference();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const handlePointerDown = (event) => {
+      setInteractionState((current) => ({
+        ...current,
+        pointerDown: true,
+        pointerX: event.clientX,
+        pointerY: event.clientY
+      }));
+    };
+    const handlePointerUp = (event) => {
+      setInteractionState((current) => ({
+        ...current,
+        pointerDown: false,
+        pointerX: event.clientX,
+        pointerY: event.clientY
+      }));
+    };
+    const handlePointerMove = (event) => {
+      setInteractionState((current) => ({
+        ...current,
+        pointerX: event.clientX,
+        pointerY: event.clientY
+      }));
+    };
+    const handleKeyDown = (event) => {
+      setInteractionState((current) => ({
+        ...current,
+        keysDown: current.keysDown.includes(event.key.toLowerCase())
+          ? current.keysDown
+          : [...current.keysDown, event.key.toLowerCase()]
+      }));
+    };
+    const handleKeyUp = (event) => {
+      setInteractionState((current) => ({
+        ...current,
+        keysDown: current.keysDown.filter((key) => key !== event.key.toLowerCase())
+      }));
+    };
+
+    window.addEventListener("pointerdown", handlePointerDown);
+    window.addEventListener("pointerup", handlePointerUp);
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+    return () => {
+      window.removeEventListener("pointerdown", handlePointerDown);
+      window.removeEventListener("pointerup", handlePointerUp);
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+    };
+  }, []);
+
+  const requestSecurityApproval = useCallback(async (scope) => {
+    if (!window.ixo?.requestSecurityApproval) return false;
+    const result = await window.ixo.requestSecurityApproval(scope);
+    return Boolean(result?.approved);
+  }, []);
+
+  const requestSecureHttps = useCallback(async (rawUrl) => {
+    if (!httpsNodesEnabled) {
+      throw new Error("HTTPS nodes are disabled.");
+    }
+    const validation = validateClientHttpsUrl(rawUrl);
+    if (!validation.ok) {
+      throw new Error(validation.error);
+    }
+    if (!await requestSecurityApproval("external")) {
+      throw new Error("External actions were blocked by the user.");
+    }
+    return window.ixo?.requestHttps?.(validation.url);
+  }, [httpsNodesEnabled, requestSecurityApproval]);
+
+  const openSecureExternalUrl = useCallback(async (rawUrl) => {
+    const validation = validateClientHttpsUrl(rawUrl);
+    if (!validation.ok) {
+      throw new Error(validation.error);
+    }
+    if (!await requestSecurityApproval("external")) {
+      throw new Error("External actions were blocked by the user.");
+    }
+    await window.ixo?.openExternal?.(validation.url);
+    return validation.url;
+  }, [requestSecurityApproval]);
+
+  const runtime = useMemo(() => (
+    project
+      ? runPipeline(
+          project.nodes,
+          project.edges,
+          inputValues,
+          false,
+          scriptExecutionAllowed,
+          interactionState,
+          project.functions
+        )
+      : createRuntimeState()
+  ), [inputValues, interactionState, project, scriptExecutionAllowed]);
+
+  const nodesWithTrace = useMemo(() => (
+    (project?.nodes || []).map((node) => ({
+      ...node,
+      data: {
+        ...node.data,
+        displayLabel: getNodeLabel(node.data?.nodeType, project?.language || "ko", node.data?.label),
+        liveValue: runtime.liveValues[node.id] ?? "",
+        isActive: runtime.activeNodeIds.includes(node.id),
+        isFocused: runtime.focusedNodeId === node.id
+      }
+    }))
+  ), [project, runtime.activeNodeIds, runtime.focusedNodeId, runtime.liveValues]);
+
+  useEffect(() => {
+    if (!project) return;
+
+    const signatures = [];
+    const activeTargets = new Set(
+      runtime.activeEdgeIds
+        .map((id) => project.edges.find((edge) => edge.id === id)?.target)
+        .filter(Boolean)
+    );
+
+    const runExternalActions = async () => {
+      for (const node of project.nodes) {
+        if (!activeTargets.has(node.id) || !node.data?.value) continue;
+        const rawUrl = applyTemplate(node.data.value, runtime.context);
+
+        if (node.data?.nodeType === "http") {
+          const validation = validateClientHttpsUrl(rawUrl);
+          const signatureUrl = validation.ok ? validation.url : rawUrl;
+          const signature = `https:${node.id}:${signatureUrl}`;
+          signatures.push(signature);
+          if (lastActionSignatureRef.current.includes(`|${signature}|`) || inFlightExternalActionsRef.current.has(signature)) continue;
+          inFlightExternalActionsRef.current.add(signature);
+          try {
+            if (!validation.ok) throw new Error(validation.error);
+            await requestSecureHttps(validation.url);
+          } finally {
+            inFlightExternalActionsRef.current.delete(signature);
+          }
+        }
+
+        if (node.data?.nodeType === "browser") {
+          const validation = validateClientHttpsUrl(rawUrl);
+          const signatureUrl = validation.ok ? validation.url : rawUrl;
+          const signature = `browser:${node.id}:${signatureUrl}`;
+          signatures.push(signature);
+          if (lastActionSignatureRef.current.includes(`|${signature}|`) || inFlightExternalActionsRef.current.has(signature)) continue;
+          inFlightExternalActionsRef.current.add(signature);
+          try {
+            if (!validation.ok) throw new Error(validation.error);
+            await openSecureExternalUrl(validation.url);
+          } finally {
+            inFlightExternalActionsRef.current.delete(signature);
+          }
+        }
+      }
+      lastActionSignatureRef.current = signatures.length ? `|${signatures.join("|")}|` : "";
+    };
+
+    runExternalActions().catch(() => {});
+  }, [openSecureExternalUrl, project, requestSecureHttps, runtime.activeEdgeIds, runtime.context]);
+
+  useEffect(() => {
+    if (!project || scriptExecutionAllowed) return;
+    const activeScriptNode = project.nodes.find(
+      (node) => runtime.activeNodeIds.includes(node.id) && node.data?.nodeType === "script"
+    );
+    if (!activeScriptNode) return;
+    requestSecurityApproval("script").then((approved) => {
+      if (approved) {
+        setScriptExecutionAllowed(true);
+      }
+    });
+  }, [project, requestSecurityApproval, runtime.activeNodeIds, scriptExecutionAllowed]);
+
+  const handleUiInteraction = useCallback((id, action) => {
+    setInteractionState((current) => {
+      if (action === "enter") {
+        return {
+          ...current,
+          hoveredIds: current.hoveredIds.includes(id) ? current.hoveredIds : [...current.hoveredIds, id]
+        };
+      }
+      if (action === "leave") {
+        return {
+          ...current,
+          hoveredIds: current.hoveredIds.filter((hoveredId) => hoveredId !== id)
+        };
+      }
+      if (action === "click") {
+        window.setTimeout(() => {
+          setInteractionState((latest) => ({
+            ...latest,
+            clickedIds: latest.clickedIds.filter((clickedId) => clickedId !== id)
+          }));
+        }, 120);
+        return {
+          ...current,
+          clickedIds: [id]
+        };
+      }
+      return current;
+    });
+  }, []);
+
+  if (loadError) {
+    return <div className="runtime-export-error">Export runtime load failed: {loadError}</div>;
+  }
+
+  if (!project) {
+    return <div className="runtime-export-loading">Loading exported app...</div>;
+  }
+
+  const language = project.language || "ko";
+  const currentTheme = THEME_OPTIONS[project.themeKey] || THEME_OPTIONS.mint;
+
+  return (
+    <div
+      className={`runtime-export-shell lang-${language}`}
+      style={{
+        "--accent": currentTheme.accent,
+        "--accent-soft": currentTheme.accentSoft,
+        "--accent-strong": currentTheme.accentStrong,
+        "--glow": currentTheme.glow
+      }}
+    >
+      <RuntimePanel
+        viewMode="viewer"
+        setViewMode={() => {}}
+        runtime={runtime}
+        nodes={nodesWithTrace}
+        inputValues={inputValues}
+        onInputChange={(nodeId, value) => setInputValues((current) => ({ ...current, [nodeId]: value }))}
+        uiElements={project.uiElements}
+        selectedUiElementId={null}
+        setSelectedUiElementId={() => {}}
+        onBuilderDrop={() => {}}
+        onBuilderDragOver={() => {}}
+        onBuilderPointerDown={() => {}}
+        onBuilderPointerUp={() => {}}
+        builderCanvasRef={builderCanvasRef}
+        debugOverlay={false}
+        flowJson=""
+        onUiAction={openSecureExternalUrl}
+        onUiInteraction={handleUiInteraction}
+        appendLog={() => {}}
+        uiText={UI_TEXT[language] || UI_TEXT.ko}
+        previewDevice={previewDevice}
+        setPreviewDevice={setPreviewDevice}
+        onUiElementSelect={() => {}}
+        onOpenSettings={() => {}}
+        runtimeOnly
+      />
+    </div>
+  );
+}
+
 export default function App() {
+  const isExportRuntime = new URLSearchParams(window.location.search).get("runtime") === "1";
   return (
     <ReactFlowProvider>
-      <EngineEditor />
+      {isExportRuntime ? <ExportRuntimeApp /> : <EngineEditor />}
     </ReactFlowProvider>
   );
 }
