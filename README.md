@@ -1,7 +1,3 @@
-# 파일 수정이 진행중입니다.  
-현재 누구나 기여가 가능하게 파일 구조를 정리하고 단순화중입니다.  
-
-
 <p align="center">
   <img src="https://github.com/minyang-tech/IXO-Engine/blob/main/IXO%20Logo.png?raw=true" alt="IXO Engine Logo" width="300">
 </p>
