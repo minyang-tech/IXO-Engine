@@ -16,6 +16,7 @@ contextBridge.exposeInMainWorld("ixo", {
   setHttpsNodesEnabled: (enabled) => ipcRenderer.invoke("security:setHttpsNodesEnabled", enabled),
   promptStartupHttpsPreference: () => ipcRenderer.invoke("security:promptStartupHttpsPreference"),
   resetSecurityApprovals: () => ipcRenderer.invoke("security:resetApprovals"),
+  chooseWatchPath: () => ipcRenderer.invoke("fs:chooseWatchPath"),
   watchPath: (targetPath) => ipcRenderer.invoke("fs:watchPath", targetPath),
   unwatchPath: (targetPath) => ipcRenderer.invoke("fs:unwatchPath", targetPath),
   onWatchEvent: (listener) => {

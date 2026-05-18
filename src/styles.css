@@ -239,6 +239,59 @@ img {
   font-size: 12px;
 }
 
+.project-trust-card {
+  display: grid;
+  gap: 4px;
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.project-trust-card span,
+.project-trust-card small {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.project-trust-card strong {
+  font-size: 13px;
+}
+
+.project-trust-card.state-review {
+  border-color: rgba(255, 196, 92, 0.34);
+  background: rgba(255, 196, 92, 0.08);
+}
+
+.project-trust-card.state-trusted {
+  border-color: rgba(62, 207, 142, 0.34);
+  background: rgba(62, 207, 142, 0.08);
+}
+
+.project-trust-card.state-blocked {
+  border-color: rgba(239, 107, 120, 0.34);
+  background: rgba(239, 107, 120, 0.08);
+}
+
+.project-trust-guidance {
+  display: grid;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.project-trust-guidance span {
+  font-weight: 700;
+}
+
+.project-trust-guidance ul {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
 .settings-field,
 .settings-group {
   display: grid;
@@ -289,6 +342,28 @@ img {
   width: 18px;
   height: 18px;
   accent-color: var(--accent);
+}
+
+.privacy-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.privacy-card div {
+  display: grid;
+  gap: 4px;
+}
+
+.privacy-card span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 .template-list,
@@ -1487,6 +1562,66 @@ img {
   line-height: 1.4;
 }
 
+.watch-path-picker {
+  display: grid;
+  gap: 8px;
+}
+
+.script-warning-card {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 196, 92, 0.34);
+  background: rgba(255, 196, 92, 0.08);
+}
+
+.script-warning-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.script-warning-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.script-warning-grid div {
+  display: grid;
+  gap: 6px;
+}
+
+.script-warning-grid span {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.script-warning-grid ul {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.script-warning-card small {
+  color: color-mix(in srgb, var(--text) 78%, var(--muted));
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.script-warning-card.state-trusted {
+  border-color: rgba(62, 207, 142, 0.34);
+  background: rgba(62, 207, 142, 0.08);
+}
+
+.script-warning-card.state-blocked {
+  border-color: rgba(239, 107, 120, 0.34);
+  background: rgba(239, 107, 120, 0.08);
+}
+
 .property-form textarea {
   min-height: 110px;
   resize: vertical;
@@ -1663,6 +1798,36 @@ img {
   display: grid;
   gap: 14px;
   padding: 18px;
+}
+
+.privacy-modal {
+  width: min(720px, 94vw);
+}
+
+.privacy-modal-body {
+  gap: 12px;
+}
+
+.privacy-effective-date {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.privacy-section {
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.privacy-section p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.6;
+  font-size: 13px;
 }
 
 .update-card {

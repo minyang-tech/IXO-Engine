@@ -68,12 +68,105 @@ const NETWORK_SAFETY_NOTICE = [
   "## 네트워크 사용 안내",
   "이 애플리케이션은 다음 기능을 위해 HTTPS 기반 네트워크 요청을 사용합니다:",
   "- GitHub API를 통한 최신 버전 확인",
-  "- 기능 동작에 필요한 외부 데이터 로딩 (필요한 경우)",
+  "- 사용자가 직접 배치한 네트워크 노드 또는 브라우저 열기 노드 실행",
   "",
-  "이 앱은 개인 정보를 수집, 저장 또는 외부로 전송하지 않습니다.",
-  "사용자의 계정 정보나 식별 가능한 데이터는 처리되지 않습니다.",
-  "본 애플리케이션의 주요 기능은 로컬 환경에서 실행되며, 네트워크 연결은 업데이트 확인 및 일부 기능 제공에만 제한적으로 사용됩니다."
+  "업데이트 확인은 앱 시작 시 한 번만 수행됩니다.",
+  "프로젝트 내용은 기본적으로 로컬에 보관되며, 민양테크 서버로 자동 업로드되지 않습니다.",
+  "다만 사용자가 만든 네트워크 노드는 사용자가 지정한 외부 서버와 데이터를 주고받을 수 있습니다.",
+  "비밀번호, 인증 토큰, 개인정보 등 민감한 정보는 신뢰할 수 없는 서버나 스크립트에 입력하지 마십시오."
 ].join("\n");
+const PRIVACY_POLICY_TEXT = {
+  ko: {
+    effectiveDate: "시행일: 2026-05-18",
+    sections: [
+      {
+        title: "1. 총칙",
+        body: "민양테크는 IXO Engine에서 처리될 수 있는 정보의 범위와 이용자의 권리를 명확히 안내하기 위해 본 개인정보 처리방침을 공개합니다. IXO Engine은 로컬 우선 방식으로 동작하며, 프로젝트 데이터는 기본적으로 사용자의 장치에 저장됩니다."
+      },
+      {
+        title: "2. 개인정보의 처리 목적",
+        body: "앱 시작 시 최신 버전 확인을 1회 수행하고, 사용자가 직접 구성한 네트워크 기능을 실행하기 위해 필요한 범위에서만 통신을 수행합니다. 프로젝트 파일, 자동 저장 데이터, Canvas Builder 구성 정보는 민양테크 서버로 자동 업로드되지 않습니다."
+      },
+      {
+        title: "3. 처리될 수 있는 정보 항목",
+        body: "업데이트 확인 시 GitHub API 연결 과정에서 IP 주소 등 통신 메타데이터가 외부 서비스 제공자에게 처리될 수 있습니다. 사용자가 네트워크 노드 또는 브라우저 열기 노드에 직접 입력한 URL, 요청 본문, 헤더, 토큰, 개인정보는 사용자가 지정한 외부 서버로 전송될 수 있습니다."
+      },
+      {
+        title: "4. 개인정보의 처리 및 보유 기간",
+        body: "민양테크는 업데이트 확인과 관련하여 별도 서버에 개인정보를 저장하지 않습니다. 로컬 프로젝트와 자동 저장 데이터는 사용자가 삭제하거나 초기화할 때까지 사용자의 장치에 남을 수 있으며, 외부 서버로 전송한 정보의 보유 기간은 해당 서비스 운영자의 정책을 따릅니다."
+      },
+      {
+        title: "5. 제3자 제공, 처리위탁 및 국외 이전",
+        body: "민양테크는 IXO Engine을 통해 수집한 개인정보를 별도 제3자에게 제공하거나 처리위탁하지 않습니다. 업데이트 확인에는 GitHub API가 사용되며, 사용자가 직접 연결한 외부 서비스는 민양테크가 운영하지 않습니다. 사용자가 선택한 외부 서비스가 국외에 있을 수 있으므로 해당 서비스의 정책을 별도로 확인해야 합니다."
+      },
+      {
+        title: "6. 정보주체의 권리와 행사 방법",
+        body: "로컬에 저장된 프로젝트와 자동 저장 데이터는 앱 기능을 통해 삭제 또는 초기화할 수 있습니다. 사용자가 외부 서비스로 직접 전송한 정보의 열람, 정정, 삭제, 처리정지 요구는 해당 서비스 운영자에게 행사해야 합니다."
+      },
+      {
+        title: "7. 파기 절차 및 방법",
+        body: "로컬 프로젝트와 자동 저장 데이터는 사용자가 삭제 또는 초기화 기능을 실행할 때 제거됩니다. 민양테크 서버에 별도 저장되는 프로젝트 데이터는 없습니다."
+      },
+      {
+        title: "8. 안전성 확보 조치",
+        body: "IXO Engine은 HTTPS 강제, URL 파싱 실패 차단, localhost 및 사설망 차단, 첫 외부 요청 승인, 타임아웃, 중복 요청 방지, 로그 URL 마스킹을 적용합니다. 브라우저 열기 노드와 외부 링크도 같은 정책을 따릅니다."
+      },
+      {
+        title: "9. 이용자 유의사항",
+        body: "신뢰할 수 없는 URL, 서버, 스크립트에는 비밀번호, 인증 토큰, 주민등록번호, 결제 정보 등 민감한 정보를 입력하지 마십시오. 사용자가 직접 입력하거나 연결한 URL, 서버, 데이터의 적정성은 사용자가 확인해야 합니다."
+      },
+      {
+        title: "10. 문의처",
+        body: "개인정보 처리방침 관련 문의는 support@minyangtech.n-e.kr 로 보낼 수 있습니다."
+      },
+      {
+        title: "11. 방침 변경",
+        body: "본 방침이 바뀌면 문서와 앱 내 안내를 갱신합니다."
+      }
+    ]
+  },
+  en: {
+    effectiveDate: "Effective date: 2026-05-18",
+    sections: [
+      {
+        title: "1. Purpose",
+        body: "This policy explains what information may be processed by IXO Engine and how users can control local data. IXO Engine is local-first, and project data stays on the user's device by default."
+      },
+      {
+        title: "2. Processing purpose",
+        body: "IXO Engine checks for updates once at startup and communicates only as needed for user-configured network features. Project files and builder data are not automatically uploaded to MinyangTech servers."
+      },
+      {
+        title: "3. Information that may be processed",
+        body: "Update checks contact the GitHub API, so connection metadata such as IP addresses may be handled by that provider. URLs, request bodies, headers, tokens, or personal data entered into network nodes may be sent to servers chosen by the user."
+      },
+      {
+        title: "4. Retention",
+        body: "IXO Engine does not store personal data on MinyangTech servers for these features. Retention for data sent to third-party servers follows each server operator's policy."
+      },
+      {
+        title: "5. Third parties and external services",
+        body: "Update checks use the GitHub API. External services called by user-created network nodes are operated by their own providers, who control their own privacy and security practices."
+      },
+      {
+        title: "6. User rights",
+        body: "Local projects and autosaves can be deleted or reset inside the app. Rights regarding data sent to an external service must be exercised with that service operator."
+      },
+      {
+        title: "7. Safeguards",
+        body: "IXO Engine enforces HTTPS, blocks invalid URLs, localhost, and private-network targets, requests approval for first external use, applies timeouts and duplicate-request prevention, and masks URLs in logs."
+      },
+      {
+        title: "8. User caution",
+        body: "Do not send passwords, authentication tokens, or personal data to servers or scripts you do not trust."
+      },
+      {
+        title: "9. Contact",
+        body: "Questions about this policy can be sent to support@minyangtech.n-e.kr."
+      }
+    ]
+  }
+};
 const RESTRICTED_SCRIPT_BLOCKED_PROPERTIES = new Set([
   "__proto__",
   "prototype",
@@ -443,7 +536,7 @@ const EXTRA_UI_TEXT = {
     filePath: "파일 경로",
     selectedId: "선택 ID",
     createLinkedUiText: "연결된 UI 텍스트 만들기",
-    emptyInspectorHint: "노드를 더블 클릭하면 고급 Inspector가 열리고, Builder 모드에서는 UI 요소를 선택해 디자인 속성을 수정할 수 있습니다.",
+    emptyInspectorHint: "노드를 더블 클릭하면 고급 Inspector가 열리고, UI Viewer 또는 Canvas Builder에서 UI 요소를 선택해 디자인 속성을 수정할 수 있습니다.",
     addUiText: "UI 텍스트 추가",
     addUiButton: "UI 버튼 추가",
     engineStatus: "엔진 상태",
@@ -482,7 +575,38 @@ const EXTRA_UI_TEXT = {
     iconFormatsHint: "PNG 또는 ICO 아이콘을 지원합니다.",
     exporting: "내보내는 중...",
     exportAction: "내보내기",
-    invalidIcon: "PNG 또는 ICO 파일만 아이콘으로 사용할 수 있습니다."
+    invalidIcon: "PNG 또는 ICO 파일만 아이콘으로 사용할 수 있습니다.",
+    projectTrust: "프로젝트 신뢰",
+    trustRestricted: "제한 실행",
+    trustReview: "검토 필요",
+    trustTrusted: "세션 신뢰됨",
+    trustBlocked: "차단됨",
+    trustRestrictedHint: "전체 JavaScript 없이 제한 실행만 사용 중입니다.",
+    trustReviewHint: "전체 JavaScript가 필요한 스크립트가 있습니다.",
+    trustTrustedHint: "이 세션에서 전체 JavaScript 실행을 허용했습니다.",
+    trustBlockedHint: "전체 JavaScript 실행을 거부했습니다.",
+    fullJavascriptWarningTitle: "전체 JavaScript 모드 경고",
+    fullJavascriptWarningCopy: "이 스크립트는 제한 실행으로 처리할 수 없어 프로젝트가 임의 JavaScript를 실행할 수 있습니다. 신뢰할 수 있는 프로젝트에서만 허용하세요.",
+    fullJavascriptWhyTitle: "왜 위험한가",
+    fullJavascriptWhyItems: [
+      "프로젝트 상태와 입력값을 읽거나 바꿀 수 있습니다.",
+      "무한 반복이나 무거운 계산으로 앱을 멈추게 할 수 있습니다.",
+      "네트워크 노드와 결합되면 토큰이나 개인정보가 외부로 전송될 수 있습니다."
+    ],
+    fullJavascriptRecommendedTitle: "권장 패턴",
+    fullJavascriptRecommendedItems: [
+      "가능하면 수식, 조건, 문자 조합 노드를 먼저 사용하세요.",
+      "스크립트는 짧은 순수 계산으로 제한하고 민감정보를 넣지 마세요.",
+      "출처가 불명확한 프로젝트는 승인 전에 코드를 먼저 검토하세요."
+    ],
+    fullJavascriptTrustHint: "권장: 직접 작성했거나 충분히 검토한 프로젝트만 세션 신뢰를 부여하세요.",
+    requestFullJavascript: "전체 JavaScript 허용 요청",
+    fileWatcherPath: "감시 경로",
+    chooseWatchPath: "감시 경로 선택",
+    chooseWatchPathHint: "파일 또는 폴더를 선택하세요.",
+    privacyPolicy: "개인정보 처리방침",
+    openPrivacyPolicy: "개인정보 처리방침 보기",
+    privacyPolicyIntro: "업데이트 확인과 네트워크 노드 사용 시 어떤 정보가 오갈 수 있는지 확인합니다."
   },
   en: {
     preview: "Preview",
@@ -586,7 +710,7 @@ const EXTRA_UI_TEXT = {
     filePath: "File Path",
     selectedId: "Selected ID",
     createLinkedUiText: "Create Linked UI Text",
-    emptyInspectorHint: "Double-click a node to open the Pro Inspector, or select a UI element in Builder mode to edit its design properties.",
+    emptyInspectorHint: "Double-click a node to open the Pro Inspector, or select a UI element in UI Viewer or Canvas Builder to edit its design properties.",
     addUiText: "Add UI Text",
     addUiButton: "Add UI Button",
     engineStatus: "ENGINE STATUS",
@@ -625,7 +749,38 @@ const EXTRA_UI_TEXT = {
     iconFormatsHint: "PNG and ICO icons are supported.",
     exporting: "Exporting...",
     exportAction: "Export",
-    invalidIcon: "Only PNG or ICO files can be used as icons."
+    invalidIcon: "Only PNG or ICO files can be used as icons.",
+    projectTrust: "Project Trust",
+    trustRestricted: "Restricted",
+    trustReview: "Review Needed",
+    trustTrusted: "Trusted Session",
+    trustBlocked: "Blocked",
+    trustRestrictedHint: "Only restricted execution is in use.",
+    trustReviewHint: "This project contains scripts that need full JavaScript.",
+    trustTrustedHint: "Full JavaScript is approved for this session.",
+    trustBlockedHint: "Full JavaScript execution was denied.",
+    fullJavascriptWarningTitle: "Full JavaScript Warning",
+    fullJavascriptWarningCopy: "This script cannot run in restricted mode and may execute arbitrary JavaScript. Only allow projects you trust.",
+    fullJavascriptWhyTitle: "Why this is risky",
+    fullJavascriptWhyItems: [
+      "It can read or change project state and inputs.",
+      "It can freeze the app with loops or expensive work.",
+      "Combined with network nodes, it can transmit tokens or personal data."
+    ],
+    fullJavascriptRecommendedTitle: "Recommended patterns",
+    fullJavascriptRecommendedItems: [
+      "Prefer math, condition, and text nodes when they are enough.",
+      "Keep scripts short, pure, and free of sensitive values.",
+      "Review code before trusting projects from outside sources."
+    ],
+    fullJavascriptTrustHint: "Recommendation: trust only projects you wrote or reviewed carefully.",
+    requestFullJavascript: "Request Full JavaScript",
+    fileWatcherPath: "Watch Path",
+    chooseWatchPath: "Choose Watch Path",
+    chooseWatchPathHint: "Choose a file or folder.",
+    privacyPolicy: "Privacy Policy",
+    openPrivacyPolicy: "Open Privacy Policy",
+    privacyPolicyIntro: "Review what may be exchanged during update checks and network-node use."
   },
   zh: {
     preview: "预览",
@@ -729,7 +884,7 @@ const EXTRA_UI_TEXT = {
     filePath: "文件路径",
     selectedId: "已选 ID",
     createLinkedUiText: "创建关联 UI 文本",
-    emptyInspectorHint: "双击节点可打开高级检查器；在 Builder 模式中选择 UI 元素可编辑设计属性。",
+    emptyInspectorHint: "双击节点可打开高级检查器；在 UI Viewer 或 Canvas Builder 中选择 UI 元素可编辑设计属性。",
     addUiText: "添加 UI 文本",
     addUiButton: "添加 UI 按钮",
     engineStatus: "引擎状态",
@@ -768,7 +923,38 @@ const EXTRA_UI_TEXT = {
     iconFormatsHint: "支持 PNG 或 ICO 图标。",
     exporting: "正在导出...",
     exportAction: "导出",
-    invalidIcon: "只能使用 PNG 或 ICO 文件作为图标。"
+    invalidIcon: "只能使用 PNG 或 ICO 文件作为图标。",
+    projectTrust: "项目可信度",
+    trustRestricted: "受限执行",
+    trustReview: "需要审查",
+    trustTrusted: "本次会话已信任",
+    trustBlocked: "已阻止",
+    trustRestrictedHint: "当前仅使用受限执行模式。",
+    trustReviewHint: "项目中存在需要完整 JavaScript 的脚本。",
+    trustTrustedHint: "本次会话已允许完整 JavaScript。",
+    trustBlockedHint: "完整 JavaScript 执行已被拒绝。",
+    fullJavascriptWarningTitle: "完整 JavaScript 警告",
+    fullJavascriptWarningCopy: "此脚本无法在受限模式下运行，可能执行任意 JavaScript。仅允许你信任的项目。",
+    fullJavascriptWhyTitle: "为什么有风险",
+    fullJavascriptWhyItems: [
+      "它可以读取或修改项目状态和输入值。",
+      "它可能通过循环或高负载计算使应用卡住。",
+      "与网络节点结合时，可能把令牌或个人信息发送到外部。"
+    ],
+    fullJavascriptRecommendedTitle: "推荐做法",
+    fullJavascriptRecommendedItems: [
+      "能用数学、条件、文字节点解决时，优先使用节点。",
+      "脚本尽量保持简短、纯计算，并避免放入敏感信息。",
+      "对外部来源项目，先审查代码再授予信任。"
+    ],
+    fullJavascriptTrustHint: "建议：只信任自己编写或已充分审查的项目。",
+    requestFullJavascript: "请求完整 JavaScript",
+    fileWatcherPath: "监视路径",
+    chooseWatchPath: "选择监视路径",
+    chooseWatchPathHint: "请选择文件或文件夹。",
+    privacyPolicy: "隐私政策",
+    openPrivacyPolicy: "查看隐私政策",
+    privacyPolicyIntro: "查看更新检查和网络节点使用期间可能交换的信息。"
   },
   ja: {
     preview: "プレビュー",
@@ -873,7 +1059,7 @@ const EXTRA_UI_TEXT = {
     filePath: "ファイルパス",
     selectedId: "選択 ID",
     createLinkedUiText: "連携 UI テキストを作成",
-    emptyInspectorHint: "ノードをダブルクリックすると高度インスペクターが開き、Builder モードでは UI 要素を選択してデザイン属性を編集できます。",
+    emptyInspectorHint: "ノードをダブルクリックすると高度インスペクターが開き、UI Viewer または Canvas Builder で UI 要素を選択してデザイン属性を編集できます。",
     addUiText: "UI テキストを追加",
     addUiButton: "UI ボタンを追加",
     engineStatus: "エンジン状態",
@@ -912,7 +1098,38 @@ const EXTRA_UI_TEXT = {
     iconFormatsHint: "PNG または ICO アイコンに対応しています。",
     exporting: "書き出し中...",
     exportAction: "書き出し",
-    invalidIcon: "アイコンには PNG または ICO ファイルのみ使用できます。"
+    invalidIcon: "アイコンには PNG または ICO ファイルのみ使用できます。",
+    projectTrust: "プロジェクト信頼",
+    trustRestricted: "制限実行",
+    trustReview: "要確認",
+    trustTrusted: "このセッションで信頼済み",
+    trustBlocked: "ブロック済み",
+    trustRestrictedHint: "現在は制限実行のみを使用しています。",
+    trustReviewHint: "完全な JavaScript を必要とするスクリプトがあります。",
+    trustTrustedHint: "このセッションでは完全な JavaScript を許可しました。",
+    trustBlockedHint: "完全な JavaScript 実行を拒否しました。",
+    fullJavascriptWarningTitle: "完全 JavaScript モードの警告",
+    fullJavascriptWarningCopy: "このスクリプトは制限実行では処理できず、任意の JavaScript を実行する可能性があります。信頼できるプロジェクトだけ許可してください。",
+    fullJavascriptWhyTitle: "なぜ危険か",
+    fullJavascriptWhyItems: [
+      "プロジェクト状態や入力値を読み取り、変更できます。",
+      "無限ループや重い処理でアプリを停止させる可能性があります。",
+      "ネットワークノードと組み合わせると、トークンや個人情報を外部送信できます。"
+    ],
+    fullJavascriptRecommendedTitle: "推奨パターン",
+    fullJavascriptRecommendedItems: [
+      "数式、条件、文字列ノードで足りる場合は先にそちらを使ってください。",
+      "スクリプトは短く純粋な計算に絞り、機密情報を入れないでください。",
+      "外部由来のプロジェクトは信頼する前にコードを確認してください。"
+    ],
+    fullJavascriptTrustHint: "推奨: 自作または十分に確認したプロジェクトだけを信頼してください。",
+    requestFullJavascript: "完全 JavaScript を許可",
+    fileWatcherPath: "監視パス",
+    chooseWatchPath: "監視パスを選択",
+    chooseWatchPathHint: "ファイルまたはフォルダーを選択してください。",
+    privacyPolicy: "プライバシーポリシー",
+    openPrivacyPolicy: "プライバシーポリシーを開く",
+    privacyPolicyIntro: "更新確認とネットワークノード利用時にやり取りされる情報を確認します。"
   }
 };
 
@@ -2775,6 +2992,7 @@ const BuilderElement = memo(function BuilderElement({
   element,
   runtime,
   editable,
+  allowAction,
   selected,
   onSelect,
   onPointerDown,
@@ -2795,14 +3013,14 @@ const BuilderElement = memo(function BuilderElement({
     borderRadius: `${element.radius}px`,
     fontSize: `${element.fontSize}px`,
     textAlign: element.align,
-    cursor: editable ? "grab" : element.kind === "button" && element.actionType !== "none" ? "pointer" : "default"
+    cursor: editable ? "grab" : allowAction && element.kind === "button" && element.actionType !== "none" ? "pointer" : "default"
   };
 
   const handleClick = async (event) => {
     event.stopPropagation();
     onSelect?.(element.id);
     onInteraction?.("click", element.id);
-    if (!editable && element.kind === "button" && element.actionType === "open-url" && element.actionValue) {
+    if (allowAction && !editable && element.kind === "button" && element.actionType === "open-url" && element.actionValue) {
       await onAction?.(element.actionValue);
     }
   };
@@ -3015,7 +3233,7 @@ function RuntimePanel({
               onDragOver={onBuilderDragOver}
               onDrop={onBuilderDrop}
               onClick={(event) => {
-                if (editable && event.target === event.currentTarget) {
+                if (showViewerStage && event.target === event.currentTarget) {
                   setSelectedUiElementId(null);
                 }
               }}
@@ -3027,6 +3245,7 @@ function RuntimePanel({
                   element={element}
                   runtime={runtime}
                   editable={editable}
+                  allowAction={runtimeOnly}
                   selected={selectedUiElementId === element.id}
                   onSelect={onUiElementSelect}
                   onPointerDown={editable ? onBuilderPointerDown : undefined}
@@ -3131,6 +3350,7 @@ function SettingsModal({
   updateState,
   onCheckForUpdates,
   onDownloadUpdate,
+  onOpenPrivacyPolicy,
   onApply,
   onCancel,
   onClearAutosave
@@ -3254,6 +3474,14 @@ function SettingsModal({
               ) : null}
             </div>
           </section>
+
+          <section className="privacy-card">
+            <div>
+              <strong>{uiText.privacyPolicy}</strong>
+              <span>{uiText.privacyPolicyIntro}</span>
+            </div>
+            <button className="ghost-btn" onClick={onOpenPrivacyPolicy}>{uiText.openPrivacyPolicy}</button>
+          </section>
         </div>
 
         <div className="settings-modal-actions">
@@ -3262,6 +3490,31 @@ function SettingsModal({
             <button className="ghost-btn" onClick={onCancel}>{uiText.cancel}</button>
             <button className="menu-btn docs-btn" onClick={onApply}>{uiText.apply}</button>
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PrivacyPolicyModal({ open, uiText, language, onClose }) {
+  if (!open) return null;
+  const policy = PRIVACY_POLICY_TEXT[language] || PRIVACY_POLICY_TEXT.ko;
+
+  return (
+    <div className="settings-modal-backdrop privacy-modal-backdrop" onClick={onClose}>
+      <div className="settings-modal privacy-modal" onClick={(event) => event.stopPropagation()}>
+        <div className="settings-modal-header">
+          <strong>{uiText.privacyPolicy}</strong>
+          <button className="ghost-btn" onClick={onClose}>{uiText.close}</button>
+        </div>
+        <div className="settings-modal-body privacy-modal-body">
+          <p className="privacy-effective-date">{policy.effectiveDate}</p>
+          {policy.sections.map((section) => (
+            <section key={section.title} className="privacy-section">
+              <strong>{section.title}</strong>
+              <p>{section.body}</p>
+            </section>
+          ))}
         </div>
       </div>
     </div>
@@ -3878,6 +4131,7 @@ function EngineEditor() {
   const [logs, setLogs] = useState([]);
   const [dragState, setDragState] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
   const [language, setLanguage] = useState("ko");
   const [themeKey, setThemeKey] = useState("mint");
   const [previewDevice, setPreviewDevice] = useState("desktop");
@@ -3892,6 +4146,7 @@ function EngineEditor() {
   const [updateInfo, setUpdateInfo] = useState(null);
   const [updateState, setUpdateState] = useState("idle");
   const [scriptExecutionAllowed, setScriptExecutionAllowed] = useState(false);
+  const [scriptTrustState, setScriptTrustState] = useState("restricted");
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportAppName, setExportAppName] = useState("");
   const [exportIcon, setExportIcon] = useState(null);
@@ -3929,6 +4184,7 @@ function EngineEditor() {
   const securityDecisionRef = useRef({ external: "pending", httpsNode: "pending", script: "pending", fileWatcher: "pending" });
   const securityApprovalPromiseRef = useRef({});
   const startupHttpsPreferencePromiseRef = useRef(null);
+  const startupUpdateCheckRef = useRef(false);
   const inFlightExternalActionsRef = useRef(new Set());
   const [safeModeInfo, setSafeModeInfo] = useState(null);
 
@@ -3961,6 +4217,7 @@ function EngineEditor() {
     securityApprovalPromiseRef.current = {};
     inFlightExternalActionsRef.current.clear();
     setScriptExecutionAllowed(false);
+    setScriptTrustState("restricted");
     await window.ixo?.resetSecurityApprovals?.();
   }, []);
 
@@ -3997,6 +4254,7 @@ function EngineEditor() {
       }
       if (scope === "script") {
         setScriptExecutionAllowed(approved);
+        setScriptTrustState(approved ? "trusted" : "blocked");
       }
       return approved;
     })();
@@ -4253,8 +4511,42 @@ function EngineEditor() {
     () => uiElements.find((item) => item.id === selectedUiElementId) || null,
     [uiElements, selectedUiElementId]
   );
+  const fullScriptNodeCount = useMemo(
+    () => nodes.filter((node) => node.data?.nodeType === "script" && !canRunRestrictedScript(node.data?.value)).length,
+    [nodes]
+  );
+  const selectedScriptRequiresFullJs = Boolean(
+    selectedNode?.data?.nodeType === "script"
+      && !canRunRestrictedScript(selectedNode.data?.value)
+  );
   const currentTheme = THEME_OPTIONS[themeKey] || THEME_OPTIONS.mint;
   const uiText = UI_TEXT[language] || UI_TEXT.ko;
+  const trustLabel = scriptTrustState === "trusted"
+    ? uiText.trustTrusted
+    : scriptTrustState === "blocked"
+      ? uiText.trustBlocked
+      : scriptTrustState === "review"
+        ? uiText.trustReview
+        : uiText.trustRestricted;
+  const trustHint = scriptTrustState === "trusted"
+    ? uiText.trustTrustedHint
+    : scriptTrustState === "blocked"
+      ? uiText.trustBlockedHint
+      : scriptTrustState === "review"
+        ? uiText.trustReviewHint
+        : uiText.trustRestrictedHint;
+
+  useEffect(() => {
+    if (fullScriptNodeCount === 0) {
+      setScriptTrustState("restricted");
+      return;
+    }
+    if (scriptExecutionAllowed) {
+      setScriptTrustState("trusted");
+      return;
+    }
+    setScriptTrustState((current) => (current === "blocked" ? "blocked" : "review"));
+  }, [fullScriptNodeCount, scriptExecutionAllowed]);
 
   const normalizedLibrarySearchTerm = librarySearchTerm.trim().toLowerCase();
   const functionLibraryItems = useMemo(
@@ -5386,13 +5678,19 @@ function EngineEditor() {
       }
     });
 
-    const timer = window.setTimeout(() => {
-      checkForUpdates({ silent: true });
-    }, 2500);
+    let timer = null;
+    if (!startupUpdateCheckRef.current) {
+      startupUpdateCheckRef.current = true;
+      timer = window.setTimeout(() => {
+        checkForUpdates({ silent: true });
+      }, 2500);
+    }
 
     return () => {
       mounted = false;
-      window.clearTimeout(timer);
+      if (timer) {
+        window.clearTimeout(timer);
+      }
     };
   }, [checkForUpdates]);
 
@@ -5432,6 +5730,17 @@ function EngineEditor() {
         duplicateSelection();
       }
 
+      if (event.shiftKey && event.key.toLowerCase() === "a" && !editing) {
+        event.preventDefault();
+        const nodeIds = nodes.map((node) => node.id);
+        setSelectedUiElementId(null);
+        setSelectedEdgeIds([]);
+        setSelectedNodeIds(nodeIds);
+        setSelectedNodeId(nodeIds[nodeIds.length - 1] || null);
+        setNodes((current) => applyNodeSelectionState(current, nodeIds));
+        setEdges((current) => current.map((edge) => ({ ...edge, selected: false })));
+      }
+
       if (event.key === "Delete" && !editing) {
         event.preventDefault();
         deleteSelection();
@@ -5445,7 +5754,7 @@ function EngineEditor() {
 
     window.addEventListener("keydown", onKeyDown, true);
     return () => window.removeEventListener("keydown", onKeyDown, true);
-  }, [createGroupBox, deleteSelection, duplicateSelection, redo, saveProject, selectedNodeIds.length, undo]);
+  }, [createGroupBox, deleteSelection, duplicateSelection, nodes, redo, saveProject, selectedNodeIds.length, setEdges, setNodes, undo]);
 
   // [엣지 하이라이트] 실행 중인 선을 민트 톤과 애니메이션으로 강조합니다.
   const edgeView = useMemo(
@@ -5716,6 +6025,21 @@ function EngineEditor() {
     }
     setIsDirty(true);
   };
+
+  const chooseFileWatcherPath = useCallback(async () => {
+    if (!selectedNode || selectedNode.data?.nodeType !== "file-watcher") return;
+    try {
+      const result = await window.ixo?.chooseWatchPath?.();
+      if (!result?.ok || !result.path) {
+        return;
+      }
+      updateNodeField("value", result.path);
+      setStatus(`File watcher path selected: ${result.path}`);
+    } catch (error) {
+      setStatus(`File watcher path selection failed: ${error.message}`);
+      appendLog(makeLog("error", "File Watcher", "감시 경로 선택에 실패했습니다.", String(error.message || error)));
+    }
+  }, [appendLog, selectedNode]);
 
   const createUiElementFromPalette = useCallback((kind, point = null) => {
     snapshot();
@@ -6121,6 +6445,24 @@ function EngineEditor() {
               </div>
             </div>
 
+            <div className={`project-trust-card state-${scriptTrustState}`}>
+              <span>{uiText.projectTrust}</span>
+              <strong>{trustLabel}</strong>
+              <small>{fullScriptNodeCount ? `${trustHint} (${fullScriptNodeCount})` : trustHint}</small>
+              {fullScriptNodeCount ? (
+                <div className="project-trust-guidance">
+                  <span>{uiText.fullJavascriptWhyTitle}</span>
+                  <ul>
+                    {uiText.fullJavascriptWhyItems.map((item) => <li key={item}>{item}</li>)}
+                  </ul>
+                  <span>{uiText.fullJavascriptRecommendedTitle}</span>
+                  <ul>
+                    {uiText.fullJavascriptRecommendedItems.map((item) => <li key={item}>{item}</li>)}
+                  </ul>
+                </div>
+              ) : null}
+            </div>
+
             <div className="menu-row">
               <div className="file-menu">
                 <button className="menu-btn" onClick={() => setShowFileMenu((current) => !current)}>{uiText.file}</button>
@@ -6383,7 +6725,7 @@ function EngineEditor() {
         </section>
 
         <aside className="properties">
-          <div className="panel-title">{viewMode === "builder" && selectedUiElement ? uiText.uiInspector : inspectorMode === "inspector" ? uiText.proInspector : uiText.properties}</div>
+          <div className="panel-title">{selectedUiElement ? uiText.uiInspector : inspectorMode === "inspector" ? uiText.proInspector : uiText.properties}</div>
 
           <div className="properties-stack">
             <div className="properties-card">
@@ -6411,7 +6753,7 @@ function EngineEditor() {
               </div>
             </div>
 
-            {selectedUiElement && viewMode === "builder" ? (
+            {selectedUiElement ? (
               <div className="property-form">
                 <label>
                   {uiText.elementKind}
@@ -6494,6 +6836,16 @@ function EngineEditor() {
                       onChange={(event) => updateNodeField("value", event.target.value)}
                       placeholder={selectedNode.data.nodeType === "script" ? "return context.username;" : "{{score}} > 10 AND {{role}} == admin"}
                     />
+                  ) : selectedNode.data.nodeType === "file-watcher" ? (
+                    <div className="watch-path-picker">
+                      <input
+                        type="text"
+                        value={selectedNode.data.value || ""}
+                        readOnly
+                        placeholder={uiText.chooseWatchPathHint}
+                      />
+                      <button className="ghost-btn" onClick={chooseFileWatcherPath}>{uiText.chooseWatchPath}</button>
+                    </div>
                   ) : (
                     <input
                       type="text"
@@ -6503,6 +6855,34 @@ function EngineEditor() {
                     />
                   )}
                 </label>
+                {selectedScriptRequiresFullJs ? (
+                  <section className={`script-warning-card state-${scriptTrustState}`}>
+                    <strong>{uiText.fullJavascriptWarningTitle}</strong>
+                    <p>{uiText.fullJavascriptWarningCopy}</p>
+                    <div className="script-warning-grid">
+                      <div>
+                        <span>{uiText.fullJavascriptWhyTitle}</span>
+                        <ul>
+                          {uiText.fullJavascriptWhyItems.map((item) => <li key={item}>{item}</li>)}
+                        </ul>
+                      </div>
+                      <div>
+                        <span>{uiText.fullJavascriptRecommendedTitle}</span>
+                        <ul>
+                          {uiText.fullJavascriptRecommendedItems.map((item) => <li key={item}>{item}</li>)}
+                        </ul>
+                      </div>
+                    </div>
+                    <small>{uiText.fullJavascriptTrustHint}</small>
+                    <button
+                      className="ghost-btn"
+                      onClick={() => requestSecurityApproval("script")}
+                      disabled={scriptTrustState === "trusted"}
+                    >
+                      {uiText.requestFullJavascript}
+                    </button>
+                  </section>
+                ) : null}
                 <label>
                   {uiText.refKey}
                   <input type="text" value={selectedNode.data.refKey || ""} onChange={(event) => updateNodeField("refKey", event.target.value)} placeholder="username, totalPrice..." />
@@ -6548,22 +6928,25 @@ function EngineEditor() {
                   {uiText.colorPicker}
                   <input type="color" value={selectedNode.data.colorValue || ACCENT} onChange={(event) => updateNodeField("colorValue", event.target.value)} />
                 </label>
-                <label>
-                  {["audio-player", "sound-play", "sound-play-wait", "bgm-play"].includes(selectedNode.data.nodeType) ? uiText.soundUpload : uiText.filePath}
-                  <input
-                    type="file"
-                    accept={["audio-player", "sound-play", "sound-play-wait", "bgm-play"].includes(selectedNode.data.nodeType) ? "audio/*" : undefined}
-                    onChange={(event) => {
-                      const file = event.target.files?.[0];
-                      if (["audio-player", "sound-play", "sound-play-wait", "bgm-play"].includes(selectedNode.data.nodeType)) {
-                        updateNodeSoundFile(file);
-                        return;
-                      }
-                      updateNodeField("value", file?.name || "");
-                    }}
-                  />
-                  {selectedNode.data.soundName ? <span className="field-hint">{selectedNode.data.soundName}</span> : null}
-                </label>
+                {["audio-player", "sound-play", "sound-play-wait", "bgm-play"].includes(selectedNode.data.nodeType) ? (
+                  <label>
+                    {uiText.soundUpload}
+                    <input
+                      type="file"
+                      accept="audio/*"
+                      onChange={(event) => updateNodeSoundFile(event.target.files?.[0])}
+                    />
+                    {selectedNode.data.soundName ? <span className="field-hint">{selectedNode.data.soundName}</span> : null}
+                  </label>
+                ) : selectedNode.data.nodeType !== "file-watcher" ? (
+                  <label>
+                    {uiText.filePath}
+                    <input
+                      type="file"
+                      onChange={(event) => updateNodeField("value", event.target.files?.[0]?.name || "")}
+                    />
+                  </label>
+                ) : null}
                 <div className="selected-id">{uiText.selectedId}: {selectedNode.id}</div>
                 <button className="ghost-btn" onClick={() => createUiElementFromPalette("text")}>{uiText.createLinkedUiText}</button>
               </div>
@@ -6603,9 +6986,17 @@ function EngineEditor() {
         updateState={updateState}
         onCheckForUpdates={() => checkForUpdates()}
         onDownloadUpdate={downloadUpdate}
+        onOpenPrivacyPolicy={() => setShowPrivacyPolicy(true)}
         onApply={applySettings}
         onCancel={cancelSettings}
         onClearAutosave={clearLocalAutosave}
+      />
+
+      <PrivacyPolicyModal
+        open={showPrivacyPolicy}
+        uiText={uiText}
+        language={language}
+        onClose={() => setShowPrivacyPolicy(false)}
       />
 
       <ExportModal

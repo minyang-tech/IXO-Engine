@@ -465,6 +465,10 @@ function normalizeExportOptions(options, platformInfo) {
   };
 }
 
+function ensureTempExport() {
+  return originalFs.mkdtempSync(path.join(app.getPath("temp"), "ixo-export-"));
+}
+
 function copyRuntimeIntoExportRoot(runtimeSource, tempRoot, platformInfo, runtimeFs) {
   if (platformInfo.key === "macos") {
     const sourceAppBundle = runtimeSource.endsWith(".app")
@@ -1354,6 +1358,18 @@ app.whenReady().then(() => {
     } catch (error) {
       return { ok: false, error: error.message || "Export failed." };
     }
+  });
+
+  ipcMain.handle("fs:chooseWatchPath", async (event) => {
+    assertTrustedSender(event);
+    const target = await dialog.showOpenDialog(BrowserWindow.fromWebContents(event.sender), {
+      title: "Choose File or Folder to Watch",
+      properties: ["openFile", "openDirectory"]
+    });
+    if (target.canceled || !target.filePaths[0]) {
+      return { ok: false, canceled: true };
+    }
+    return { ok: true, path: path.resolve(target.filePaths[0]) };
   });
 
   ipcMain.handle("project:exportMobile", async (event, payload, options = {}) => {
