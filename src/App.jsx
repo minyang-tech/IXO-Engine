@@ -24,6 +24,7 @@ const LOGO_FALLBACKS = [
   "./IXO Logo.PNG",
   "https://github.com/minyang-tech/IXO-Engine/blob/main/IXO%20Logo.png?raw=true"
 ];
+const FALLBACK_APP_VERSION = typeof window !== "undefined" && window.ixo?.version ? window.ixo.version : "1.0.1";
 
 // [노드 UI] 카테고리별 아이콘과 컬러를 최대한 차분한 톤으로 정리했습니다.
 const GROUP_ICON = {
@@ -1699,8 +1700,6 @@ const LIBRARY_TABS = {
     { key: "face-target", label: "Face Target", group: "visual", type: "face-target" },
     { key: "show-actor", label: "Show Actor", group: "visual", type: "show-actor" },
     { key: "hide-actor", label: "Hide Actor", group: "visual", type: "hide-actor" },
-    { key: "speech-bubble", label: "Speech Bubble", group: "visual", type: "speech-bubble" },
-    { key: "clear-speech", label: "Clear Speech", group: "visual", type: "clear-speech" },
     { key: "costume-switch", label: "Change Look", group: "visual", type: "costume-switch" },
     { key: "visual-effect", label: "Visual Effect", group: "visual", type: "visual-effect" },
     { key: "size-change", label: "Change Size", group: "visual", type: "size-change" },
@@ -4142,7 +4141,7 @@ function EngineEditor() {
   const [httpsNodesEnabled, setHttpsNodesEnabled] = useState(false);
   const [draftHttpsNodesEnabled, setDraftHttpsNodesEnabled] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
-  const [appInfo, setAppInfo] = useState({ version: "1.0.0", platform: "browser" });
+  const [appInfo, setAppInfo] = useState({ version: FALLBACK_APP_VERSION, platform: "browser" });
   const [updateInfo, setUpdateInfo] = useState(null);
   const [updateState, setUpdateState] = useState("idle");
   const [scriptExecutionAllowed, setScriptExecutionAllowed] = useState(false);
