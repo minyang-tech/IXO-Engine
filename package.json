@@ -60,6 +60,7 @@
         "AppImage",
         "deb"
       ],
+      "artifactName": "${name}-linux-${version}.${ext}",
       "category": "Development",
       "icon": "IXO Logo.png"
     },

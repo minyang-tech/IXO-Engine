@@ -13,10 +13,31 @@ const RELEASE_HEADERS = {
   "User-Agent": "IXO-Engine"
 };
 
-const PLATFORM_ASSET_PATTERNS = {
-  win32: [/\.exe$/i, /\.msi$/i, /\.zip$/i],
-  linux: [/\.AppImage$/i, /\.deb$/i, /\.zip$/i],
-  darwin: [/\.dmg$/i, /\.zip$/i]
+const PLATFORM_ASSET_RULES = {
+  win32: {
+    tokens: ["windows", "win", "win32", "win64"],
+    forbiddenTokens: ["linux", "appimage", "deb", "debian", "ubuntu", "mac", "macos", "darwin", "dmg", "apk", "ipa"],
+    priorities: [
+      { extensions: [".exe"], requirePlatformToken: false },
+      { extensions: [".zip"], requirePlatformToken: true }
+    ]
+  },
+  linux: {
+    tokens: ["linux", "appimage", "deb", "debian", "ubuntu"],
+    forbiddenTokens: ["windows", "win32", "win64", "setup.exe", "mac", "macos", "darwin", "dmg", "apk", "ipa"],
+    priorities: [
+      { extensions: [".appimage", ".deb"], requirePlatformToken: false },
+      { extensions: [".zip"], requirePlatformToken: true }
+    ]
+  },
+  darwin: {
+    tokens: ["mac", "macos", "darwin", "osx", "dmg"],
+    forbiddenTokens: ["windows", "win32", "win64", "linux", "appimage", "deb", "debian", "ubuntu", "apk", "ipa"],
+    priorities: [
+      { extensions: [".dmg"], requirePlatformToken: false },
+      { extensions: [".zip"], requirePlatformToken: true }
+    ]
+  }
 };
 
 function normalizeVersion(version) {
@@ -52,10 +73,57 @@ function serializeAsset(asset) {
   };
 }
 
+function normalizeAssetName(name) {
+  return String(name || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9.]+/g, " ")
+    .trim();
+}
+
+function hasToken(normalizedName, token) {
+  const normalizedToken = String(token || "").toLowerCase();
+  if (!normalizedToken) return false;
+  if (normalizedToken.includes(".")) {
+    return normalizedName.includes(normalizedToken);
+  }
+  return normalizedName
+    .split(/[\s._-]+/)
+    .filter(Boolean)
+    .includes(normalizedToken);
+}
+
+function getAssetExtension(name) {
+  const lowerName = String(name || "").toLowerCase();
+  if (lowerName.endsWith(".appimage")) return ".appimage";
+  return path.extname(lowerName);
+}
+
+function matchesPlatformAssetRule(asset, rule, priority) {
+  const name = asset?.name || "";
+  const normalizedName = normalizeAssetName(name);
+  const extension = getAssetExtension(name);
+  const hasAllowedExtension = priority.extensions.includes(extension);
+  if (!hasAllowedExtension) {
+    return false;
+  }
+
+  if (rule.forbiddenTokens.some((token) => hasToken(normalizedName, token))) {
+    return false;
+  }
+
+  if (priority.requirePlatformToken && !rule.tokens.some((token) => hasToken(normalizedName, token))) {
+    return false;
+  }
+
+  return true;
+}
+
 function pickPlatformAsset(assets = [], platform = process.platform) {
-  const patterns = PLATFORM_ASSET_PATTERNS[platform] || [];
-  return patterns
-    .map((pattern) => assets.find((asset) => pattern.test(asset.name || "")))
+  const rule = PLATFORM_ASSET_RULES[platform];
+  if (!rule) return null;
+
+  return rule.priorities
+    .map((priority) => assets.find((asset) => matchesPlatformAssetRule(asset, rule, priority)))
     .find(Boolean) || null;
 }
 
