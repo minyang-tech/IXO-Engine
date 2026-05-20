@@ -546,6 +546,7 @@ const EXTRA_UI_TEXT = {
     paletteText: "텍스트",
     paletteImage: "이미지",
     paletteButton: "버튼",
+    paletteInput: "입력",
     paletteContainer: "컨테이너",
     deviceDesktop: "데스크톱",
     deviceTablet: "태블릿",
@@ -720,6 +721,7 @@ const EXTRA_UI_TEXT = {
     paletteText: "Text",
     paletteImage: "Image",
     paletteButton: "Button",
+    paletteInput: "Input",
     paletteContainer: "Container",
     deviceDesktop: "Desktop",
     deviceTablet: "Tablet",
@@ -894,6 +896,7 @@ const EXTRA_UI_TEXT = {
     paletteText: "文本",
     paletteImage: "图片",
     paletteButton: "按钮",
+    paletteInput: "输入",
     paletteContainer: "容器",
     deviceDesktop: "桌面",
     deviceTablet: "平板",
@@ -1069,6 +1072,7 @@ const EXTRA_UI_TEXT = {
     paletteText: "テキスト",
     paletteImage: "画像",
     paletteButton: "ボタン",
+    paletteInput: "入力",
     paletteContainer: "コンテナ",
     deviceDesktop: "デスクトップ",
     deviceTablet: "タブレット",
@@ -1746,6 +1750,7 @@ const UI_PALETTE = [
   { kind: "text", label: "Text" },
   { kind: "image", label: "Image" },
   { kind: "button", label: "Button" },
+  { kind: "input", label: "Input" },
   { kind: "container", label: "Container" }
 ];
 
@@ -2143,6 +2148,28 @@ function createUiElement(kind, bindingKey = "", accentColor = ACCENT) {
     };
   }
 
+  if (kind === "input") {
+    return {
+      id,
+      kind,
+      x: 72,
+      y: 72,
+      width: 260,
+      height: 48,
+      text: "Enter text",
+      src: "",
+      bindingKey,
+      color: "#f3f7f4",
+      background: "rgba(4, 12, 9, 0.72)",
+      fontSize: 15,
+      radius: 14,
+      align: "left",
+      actionType: "none",
+      actionValue: "",
+      linkedNodeId: ""
+    };
+  }
+
   if (kind === "container") {
     return {
       id,
@@ -2189,6 +2216,7 @@ function createUiElement(kind, bindingKey = "", accentColor = ACCENT) {
 function getUiNodeDefinition(kind) {
   if (kind === "image") return { label: "Add Image", group: "visual", type: "image" };
   if (kind === "button") return { label: "Button", group: "visual", type: "trigger" };
+  if (kind === "input") return { label: "Input Field", group: "visual", type: "input" };
   if (kind === "container") return { label: "Layout Container", group: "visual", type: "layout" };
   return { label: "Add Text", group: "visual", type: "text" };
 }
@@ -2200,6 +2228,7 @@ function getUiNodeTypeFromKind(kind) {
 function getUiKindFromNodeType(nodeType) {
   if (nodeType === "image") return "image";
   if (nodeType === "trigger") return "button";
+  if (nodeType === "input") return "input";
   if (nodeType === "layout") return "container";
   if (nodeType === "text") return "text";
   return "";
@@ -2997,10 +3026,15 @@ const BuilderElement = memo(function BuilderElement({
   onPointerDown,
   onPointerUp,
   onAction,
-  onInteraction
+  onInteraction,
+  inputValues,
+  onInputChange
 }) {
   const textValue = resolveUiValue(element, runtime, "text");
   const imageValue = resolveUiValue(element, runtime, "src");
+  const inputTargetId = element.linkedNodeId || element.id;
+  const inputValue = element.linkedNodeId ? (inputValues?.[element.linkedNodeId] ?? "") : "";
+  const inputPlaceholder = textValue || element.text || "Input";
 
   const baseStyle = {
     left: `${element.x}px`,
@@ -3018,7 +3052,7 @@ const BuilderElement = memo(function BuilderElement({
   const handleClick = async (event) => {
     event.stopPropagation();
     onSelect?.(element.id);
-    onInteraction?.("click", element.id);
+    onInteraction?.(element.id, "click");
     if (allowAction && !editable && element.kind === "button" && element.actionType === "open-url" && element.actionValue) {
       await onAction?.(element.actionValue);
     }
@@ -3032,7 +3066,7 @@ const BuilderElement = memo(function BuilderElement({
       onPointerDown={(event) => {
         event.stopPropagation();
         onSelect?.(element.id);
-        onPointerDown?.(event, element.id);
+        onPointerDown?.(event, element.id, "move");
       }}
       onPointerUp={(event) => {
         event.stopPropagation();
@@ -3042,17 +3076,47 @@ const BuilderElement = memo(function BuilderElement({
         event.stopPropagation();
         onPointerUp?.();
       }}
-      onPointerEnter={() => onInteraction?.("enter", element.id)}
-      onPointerLeave={() => onInteraction?.("leave", element.id)}
+      onPointerEnter={() => onInteraction?.(element.id, "enter")}
+      onPointerLeave={() => onInteraction?.(element.id, "leave")}
     >
       {element.kind === "image" ? (
         imageValue ? <img src={imageValue} alt={element.text || "Builder asset"} /> : <span className="builder-placeholder">Image</span>
+      ) : element.kind === "input" ? (
+        <input
+          className="builder-input"
+          value={inputValue}
+          placeholder={inputPlaceholder}
+          readOnly={editable}
+          tabIndex={editable ? -1 : 0}
+          onPointerDown={(event) => {
+            if (!editable) {
+              event.stopPropagation();
+            }
+          }}
+          onClick={(event) => {
+            if (!editable) {
+              event.stopPropagation();
+            }
+          }}
+          onChange={(event) => onInputChange?.(inputTargetId, event.target.value)}
+        />
       ) : (
         <div className="builder-copy">
           {textValue || (element.kind === "container" ? "Container" : "Empty")}
         </div>
       )}
       {editable ? <span className="builder-badge">{element.kind.toUpperCase()}</span> : null}
+      {editable && selected ? (
+        <span
+          className="builder-resize-handle"
+          onPointerDown={(event) => {
+            event.stopPropagation();
+            onSelect?.(element.id);
+            onPointerDown?.(event, element.id, "resize");
+          }}
+          aria-hidden="true"
+        />
+      ) : null}
     </div>
   );
 });
@@ -3140,9 +3204,10 @@ function RuntimePanel({
   onOpenSettings,
   runtimeOnly = false
 }) {
-  const inputNodes = nodes.filter((node) => node.data?.nodeType === "input");
+  const inputNodes = runtimeOnly ? [] : nodes.filter((node) => node.data?.nodeType === "input");
   const editable = viewMode === "builder";
-  const showViewerStage = viewMode === "viewer" || viewMode === "builder";
+  const showViewerStage = runtimeOnly || viewMode === "viewer" || viewMode === "builder";
+  const showDeviceToolbar = showViewerStage && !runtimeOnly;
 
   return (
     <div className="preview-shell">
@@ -3192,7 +3257,7 @@ function RuntimePanel({
       ) : null}
 
       <div
-        className={`runtime-screen viewer-screen ${editable ? "builder-mode" : ""} ${viewMode === "preview" ? "preview-mode" : ""}`}
+        className={`runtime-screen viewer-screen ${editable ? "builder-mode" : ""} ${viewMode === "preview" ? "preview-mode" : ""} ${runtimeOnly ? "runtime-only" : ""}`}
       >
         {inputNodes.length ? (
           <div className="viewer-inputs">
@@ -3210,7 +3275,7 @@ function RuntimePanel({
           </div>
         ) : null}
 
-        {showViewerStage ? (
+        {showDeviceToolbar ? (
           <div className="device-toolbar">
             <span>{uiText.responsivePreview}</span>
             <div className="device-tabs">
@@ -3227,8 +3292,8 @@ function RuntimePanel({
           <div className={`viewer-stage-shell device-${previewDevice}`}>
             <div
               ref={builderCanvasRef}
-              className={`viewer-stage ${editable ? "is-editable" : ""}`}
-              style={{ width: PREVIEW_DEVICE_OPTIONS[previewDevice]?.width || "100%" }}
+              className={`viewer-stage ${editable ? "is-editable" : ""} ${runtimeOnly ? "is-runtime-only" : ""}`}
+              style={{ width: runtimeOnly ? "100%" : PREVIEW_DEVICE_OPTIONS[previewDevice]?.width || "100%" }}
               onDragOver={onBuilderDragOver}
               onDrop={onBuilderDrop}
               onClick={(event) => {
@@ -3237,7 +3302,7 @@ function RuntimePanel({
                 }
               }}
             >
-              <div className="viewer-stage-grid" />
+              {runtimeOnly ? null : <div className="viewer-stage-grid" />}
               {uiElements.map((element) => (
                 <BuilderElement
                   key={element.id}
@@ -3249,6 +3314,8 @@ function RuntimePanel({
                   onSelect={onUiElementSelect}
                   onPointerDown={editable ? onBuilderPointerDown : undefined}
                   onPointerUp={editable ? onBuilderPointerUp : undefined}
+                  inputValues={inputValues}
+                  onInputChange={onInputChange}
                   onAction={async (url) => {
                     try {
                       const openedUrl = await onUiAction(url);
@@ -4913,8 +4980,24 @@ function EngineEditor() {
       if (!canvas) return;
 
       const rect = canvas.getBoundingClientRect();
-      const nextX = Math.max(0, Math.min(event.clientX - rect.left - dragState.offsetX, rect.width - 32));
-      const nextY = Math.max(0, Math.min(event.clientY - rect.top - dragState.offsetY, rect.height - 32));
+      if (dragState.mode === "resize") {
+        const nextWidth = Math.max(48, Math.min(dragState.startWidth + event.clientX - dragState.startClientX, rect.width - dragState.startX));
+        const nextHeight = Math.max(32, Math.min(dragState.startHeight + event.clientY - dragState.startClientY, rect.height - dragState.startY));
+
+        setUiElements((current) =>
+          current.map((item) => (
+            item.id === dragState.id
+              ? { ...item, width: Math.round(nextWidth), height: Math.round(nextHeight) }
+              : item
+          ))
+        );
+        return;
+      }
+
+      const maxX = Math.max(0, rect.width - Math.max(32, dragState.startWidth || 32));
+      const maxY = Math.max(0, rect.height - Math.max(32, dragState.startHeight || 32));
+      const nextX = Math.max(0, Math.min(event.clientX - rect.left - dragState.offsetX, maxX));
+      const nextY = Math.max(0, Math.min(event.clientY - rect.top - dragState.offsetY, maxY));
 
       setUiElements((current) =>
         current.map((item) => (
@@ -5425,17 +5508,10 @@ function EngineEditor() {
   const duplicateSelection = useCallback(() => {
     if (selectedUiElementId && selectedUiElement) {
       snapshot();
-      const linkedNode = makeNode(
-        {
-          label: selectedUiElement.kind === "image" ? "UI Image" : selectedUiElement.kind === "button" ? "UI Button" : selectedUiElement.kind === "container" ? "UI Container" : "UI Text",
-          group: "visual",
-          type: getUiNodeTypeFromKind(selectedUiElement.kind)
-        },
-        {
-          x: 980,
-          y: 120 + uiElements.length * 92
-        }
-      );
+      const linkedNode = makeNode(getUiNodeDefinition(selectedUiElement.kind), {
+        x: 980,
+        y: 120 + uiElements.length * 92
+      });
       const clone = {
         ...selectedUiElement,
         id: `ui-${Date.now()}`,
@@ -6088,7 +6164,7 @@ function EngineEditor() {
     });
   }, [createUiElementFromPalette]);
 
-  const handleBuilderPointerDown = useCallback((event, id) => {
+  const handleBuilderPointerDown = useCallback((event, id, mode = "move") => {
     if (typeof event.button === "number" && event.button !== 0) return;
     if (viewMode !== "builder" || !builderCanvasRef.current) return;
 
@@ -6099,8 +6175,15 @@ function EngineEditor() {
     snapshot();
     setDragState({
       id,
+      mode: mode === "resize" ? "resize" : "move",
       offsetX: event.clientX - rect.left - target.x,
-      offsetY: event.clientY - rect.top - target.y
+      offsetY: event.clientY - rect.top - target.y,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      startX: target.x,
+      startY: target.y,
+      startWidth: target.width,
+      startHeight: target.height
     });
   }, [snapshot, uiElements, viewMode]);
 
@@ -6113,15 +6196,15 @@ function EngineEditor() {
     return openSecureExternalUrl(url);
   }, [openSecureExternalUrl]);
 
-  const handleUiInteraction = useCallback((kind, id) => {
+  const handleUiInteraction = useCallback((id, action) => {
     setInteractionState((current) => {
-      if (kind === "enter") {
+      if (action === "enter") {
         return { ...current, pointerOverId: id };
       }
-      if (kind === "leave") {
+      if (action === "leave") {
         return current.pointerOverId === id ? { ...current, pointerOverId: "" } : current;
       }
-      if (kind === "click") {
+      if (action === "click") {
         window.setTimeout(() => {
           setInteractionState((latest) => ({
             ...latest,
@@ -7044,8 +7127,9 @@ function ExportRuntimeApp() {
     pointerX: 0,
     pointerY: 0,
     keysDown: [],
-    hoveredIds: [],
     clickedIds: [],
+    hoveredIds: [],
+    pointerOverId: "",
     fileWatchEvents: {}
   });
   const builderCanvasRef = useRef(null);
@@ -7233,6 +7317,29 @@ function ExportRuntimeApp() {
     }))
   ), [project, runtime.activeNodeIds, runtime.focusedNodeId, runtime.liveValues]);
 
+  const runtimeUiElements = useMemo(() => {
+    const existingElements = Array.isArray(project?.uiElements) ? project.uiElements : [];
+    const linkedInputNodeIds = new Set(
+      existingElements
+        .filter((element) => element.kind === "input")
+        .map((element) => element.linkedNodeId)
+        .filter(Boolean)
+    );
+    const linkedInputKeys = new Set(
+      existingElements
+        .filter((element) => element.kind === "input")
+        .map((element) => element.bindingKey)
+        .filter(Boolean)
+    );
+    const theme = THEME_OPTIONS[project?.themeKey] || THEME_OPTIONS.mint;
+    const generatedInputs = (project?.nodes || [])
+      .filter((node) => node.data?.nodeType === "input")
+      .filter((node) => !linkedInputNodeIds.has(node.id) && !(node.data?.refKey && linkedInputKeys.has(node.data.refKey)))
+      .map((node, index) => createUiElementFromNode(node, existingElements.length + index, theme.accent));
+
+    return generatedInputs.length ? [...existingElements, ...generatedInputs] : existingElements;
+  }, [project]);
+
   useEffect(() => {
     if (!project) return;
 
@@ -7328,13 +7435,15 @@ function ExportRuntimeApp() {
       if (action === "enter") {
         return {
           ...current,
-          hoveredIds: current.hoveredIds.includes(id) ? current.hoveredIds : [...current.hoveredIds, id]
+          hoveredIds: current.hoveredIds.includes(id) ? current.hoveredIds : [...current.hoveredIds, id],
+          pointerOverId: id
         };
       }
       if (action === "leave") {
         return {
           ...current,
-          hoveredIds: current.hoveredIds.filter((hoveredId) => hoveredId !== id)
+          hoveredIds: current.hoveredIds.filter((hoveredId) => hoveredId !== id),
+          pointerOverId: current.pointerOverId === id ? "" : current.pointerOverId
         };
       }
       if (action === "click") {
@@ -7381,7 +7490,7 @@ function ExportRuntimeApp() {
         nodes={nodesWithTrace}
         inputValues={inputValues}
         onInputChange={(nodeId, value) => setInputValues((current) => ({ ...current, [nodeId]: value }))}
-        uiElements={project.uiElements}
+        uiElements={runtimeUiElements}
         selectedUiElementId={null}
         setSelectedUiElementId={() => {}}
         onBuilderDrop={() => {}}

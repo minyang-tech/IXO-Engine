@@ -1377,6 +1377,7 @@ img {
 
 .builder-item.kind-text,
 .builder-item.kind-button,
+.builder-item.kind-input,
 .builder-item.kind-container {
   padding: 12px;
 }
@@ -1390,6 +1391,27 @@ img {
 .builder-item.kind-button {
   font-weight: 700;
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.16);
+}
+
+.builder-item.kind-input {
+  justify-content: stretch;
+  border-color: rgba(62, 207, 142, 0.14);
+}
+
+.builder-input {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: inherit;
+}
+
+.builder-input::placeholder {
+  color: color-mix(in srgb, currentColor 58%, transparent);
 }
 
 .builder-item.kind-image {
@@ -1424,6 +1446,7 @@ img {
 
 .builder-badge {
   position: absolute;
+  z-index: 3;
   top: 8px;
   right: 8px;
   padding: 3px 6px;
@@ -1432,6 +1455,23 @@ img {
   color: #dff5e8;
   font-size: 10px;
   letter-spacing: 0.08em;
+}
+
+.builder-resize-handle {
+  position: absolute;
+  z-index: 4;
+  right: 4px;
+  bottom: 4px;
+  width: 14px;
+  height: 14px;
+  border-radius: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  background:
+    linear-gradient(135deg, transparent 0 38%, rgba(255, 255, 255, 0.72) 40% 46%, transparent 48% 58%, rgba(255, 255, 255, 0.72) 60% 66%, transparent 68%),
+    var(--accent);
+  cursor: nwse-resize;
+  touch-action: none;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.24);
 }
 
 .auto-output-stack {
@@ -2190,6 +2230,27 @@ img {
 .runtime-export-shell .runtime-screen {
   min-height: 100vh;
   align-content: start;
+}
+
+.runtime-export-shell .runtime-screen.runtime-only {
+  display: block;
+  padding: 0;
+}
+
+.runtime-export-shell .viewer-stage-shell {
+  min-height: 100vh;
+  padding: 0;
+  overflow: hidden;
+  justify-content: stretch;
+}
+
+.runtime-export-shell .viewer-stage.is-runtime-only {
+  width: 100%;
+  min-height: 100vh;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  flex: 1 1 auto;
 }
 
 .runtime-export-loading,
