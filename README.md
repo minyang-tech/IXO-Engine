@@ -12,8 +12,8 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Platform-Electron-blue?style=flat-square&logo=electron" alt="Platform">
   <img src="https://img.shields.io/badge/Language-JavaScript/Node.js-yellow?style=flat-square&logo=javascript" alt="Language">
-  <a href="https://minyangtech.n-e.kr/eula">
-    <img src="https://img.shields.io/badge/License-EULA-red?style=flat-square" alt="EULA">
+  <a href="https://minyangtech.n-e.kr/apps">
+    <img src="https://img.shields.io/badge/License-MIT-red?style=flat-square" alt="EULA">
   </a>
 </p>
 
