@@ -15,6 +15,13 @@ import ReactFlow, {
 } from "reactflow";
 import "reactflow/dist/style.css";
 import logoImage from "../IXO Logo.png";
+import { getNodePermissionScope, parseSafeCssText } from "./core/securityPolicy";
+import { ADVANCED_THEME_PRESETS } from "./editor/themePresets";
+import { UI_COMPONENT_LIBRARY, createComponentElements } from "./editor/uiComponents";
+import { ACTION_SYSTEM_OPTIONS, parseSetVariableAction } from "./runtime/actionSystem";
+import { createRuntimeRevision } from "./runtime/incrementalRuntime";
+import { createCanvasRenderStats } from "./renderer/canvasRenderer";
+import { DEFAULT_EXPORT_SETTINGS, normalizeExportSettings } from "./utils/projectFiles";
 
 // [앱 공통] 에디터 전역에서 반복 사용하는 상수 모음입니다.
 const ACCENT = "#3ecf8e";
@@ -24,7 +31,7 @@ const LOGO_FALLBACKS = [
   "./IXO Logo.PNG",
   "https://github.com/minyang-tech/IXO-Engine/blob/main/IXO%20Logo.png?raw=true"
 ];
-const FALLBACK_APP_VERSION = typeof window !== "undefined" && window.ixo?.version ? window.ixo.version : "1.0.1";
+const FALLBACK_APP_VERSION = typeof window !== "undefined" && window.ixo?.version ? window.ixo.version : "1.1.0";
 
 // [노드 UI] 카테고리별 아이콘과 컬러를 최대한 차분한 톤으로 정리했습니다.
 const GROUP_ICON = {
@@ -188,29 +195,7 @@ const LANGUAGE_OPTIONS = [
   { value: "ja", label: "\u65E5\u672C\u8A9E" }
 ];
 
-const THEME_OPTIONS = {
-  mint: {
-    label: "Mint",
-    accent: "#3ecf8e",
-    accentSoft: "rgba(62, 207, 142, 0.16)",
-    accentStrong: "rgba(62, 207, 142, 0.28)",
-    glow: "rgba(62, 207, 142, 0.28)"
-  },
-  crimson: {
-    label: "Dark Red",
-    accent: "#c84c5d",
-    accentSoft: "rgba(200, 76, 93, 0.16)",
-    accentStrong: "rgba(200, 76, 93, 0.3)",
-    glow: "rgba(200, 76, 93, 0.28)"
-  },
-  ocean: {
-    label: "Ocean Blue",
-    accent: "#4aa8ff",
-    accentSoft: "rgba(74, 168, 255, 0.16)",
-    accentStrong: "rgba(74, 168, 255, 0.3)",
-    glow: "rgba(74, 168, 255, 0.26)"
-  }
-};
+const THEME_OPTIONS = ADVANCED_THEME_PRESETS;
 
 const PREVIEW_DEVICE_OPTIONS = {
   desktop: { label: "Desktop", width: "100%" },
@@ -1750,6 +1735,8 @@ const UI_PALETTE = [
   { kind: "text", label: "Text" },
   { kind: "image", label: "Image" },
   { kind: "button", label: "Button" },
+  { kind: "custom-button", label: "Custom Button" },
+  { kind: "vector", label: "Vector" },
   { kind: "input", label: "Input" },
   { kind: "container", label: "Container" }
 ];
@@ -1916,14 +1903,28 @@ const initialUiElements = [
 ];
 
 // [상태 스냅샷] Undo/Redo에서 그대로 복구할 프로젝트 상태를 묶습니다.
-const cloneState = (nodes, edges, inputValues, nodeCounter, uiElements, functions = [], activeFunctionId = null) => ({
+const cloneState = (
+  nodes,
+  edges,
+  inputValues,
+  nodeCounter,
+  uiElements,
+  functions = [],
+  activeFunctionId = null,
+  activeScene = "main",
+  assets = [],
+  exportSettings = normalizeExportSettings()
+) => ({
   nodes: JSON.parse(JSON.stringify(nodes)),
   edges: JSON.parse(JSON.stringify(edges)),
   inputValues: JSON.parse(JSON.stringify(inputValues)),
   nodeCounter,
   uiElements: JSON.parse(JSON.stringify(uiElements)),
   functions: JSON.parse(JSON.stringify(functions)),
-  activeFunctionId
+  activeFunctionId,
+  activeScene,
+  assets: JSON.parse(JSON.stringify(assets)),
+  exportSettings: normalizeExportSettings(exportSettings)
 });
 
 // [로그] 콘솔에 쌓일 로그 엔트리를 공통 포맷으로 생성합니다.
@@ -1945,18 +1946,25 @@ function normalizeUiElements(items = []) {
     kind: item.kind || "text",
     x: Number(item.x ?? 48),
     y: Number(item.y ?? 48),
-    width: Number(item.width ?? (item.kind === "button" ? 160 : 220)),
-    height: Number(item.height ?? (item.kind === "container" ? 160 : item.kind === "image" ? 160 : 44)),
+    width: Number(item.width ?? (item.kind === "button" || item.kind === "custom-button" ? 160 : 220)),
+    height: Number(item.height ?? (item.kind === "container" ? 160 : item.kind === "image" ? 160 : item.kind === "vector" ? 90 : 44)),
     text: item.text ?? "",
     src: item.src ?? "",
     bindingKey: item.bindingKey ?? "",
     color: item.color ?? "#f3f7f4",
-    background: item.background ?? (item.kind === "container" ? "rgba(62, 207, 142, 0.08)" : "transparent"),
+    background: item.background ?? (item.kind === "container" || item.kind === "custom-button" ? "rgba(62, 207, 142, 0.08)" : "transparent"),
     fontSize: Number(item.fontSize ?? 16),
     radius: Number(item.radius ?? 14),
     align: item.align ?? "left",
     actionType: item.actionType ?? "none",
     actionValue: item.actionValue ?? "",
+    scene: String(item.scene || "main"),
+    hidden: Boolean(item.hidden),
+    cssText: String(item.cssText || ""),
+    hoverCssText: String(item.hoverCssText || ""),
+    pressedCssText: String(item.pressedCssText || ""),
+    vectorPath: String(item.vectorPath || ""),
+    vectorFill: String(item.vectorFill || ACCENT),
     linkedNodeId: item.linkedNodeId ?? ""
   }));
 }
@@ -2001,7 +2009,10 @@ function getDefaultProjectState() {
     inputValues: {},
     nodeCounter: 6,
     uiElements: normalizeUiElements(initialUiElements),
-    functions: []
+    functions: [],
+    activeScene: "main",
+    assets: [],
+    exportSettings: normalizeExportSettings()
   };
 }
 
@@ -2058,6 +2069,9 @@ function migrateProjectState(input = {}) {
     language: parsed.language,
     themeKey: parsed.themeKey,
     previewDevice: parsed.previewDevice,
+    activeScene: String(parsed.activeScene || "main"),
+    assets: Array.isArray(parsed.assets) ? parsed.assets : [],
+    exportSettings: normalizeExportSettings(parsed.exportSettings || {}),
     savedAt: parsed.savedAt
   };
 
@@ -2104,8 +2118,18 @@ function hasPersistentEdgeChange(changes = []) {
 // [UI 요소 생성] Canvas Builder에서 새 요소를 추가할 때 기본값을 제공합니다.
 function createUiElement(kind, bindingKey = "", accentColor = ACCENT) {
   const id = `ui-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+  const common = {
+    scene: "main",
+    hidden: false,
+    cssText: "",
+    hoverCssText: "",
+    pressedCssText: "",
+    vectorPath: "",
+    vectorFill: accentColor
+  };
   if (kind === "image") {
     return {
+      ...common,
       id,
       kind,
       x: 72,
@@ -2128,6 +2152,7 @@ function createUiElement(kind, bindingKey = "", accentColor = ACCENT) {
 
   if (kind === "button") {
     return {
+      ...common,
       id,
       kind,
       x: 72,
@@ -2148,8 +2173,59 @@ function createUiElement(kind, bindingKey = "", accentColor = ACCENT) {
     };
   }
 
+  if (kind === "custom-button") {
+    return {
+      ...common,
+      id,
+      kind,
+      x: 72,
+      y: 72,
+      width: 190,
+      height: 58,
+      text: "Custom Action",
+      src: "",
+      bindingKey,
+      color: "#08140e",
+      background: accentColor,
+      fontSize: 15,
+      radius: 18,
+      align: "center",
+      actionType: "run-function",
+      actionValue: "",
+      vectorPath: "M12 8 H178 Q186 8 186 16 V42 Q186 50 178 50 H12 Q4 50 4 42 V16 Q4 8 12 8 Z",
+      vectorFill: accentColor,
+      linkedNodeId: ""
+    };
+  }
+
+  if (kind === "vector") {
+    return {
+      ...common,
+      id,
+      kind,
+      x: 72,
+      y: 72,
+      width: 120,
+      height: 120,
+      text: "",
+      src: "",
+      bindingKey,
+      color: "#f3f7f4",
+      background: "transparent",
+      fontSize: 14,
+      radius: 0,
+      align: "center",
+      actionType: "none",
+      actionValue: "",
+      vectorPath: "M60 8 L112 112 H8 Z",
+      vectorFill: accentColor,
+      linkedNodeId: ""
+    };
+  }
+
   if (kind === "input") {
     return {
+      ...common,
       id,
       kind,
       x: 72,
@@ -2172,6 +2248,7 @@ function createUiElement(kind, bindingKey = "", accentColor = ACCENT) {
 
   if (kind === "container") {
     return {
+      ...common,
       id,
       kind,
       x: 72,
@@ -2193,6 +2270,7 @@ function createUiElement(kind, bindingKey = "", accentColor = ACCENT) {
   }
 
   return {
+    ...common,
     id,
     kind: "text",
     x: 72,
@@ -2215,9 +2293,9 @@ function createUiElement(kind, bindingKey = "", accentColor = ACCENT) {
 
 function getUiNodeDefinition(kind) {
   if (kind === "image") return { label: "Add Image", group: "visual", type: "image" };
-  if (kind === "button") return { label: "Button", group: "visual", type: "trigger" };
+  if (kind === "button" || kind === "custom-button") return { label: "Button", group: "visual", type: "trigger" };
   if (kind === "input") return { label: "Input Field", group: "visual", type: "input" };
-  if (kind === "container") return { label: "Layout Container", group: "visual", type: "layout" };
+  if (kind === "container" || kind === "vector") return { label: "Layout Container", group: "visual", type: "layout" };
   return { label: "Add Text", group: "visual", type: "text" };
 }
 
@@ -3035,6 +3113,7 @@ const BuilderElement = memo(function BuilderElement({
   const inputTargetId = element.linkedNodeId || element.id;
   const inputValue = element.linkedNodeId ? (inputValues?.[element.linkedNodeId] ?? "") : "";
   const inputPlaceholder = textValue || element.text || "Input";
+  const isActionElement = element.kind === "button" || element.kind === "custom-button";
 
   const baseStyle = {
     left: `${element.x}px`,
@@ -3046,15 +3125,16 @@ const BuilderElement = memo(function BuilderElement({
     borderRadius: `${element.radius}px`,
     fontSize: `${element.fontSize}px`,
     textAlign: element.align,
-    cursor: editable ? "grab" : allowAction && element.kind === "button" && element.actionType !== "none" ? "pointer" : "default"
+    cursor: editable ? "grab" : allowAction && isActionElement && element.actionType !== "none" ? "pointer" : "default",
+    ...parseSafeCssText(element.cssText)
   };
 
   const handleClick = async (event) => {
     event.stopPropagation();
     onSelect?.(element.id);
     onInteraction?.(element.id, "click");
-    if (allowAction && !editable && element.kind === "button" && element.actionType === "open-url" && element.actionValue) {
-      await onAction?.(element.actionValue);
+    if (allowAction && !editable && isActionElement && element.actionType !== "none") {
+      await onAction?.(element);
     }
   };
 
@@ -3079,7 +3159,18 @@ const BuilderElement = memo(function BuilderElement({
       onPointerEnter={() => onInteraction?.(element.id, "enter")}
       onPointerLeave={() => onInteraction?.(element.id, "leave")}
     >
-      {element.kind === "image" ? (
+      {element.kind === "custom-button" || element.kind === "vector" ? (
+        <>
+          <svg className="builder-vector-layer" viewBox={`0 0 ${Math.max(1, element.width)} ${Math.max(1, element.height)}`} preserveAspectRatio="none" aria-hidden="true">
+            {element.vectorPath ? (
+              <path d={element.vectorPath} fill={element.vectorFill || element.background || ACCENT} />
+            ) : (
+              <rect x="0" y="0" width={Math.max(1, element.width)} height={Math.max(1, element.height)} rx={element.radius || 0} fill={element.vectorFill || element.background || ACCENT} />
+            )}
+          </svg>
+          {element.kind === "custom-button" ? <div className="builder-copy builder-vector-copy">{textValue || "Custom Button"}</div> : null}
+        </>
+      ) : element.kind === "image" ? (
         imageValue ? <img src={imageValue} alt={element.text || "Builder asset"} /> : <span className="builder-placeholder">Image</span>
       ) : element.kind === "input" ? (
         <input
@@ -3202,12 +3293,57 @@ function RuntimePanel({
   setPreviewDevice,
   onUiElementSelect,
   onOpenSettings,
+  activeScene = "main",
+  setActiveScene,
+  onAddComponent,
   runtimeOnly = false
 }) {
   const inputNodes = runtimeOnly ? [] : nodes.filter((node) => node.data?.nodeType === "input");
   const editable = viewMode === "builder";
   const showViewerStage = runtimeOnly || viewMode === "viewer" || viewMode === "builder";
   const showDeviceToolbar = showViewerStage && !runtimeOnly;
+  const canvasLayerRef = useRef(null);
+  const visibleUiElements = useMemo(
+    () => uiElements
+      .filter((element) => !element.hidden)
+      .filter((element) => !element.scene || element.scene === activeScene),
+    [activeScene, uiElements]
+  );
+
+  useEffect(() => {
+    if (!showViewerStage) return undefined;
+    const canvas = canvasLayerRef.current;
+    const stage = builderCanvasRef?.current;
+    if (!canvas || !stage) return undefined;
+    const frame = window.requestAnimationFrame(() => {
+      const rect = stage.getBoundingClientRect();
+      const scale = window.devicePixelRatio || 1;
+      canvas.width = Math.max(1, Math.round(rect.width * scale));
+      canvas.height = Math.max(1, Math.round(rect.height * scale));
+      canvas.style.width = `${rect.width}px`;
+      canvas.style.height = `${rect.height}px`;
+      const ctx = canvas.getContext("2d");
+      ctx.setTransform(scale, 0, 0, scale, 0, 0);
+      ctx.clearRect(0, 0, rect.width, rect.height);
+      visibleUiElements.forEach((element) => {
+        if (element.kind === "input" || element.kind === "button" || element.kind === "custom-button") return;
+        const x = Number(element.x || 0);
+        const y = Number(element.y || 0);
+        const width = Number(element.width || 0);
+        const height = Number(element.height || 0);
+        if (x > rect.width || y > rect.height || x + width < 0 || y + height < 0) return;
+        ctx.fillStyle = element.background && element.background !== "transparent" ? element.background : "rgba(62, 207, 142, 0.03)";
+        ctx.strokeStyle = "rgba(62, 207, 142, 0.12)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.roundRect?.(x, y, width, height, Number(element.radius || 0));
+        if (!ctx.roundRect) ctx.rect(x, y, width, height);
+        ctx.fill();
+        ctx.stroke();
+      });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [activeScene, builderCanvasRef, showViewerStage, visibleUiElements]);
 
   return (
     <div className="preview-shell">
@@ -3239,6 +3375,10 @@ function RuntimePanel({
             <strong>{uiText.builderToolbarTitle}</strong>
             <span>{uiText.builderToolbarCopy}</span>
           </div>
+          <label className="builder-scene-field">
+            <span>Scene</span>
+            <input value={activeScene} onChange={(event) => setActiveScene?.(event.target.value || "main")} />
+          </label>
           <div className="builder-palette">
             {UI_PALETTE.map((item) => (
               <button
@@ -3250,6 +3390,13 @@ function RuntimePanel({
                 }}
               >
                 {uiText[`palette${item.kind[0].toUpperCase()}${item.kind.slice(1)}`] || item.label}
+              </button>
+            ))}
+          </div>
+          <div className="builder-component-palette">
+            {UI_COMPONENT_LIBRARY.map((item) => (
+              <button key={item.key} type="button" onClick={() => onAddComponent?.(item.key)}>
+                {item.label}
               </button>
             ))}
           </div>
@@ -3302,26 +3449,27 @@ function RuntimePanel({
                 }
               }}
             >
+              <canvas ref={canvasLayerRef} className="viewer-canvas-layer" aria-hidden="true" />
               {runtimeOnly ? null : <div className="viewer-stage-grid" />}
-              {uiElements.map((element) => (
+              {visibleUiElements.map((element) => (
                 <BuilderElement
                   key={element.id}
                   element={element}
                   runtime={runtime}
                   editable={editable}
-                  allowAction={runtimeOnly}
+                  allowAction={!editable}
                   selected={selectedUiElementId === element.id}
                   onSelect={onUiElementSelect}
                   onPointerDown={editable ? onBuilderPointerDown : undefined}
                   onPointerUp={editable ? onBuilderPointerUp : undefined}
                   inputValues={inputValues}
                   onInputChange={onInputChange}
-                  onAction={async (url) => {
+                  onAction={async (elementForAction) => {
                     try {
-                      const openedUrl = await onUiAction(url);
-                      appendLog(makeLog("info", "UI Viewer", `버튼 액션이 실행되었습니다: ${maskUrlForLog(openedUrl || url)}`));
+                      const result = await onUiAction(elementForAction);
+                      appendLog(makeLog("info", "UI Viewer", `버튼 액션이 실행되었습니다: ${result?.label || elementForAction.actionType}`));
                     } catch (error) {
-                      appendLog(makeLog("error", "UI Viewer", `버튼 액션이 차단되었습니다: ${maskUrlForLog(url)}`, String(error.message || error)));
+                      appendLog(makeLog("error", "UI Viewer", `버튼 액션이 차단되었습니다: ${elementForAction.actionType}`, String(error.message || error)));
                     }
                   }}
                   onInteraction={onUiInteraction}
@@ -3416,6 +3564,7 @@ function SettingsModal({
   updateState,
   onCheckForUpdates,
   onDownloadUpdate,
+  onOpenReleasePage,
   onOpenPrivacyPolicy,
   onApply,
   onCancel,
@@ -3536,6 +3685,11 @@ function SettingsModal({
                   disabled={updateState === "downloading"}
                 >
                   {updateState === "downloading" ? uiText.downloadingUpdate : uiText.downloadUpdate}
+                </button>
+              ) : null}
+              {updateInfo?.releaseUrl ? (
+                <button className="ghost-btn" onClick={onOpenReleasePage}>
+                  GitHub Release
                 </button>
               ) : null}
             </div>
@@ -3968,6 +4122,7 @@ function ExportModal({
   targets,
   targetOptions,
   pipeline,
+  exportSettings,
   mobileBundleId,
   mobileVersionName,
   busy,
@@ -3977,6 +4132,7 @@ function ExportModal({
   onPickPath,
   onToggleTarget,
   onPipelineChange,
+  onExportSettingsChange,
   onMobileBundleIdChange,
   onMobileVersionNameChange,
   onExport,
@@ -4088,6 +4244,63 @@ function ExportModal({
               placeholder="myt-ixo"
             />
           </label>
+
+          {pipeline === "desktop" ? (
+            <section className="export-polish-grid">
+              <label className="settings-field">
+                <span>Window title</span>
+                <input
+                  type="text"
+                  value={exportSettings.windowTitle}
+                  onChange={(event) => onExportSettingsChange({ windowTitle: event.target.value })}
+                  placeholder="IXO App"
+                />
+              </label>
+              <label className="settings-field">
+                <span>Default width</span>
+                <input
+                  type="number"
+                  value={exportSettings.windowWidth}
+                  onChange={(event) => onExportSettingsChange({ windowWidth: event.target.value })}
+                />
+              </label>
+              <label className="settings-field">
+                <span>Default height</span>
+                <input
+                  type="number"
+                  value={exportSettings.windowHeight}
+                  onChange={(event) => onExportSettingsChange({ windowHeight: event.target.value })}
+                />
+              </label>
+              <label className="settings-field">
+                <span>Background</span>
+                <input
+                  type="color"
+                  value={exportSettings.backgroundColor}
+                  onChange={(event) => onExportSettingsChange({ backgroundColor: event.target.value })}
+                />
+              </label>
+              <label className="settings-toggle-card compact">
+                <span>
+                  <strong>Resizable window</strong>
+                  <small>내보낸 앱 창 크기 변경 허용</small>
+                </span>
+                <input
+                  type="checkbox"
+                  checked={exportSettings.windowResizable}
+                  onChange={(event) => onExportSettingsChange({ windowResizable: event.target.checked })}
+                />
+              </label>
+              <label className="settings-field">
+                <span>Startup splash</span>
+                <select value={exportSettings.splash} onChange={(event) => onExportSettingsChange({ splash: event.target.value })}>
+                  <option value="none">None</option>
+                  <option value="minimal">Minimal</option>
+                  <option value="brand">Brand</option>
+                </select>
+              </label>
+            </section>
+          ) : null}
 
           {pipeline === "mobile" ? (
             <div className="mobile-export-fields">
@@ -4201,6 +4414,7 @@ function EngineEditor() {
   const [language, setLanguage] = useState("ko");
   const [themeKey, setThemeKey] = useState("mint");
   const [previewDevice, setPreviewDevice] = useState("desktop");
+  const [activeScene, setActiveScene] = useState("main");
   const [draftLanguage, setDraftLanguage] = useState("ko");
   const [draftThemeKey, setDraftThemeKey] = useState("mint");
   const [draftPreviewDevice, setDraftPreviewDevice] = useState("desktop");
@@ -4222,6 +4436,9 @@ function EngineEditor() {
   const [mobileBundleId, setMobileBundleId] = useState("com.minyangtech.mytixo");
   const [mobileVersionName, setMobileVersionName] = useState("1.0.0");
   const [mobileIconBackgroundColor, setMobileIconBackgroundColor] = useState("#101713");
+  const [exportSettings, setExportSettings] = useState(normalizeExportSettings());
+  const [assets, setAssets] = useState([]);
+  const [projectFilePath, setProjectFilePath] = useState("");
   const [exportCapabilities, setExportCapabilities] = useState({});
   const [exportBusy, setExportBusy] = useState(false);
   const [interactionState, setInteractionState] = useState({
@@ -4252,6 +4469,9 @@ function EngineEditor() {
   const startupHttpsPreferencePromiseRef = useRef(null);
   const startupUpdateCheckRef = useRef(false);
   const inFlightExternalActionsRef = useRef(new Set());
+  const runtimeRevisionRef = useRef(null);
+  const dragFrameRef = useRef(null);
+  const dragEventRef = useRef(null);
   const [safeModeInfo, setSafeModeInfo] = useState(null);
 
   const screenToFlowPosition = useCallback(
@@ -4541,6 +4761,13 @@ function EngineEditor() {
     () => runPipeline(nodes, edges, inputValues, paused, scriptExecutionAllowed, interactionState, runtimeFunctions),
     [edges, inputValues, interactionState, nodes, paused, runtimeFunctions, scriptExecutionAllowed]
   );
+  const runtimeRevision = useMemo(
+    () => createRuntimeRevision(nodes, edges, inputValues, runtimeRevisionRef.current),
+    [edges, inputValues, nodes]
+  );
+  useEffect(() => {
+    runtimeRevisionRef.current = runtimeRevision;
+  }, [runtimeRevision]);
   const runtimeExecutionKey = useMemo(
     () => JSON.stringify({ activeNodeIds: runtime.activeNodeIds, activeEdgeIds: runtime.activeEdgeIds, liveValues: runtime.liveValues, paused }),
     [paused, runtime.activeEdgeIds, runtime.activeNodeIds, runtime.liveValues]
@@ -4587,6 +4814,10 @@ function EngineEditor() {
   );
   const currentTheme = THEME_OPTIONS[themeKey] || THEME_OPTIONS.mint;
   const uiText = UI_TEXT[language] || UI_TEXT.ko;
+  const uiRenderStats = useMemo(
+    () => createCanvasRenderStats(uiElements, { x: 0, y: 0, width: 1280, height: 720 }),
+    [uiElements]
+  );
   const trustLabel = scriptTrustState === "trusted"
     ? uiText.trustTrusted
     : scriptTrustState === "blocked"
@@ -4690,13 +4921,16 @@ function EngineEditor() {
       nodeCounter: mainGraph.nodeCounter,
       uiElements,
       functions: serializedFunctions,
+      activeScene,
+      assets,
+      exportSettings: normalizeExportSettings(exportSettings),
       viewMode,
       language,
       themeKey,
       previewDevice,
       savedAt: Date.now()
     };
-  }, [activeFunctionId, edges, functions, inputValues, language, nodes, previewDevice, themeKey, uiElements, viewMode]);
+  }, [activeFunctionId, activeScene, assets, edges, exportSettings, functions, inputValues, language, nodes, previewDevice, themeKey, uiElements, viewMode]);
 
   const snapshot = useCallback(({ mergeKey = "" } = {}) => {
     const now = Date.now();
@@ -4708,11 +4942,11 @@ function EngineEditor() {
     setHistory((current) => (
       canMerge
         ? current
-        : [...current.slice(-79), cloneState(nodes, edges, inputValues, nodeCounterRef.current, uiElements, functions, activeFunctionId)]
+        : [...current.slice(-79), cloneState(nodes, edges, inputValues, nodeCounterRef.current, uiElements, functions, activeFunctionId, activeScene, assets, exportSettings)]
     ));
     setFuture([]);
     lastSnapshotMetaRef.current = { mergeKey, at: now };
-  }, [activeFunctionId, edges, functions, inputValues, nodes, uiElements]);
+  }, [activeFunctionId, activeScene, assets, edges, exportSettings, functions, inputValues, nodes, uiElements]);
 
   // [이력 적용] 되돌리기 시 복구할 상태를 일관된 방식으로 반영합니다.
   const applyState = useCallback((state) => {
@@ -4724,6 +4958,9 @@ function EngineEditor() {
     setInputValues(state.inputValues || {});
     setUiElements(normalizeUiElements(state.uiElements || []));
     setFunctions(normalizeFunctions(state.functions || []));
+    setActiveScene(state.activeScene || "main");
+    setAssets(Array.isArray(state.assets) ? state.assets : []);
+    setExportSettings(normalizeExportSettings(state.exportSettings || {}));
     setNodeCounter(state.nodeCounter || 1);
     nodeCounterRef.current = state.nodeCounter || 1;
     setActiveFunctionId(state.activeFunctionId || null);
@@ -4975,7 +5212,10 @@ function EngineEditor() {
   useEffect(() => {
     if (!dragState) return undefined;
 
-    const handlePointerMove = (event) => {
+    const applyDragFrame = () => {
+      const event = dragEventRef.current;
+      dragFrameRef.current = null;
+      if (!event) return;
       const canvas = builderCanvasRef.current;
       if (!canvas) return;
 
@@ -5004,11 +5244,25 @@ function EngineEditor() {
           item.id === dragState.id
             ? { ...item, x: Math.round(nextX), y: Math.round(nextY) }
             : item
-        ))
-      );
+          ))
+        );
+    };
+
+    const handlePointerMove = (event) => {
+      dragEventRef.current = {
+        clientX: event.clientX,
+        clientY: event.clientY
+      };
+      if (dragFrameRef.current) return;
+      dragFrameRef.current = window.requestAnimationFrame(applyDragFrame);
     };
 
     const handlePointerUp = () => {
+      if (dragFrameRef.current) {
+        window.cancelAnimationFrame(dragFrameRef.current);
+        dragFrameRef.current = null;
+      }
+      dragEventRef.current = null;
       setDragState(null);
       setIsDirty(true);
     };
@@ -5018,6 +5272,10 @@ function EngineEditor() {
     return () => {
       window.removeEventListener("pointermove", handlePointerMove);
       window.removeEventListener("pointerup", handlePointerUp);
+      if (dragFrameRef.current) {
+        window.cancelAnimationFrame(dragFrameRef.current);
+        dragFrameRef.current = null;
+      }
     };
   }, [dragState]);
 
@@ -5026,27 +5284,27 @@ function EngineEditor() {
     setHistory((current) => {
       if (current.length === 0) return current;
       const previous = current[current.length - 1];
-      setFuture((futureState) => [...futureState, cloneState(nodes, edges, inputValues, nodeCounterRef.current, uiElements, functions, activeFunctionId)]);
+      setFuture((futureState) => [...futureState, cloneState(nodes, edges, inputValues, nodeCounterRef.current, uiElements, functions, activeFunctionId, activeScene, assets, exportSettings)]);
       applyState(previous);
       setIsDirty(true);
       setStatus("Undo applied.");
       lastSnapshotMetaRef.current = { mergeKey: "", at: 0 };
       return current.slice(0, -1);
     });
-  }, [activeFunctionId, applyState, edges, functions, inputValues, nodes, uiElements]);
+  }, [activeFunctionId, activeScene, applyState, assets, edges, exportSettings, functions, inputValues, nodes, uiElements]);
 
   const redo = useCallback(() => {
     setFuture((current) => {
       if (current.length === 0) return current;
       const next = current[current.length - 1];
-      setHistory((historyState) => [...historyState, cloneState(nodes, edges, inputValues, nodeCounterRef.current, uiElements, functions, activeFunctionId)]);
+      setHistory((historyState) => [...historyState, cloneState(nodes, edges, inputValues, nodeCounterRef.current, uiElements, functions, activeFunctionId, activeScene, assets, exportSettings)]);
       applyState(next);
       setIsDirty(true);
       setStatus("Redo applied.");
       lastSnapshotMetaRef.current = { mergeKey: "", at: 0 };
       return current.slice(0, -1);
     });
-  }, [activeFunctionId, applyState, edges, functions, inputValues, nodes, uiElements]);
+  }, [activeFunctionId, activeScene, applyState, assets, edges, exportSettings, functions, inputValues, nodes, uiElements]);
 
   const updateInputValue = useCallback((nodeId, value) => {
     setInputValues((current) => ({ ...current, [nodeId]: value }));
@@ -5075,6 +5333,7 @@ function EngineEditor() {
         category: nodeDef.group.toUpperCase(),
         value: getDefaultNodeValue(nodeType, nodeDef.label),
         nodeType,
+        permissionScope: getNodePermissionScope(nodeType),
         refKey: `${nodeType.replace(/[^a-z0-9]/gi, "").toLowerCase()}${id.replace("node-", "")}`,
         groupLabel: "",
         ...(nodeDef.functionId ? { functionId: nodeDef.functionId, functionArgs: {} } : {})
@@ -5556,15 +5815,16 @@ function EngineEditor() {
     setIsDirty(true);
   }, [createNodeId, makeNode, nodes, selectedNodeIds, selectedUiElement, selectedUiElementId, setNodes, snapshot, uiElements.length]);
 
-  const saveProject = useCallback(async () => {
+  const saveProject = useCallback(async ({ saveAs = false } = {}) => {
     if (!window.ixo?.saveProject) {
       setStatus("Save unavailable in browser mode.");
       return;
     }
 
     const payload = getSerializableProject();
-    const result = await window.ixo.saveProject(payload);
+    const result = await window.ixo.saveProject(payload, { saveAs });
     if (result.ok) {
+      setProjectFilePath(result.path || "");
       setStatus(`Saved .ixo: ${result.path}`);
       setIsDirty(false);
     }
@@ -5586,7 +5846,11 @@ function EngineEditor() {
       if (migrated.language) setLanguage(migrated.language);
       if (migrated.themeKey) setThemeKey(migrated.themeKey);
       if (migrated.previewDevice) setPreviewDevice(migrated.previewDevice);
+      if (migrated.activeScene) setActiveScene(migrated.activeScene);
+      if (migrated.assets) setAssets(migrated.assets);
+      if (migrated.exportSettings) setExportSettings(normalizeExportSettings(migrated.exportSettings));
       setLogs([]);
+      setProjectFilePath(result.path || "");
       setStatus(`Loaded .ixo: ${result.path}`);
       setIsDirty(false);
     }
@@ -5623,8 +5887,9 @@ function EngineEditor() {
     setMobileBundleId("com.minyangtech.mytixo");
     setMobileVersionName("1.0.0");
     setMobileIconBackgroundColor("#101713");
+    setExportSettings(normalizeExportSettings(exportSettings));
     setShowExportModal(true);
-  }, []);
+  }, [exportSettings]);
 
   const changeExportPipeline = useCallback((pipeline) => {
     setExportPipeline(pipeline);
@@ -5665,6 +5930,7 @@ function EngineEditor() {
         targets: exportTargets,
         appName: exportAppName,
         icon: exportIcon,
+        exportSettings: normalizeExportSettings(exportSettings),
         bundleId: mobileBundleId,
         versionName: mobileVersionName,
         iconBackgroundColor: mobileIconBackgroundColor
@@ -5687,7 +5953,7 @@ function EngineEditor() {
     } finally {
       setExportBusy(false);
     }
-  }, [appendLog, exportAppName, exportIcon, exportOutputPath, exportPipeline, exportTargets, getSerializableProject, mobileBundleId, mobileIconBackgroundColor, mobileVersionName]);
+  }, [appendLog, exportAppName, exportIcon, exportOutputPath, exportPipeline, exportSettings, exportTargets, getSerializableProject, mobileBundleId, mobileIconBackgroundColor, mobileVersionName]);
 
   const checkForUpdates = useCallback(async ({ silent = false } = {}) => {
     if (!window.ixo?.checkForUpdates) {
@@ -5743,6 +6009,21 @@ function EngineEditor() {
     }
   }, [appendLog, updateInfo]);
 
+  const openReleasePageFromSettings = useCallback(async () => {
+    const releaseUrl = updateInfo?.releaseUrl || "https://github.com/minyang-tech/IXO-Engine/releases";
+    try {
+      if (window.ixo?.openReleasePage) {
+        const result = await window.ixo.openReleasePage(releaseUrl);
+        setStatus(`Opened release page: ${result.url}`);
+        return;
+      }
+      await openSecureExternalUrl(releaseUrl);
+    } catch (error) {
+      setStatus(`Release page blocked: ${error.message}`);
+      appendLog(makeLog("error", "Updates", "릴리스 페이지 열기가 차단되었습니다.", String(error.message || error)));
+    }
+  }, [appendLog, openSecureExternalUrl, updateInfo]);
+
   useEffect(() => {
     if (!window.ixo?.getAppInfo) return undefined;
 
@@ -5787,7 +6068,7 @@ function EngineEditor() {
 
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
         event.preventDefault();
-        saveProject();
+        saveProject({ saveAs: event.shiftKey });
       }
 
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z") {
@@ -6038,6 +6319,44 @@ function EngineEditor() {
     reader.readAsDataURL(file);
   };
 
+  const addAssetFile = useCallback((file) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const asset = {
+        id: `asset-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        name: file.name,
+        type: file.type || "application/octet-stream",
+        size: file.size,
+        dataUrl: String(reader.result || ""),
+        createdAt: Date.now()
+      };
+      snapshot();
+      setAssets((current) => [...current, asset]);
+      setStatus(`Asset added: ${file.name}`);
+      setIsDirty(true);
+    };
+    reader.readAsDataURL(file);
+  }, [snapshot]);
+
+  const removeAsset = useCallback((assetId) => {
+    snapshot();
+    setAssets((current) => current.filter((asset) => asset.id !== assetId));
+    setIsDirty(true);
+  }, [snapshot]);
+
+  const cleanupUnusedAssets = useCallback(() => {
+    const used = new Set();
+    uiElements.forEach((element) => {
+      if (element.src) used.add(element.src);
+      if (element.actionValue) used.add(element.actionValue);
+    });
+    snapshot();
+    setAssets((current) => current.filter((asset) => used.has(asset.dataUrl) || used.has(asset.name)));
+    setStatus("Unused assets cleaned.");
+    setIsDirty(true);
+  }, [snapshot, uiElements]);
+
   const updateNodeField = (field, value) => {
     if (!selectedNode) return;
     snapshot({ mergeKey: `node:${selectedNode.id}:${field}` });
@@ -6136,6 +6455,7 @@ function EngineEditor() {
     };
     const finalElement = {
       ...(point ? { ...next, x: point.x, y: point.y } : next),
+      scene: activeScene,
       linkedNodeId: linkedNode.id
     };
 
@@ -6145,7 +6465,38 @@ function EngineEditor() {
     setViewMode("builder");
     setStatus(`UI element added: ${kind}`);
     setIsDirty(true);
-  }, [currentTheme.accent, makeNode, setNodes, snapshot, uiElements.length]);
+  }, [activeScene, currentTheme.accent, makeNode, setNodes, snapshot, uiElements.length]);
+
+  const createUiComponentFromPalette = useCallback((componentKey, point = null) => {
+    snapshot();
+    const origin = point || { x: 72, y: 72 };
+    const componentElements = createComponentElements(componentKey, createUiElement, currentTheme.accent, origin)
+      .map((element) => ({ ...normalizeUiElements([element])[0], scene: activeScene }));
+    const createdPairs = componentElements.map((element, index) => {
+      const definition = getUiNodeDefinition(element.kind);
+      const linkedNode = makeNode(definition, {
+        x: 980,
+        y: 120 + (uiElements.length + index) * 92
+      });
+      linkedNode.data = {
+        ...linkedNode.data,
+        ...getUiNodePatch(element),
+        refKey: linkedNode.data.refKey,
+        linkedUiElementId: element.id
+      };
+      return {
+        element: { ...element, linkedNodeId: linkedNode.id },
+        node: linkedNode
+      };
+    });
+
+    setUiElements((current) => [...current, ...createdPairs.map((pair) => pair.element)]);
+    setNodes((current) => [...current, ...createdPairs.map((pair) => pair.node)]);
+    setSelectedUiElementId(createdPairs[0]?.element.id || null);
+    setViewMode("builder");
+    setStatus(`UI component added: ${componentKey}`);
+    setIsDirty(true);
+  }, [activeScene, currentTheme.accent, makeNode, setNodes, snapshot, uiElements.length]);
 
   const handleBuilderDragOver = useCallback((event) => {
     event.preventDefault();
@@ -6191,10 +6542,56 @@ function EngineEditor() {
     setDragState(null);
   }, []);
 
-  const openUiAction = useCallback(async (url) => {
-    if (!url) return;
-    return openSecureExternalUrl(url);
-  }, [openSecureExternalUrl]);
+  const openUiAction = useCallback(async (element) => {
+    if (!element?.actionType || element.actionType === "none") {
+      return { ok: true, label: "No action" };
+    }
+
+    const actionValue = applyTemplate(element.actionValue || "", runtime.context);
+    if (element.actionType === "open-url") {
+      const openedUrl = await openSecureExternalUrl(actionValue);
+      return { ok: true, label: `Open URL ${maskUrlForLog(openedUrl)}` };
+    }
+    if (element.actionType === "request-https") {
+      const result = await requestSecureHttps(actionValue);
+      return { ok: true, label: `Request HTTPS ${maskUrlForLog(result?.url || actionValue)}` };
+    }
+    if (element.actionType === "set-variable") {
+      const parsed = parseSetVariableAction(actionValue);
+      if (!parsed.key) throw new Error("Set Variable action needs key=value.");
+      const targetNode = nodes.find((node) => node.id === parsed.key || node.data?.refKey === parsed.key);
+      if (!targetNode) throw new Error(`Variable target was not found: ${parsed.key}`);
+      setInputValues((current) => ({ ...current, [targetNode.id]: parsed.value }));
+      return { ok: true, label: `Set ${parsed.key}` };
+    }
+    if (element.actionType === "toggle-ui") {
+      const target = actionValue || element.id;
+      setUiElements((current) => current.map((item) => (
+        item.id === target || item.bindingKey === target
+          ? { ...item, hidden: !item.hidden }
+          : item
+      )));
+      return { ok: true, label: `Toggle UI ${target}` };
+    }
+    if (element.actionType === "go-scene") {
+      setActiveScene(actionValue || "main");
+      return { ok: true, label: `Go Scene ${actionValue || "main"}` };
+    }
+    if (element.actionType === "play-sound") {
+      const audio = new Audio(actionValue);
+      await audio.play();
+      return { ok: true, label: "Play Sound" };
+    }
+    if (element.actionType === "run-function") {
+      const targetName = actionValue.trim();
+      const found = functions.find((item) => item.id === targetName || item.name === targetName);
+      if (!found) throw new Error(`Function was not found: ${targetName || "(empty)"}`);
+      appendLog(makeLog("info", "Action System", `Function queued: ${found.name}`));
+      return { ok: true, label: `Run Function ${found.name}` };
+    }
+
+    return { ok: true, label: element.actionType };
+  }, [appendLog, functions, nodes, openSecureExternalUrl, requestSecureHttps, runtime.context]);
 
   const handleUiInteraction = useCallback((id, action) => {
     setInteractionState((current) => {
@@ -6371,7 +6768,10 @@ function EngineEditor() {
             nodeCounterRef.current,
             uiElements,
             functions,
-            activeFunctionId
+            activeFunctionId,
+            activeScene,
+            assets,
+            exportSettings
           );
         }}
         onSelectionChange={({ nodes: selectedNodes = [], edges: selectedEdges = [] }) => {
@@ -6507,7 +6907,8 @@ function EngineEditor() {
         "--accent": currentTheme.accent,
         "--accent-soft": currentTheme.accentSoft,
         "--accent-strong": currentTheme.accentStrong,
-        "--glow": currentTheme.glow
+        "--glow": currentTheme.glow,
+        "--theme-bg": currentTheme.background || "#08110d"
       }}
     >
       <main className="workspace">
@@ -6550,7 +6951,8 @@ function EngineEditor() {
                 <button className="menu-btn" onClick={() => setShowFileMenu((current) => !current)}>{uiText.file}</button>
                 {showFileMenu ? (
                   <div className="file-dropdown">
-                    <button onClick={saveProject}>{uiText.save}</button>
+                    <button onClick={() => saveProject()}>{uiText.save}</button>
+                    <button onClick={() => saveProject({ saveAs: true })}>Save As...</button>
                     <button onClick={loadProject}>{uiText.load}</button>
                     <button onClick={openExportModal}>{uiText.export}</button>
                     <button onClick={magicAlign}>{uiText.magicAlign}</button>
@@ -6793,6 +7195,9 @@ function EngineEditor() {
                     setPreviewDevice={setPreviewDevice}
                     onUiElementSelect={handleUiElementSelect}
                     onOpenSettings={() => setShowSettings(true)}
+                    activeScene={activeScene}
+                    setActiveScene={setActiveScene}
+                    onAddComponent={createUiComponentFromPalette}
                   />
                 </ResizablePanel>
               </PanelGroup>
@@ -6835,6 +7240,30 @@ function EngineEditor() {
               </div>
             </div>
 
+            <section className="asset-manager-card">
+              <div className="asset-manager-head">
+                <strong>Asset Manager</strong>
+                <span>{assets.length} assets</span>
+              </div>
+              <label className="asset-upload-btn">
+                <input type="file" accept="image/*,audio/*,.svg,.json" onChange={(event) => addAssetFile(event.target.files?.[0])} />
+                Drag/upload asset
+              </label>
+              {assets.length ? (
+                <div className="asset-list">
+                  {assets.slice(-5).map((asset) => (
+                    <div key={asset.id} className="asset-row">
+                      <span>{asset.name}</span>
+                      <button className="ghost-btn danger-lite" onClick={() => removeAsset(asset.id)}>{uiText.delete}</button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <span className="field-hint">Export에는 사용 중인 파일만 포함되도록 정리할 수 있습니다.</span>
+              )}
+              <button className="ghost-btn" onClick={cleanupUnusedAssets}>Clean unused</button>
+            </section>
+
             {selectedUiElement ? (
               <div className="property-form">
                 <label>
@@ -6852,6 +7281,10 @@ function EngineEditor() {
                 <label>
                   {uiText.bindingRefKey}
                   <input type="text" value={selectedUiElement.bindingKey || ""} onChange={(event) => updateUiField("bindingKey", event.target.value)} placeholder="welcomeText, username..." />
+                </label>
+                <label>
+                  Scene
+                  <input type="text" value={selectedUiElement.scene || "main"} onChange={(event) => updateUiField("scene", event.target.value)} placeholder="main, settings, game-over..." />
                 </label>
                 <label>
                   X
@@ -6886,10 +7319,32 @@ function EngineEditor() {
                   <input type="text" value={selectedUiElement.background} onChange={(event) => updateUiField("background", event.target.value)} />
                 </label>
                 <label>
+                  CSS
+                  <textarea value={selectedUiElement.cssText || ""} onChange={(event) => updateUiField("cssText", event.target.value)} placeholder="box-shadow: 0 12px 36px rgba(0,0,0,.22); padding: 12px;" />
+                </label>
+                {["custom-button", "vector"].includes(selectedUiElement.kind) ? (
+                  <>
+                    <label>
+                      Vector Path
+                      <textarea value={selectedUiElement.vectorPath || ""} onChange={(event) => updateUiField("vectorPath", event.target.value)} placeholder="M10 10 H120 V60 H10 Z" />
+                    </label>
+                    <label>
+                      Vector Fill
+                      <input type="color" value={selectedUiElement.vectorFill || currentTheme.accent} onChange={(event) => updateUiField("vectorFill", event.target.value)} />
+                    </label>
+                    <div className="vector-drawer-presets">
+                      <button type="button" className="ghost-btn" onClick={() => updateUiField("vectorPath", "M60 8 L112 112 H8 Z")}>Triangle</button>
+                      <button type="button" className="ghost-btn" onClick={() => updateUiField("vectorPath", "M12 8 H178 Q186 8 186 16 V42 Q186 50 178 50 H12 Q4 50 4 42 V16 Q4 8 12 8 Z")}>Button</button>
+                      <button type="button" className="ghost-btn" onClick={() => updateUiField("vectorPath", "M50 4 L61 36 H95 L67 56 L78 90 L50 68 L22 90 L33 56 L5 36 H39 Z")}>Star</button>
+                    </div>
+                  </>
+                ) : null}
+                <label>
                   {uiText.actionType}
                   <select value={selectedUiElement.actionType} onChange={(event) => updateUiField("actionType", event.target.value)}>
-                    <option value="none">none</option>
-                    <option value="open-url">open-url</option>
+                    {ACTION_SYSTEM_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
                   </select>
                 </label>
                 <label>
@@ -6977,6 +7432,10 @@ function EngineEditor() {
                   {uiText.nodeType}
                   <input type="text" value={selectedNode.data.nodeType || ""} onChange={(event) => updateNodeField("nodeType", event.target.value)} />
                 </label>
+                <label>
+                  Permission Scope
+                  <input type="text" value={selectedNode.data.permissionScope || getNodePermissionScope(selectedNode.data.nodeType) || "none"} readOnly />
+                </label>
                 {selectedNode.data.nodeType === "function-call" && selectedFunctionDefinition ? (
                   <div className="function-call-args">
                     <strong>{uiText.functionArguments}</strong>
@@ -7046,8 +7505,8 @@ function EngineEditor() {
       </main>
 
       <footer className="status-bar">
-        <span>{uiText.engineStatus}: {status}{isDirty ? ` | ${uiText.unsavedChanges}` : ""}</span>
-        <span>{uiText.nodes} {nodes.length} | {uiText.edges} {edges.length} | UI {uiElements.length} | {uiText.mode} {viewMode}</span>
+        <span>{uiText.engineStatus}: {status}{isDirty ? ` | ${uiText.unsavedChanges}` : ""}{projectFilePath ? ` | ${projectFilePath}` : ""}</span>
+        <span>{uiText.nodes} {nodes.length} | {uiText.edges} {edges.length} | UI {uiElements.length} | Dirty {runtimeRevision.dirtyNodeIds.length} | Culled {uiRenderStats.culled} | {uiText.mode} {viewMode}</span>
       </footer>
 
       <SettingsModal
@@ -7068,6 +7527,7 @@ function EngineEditor() {
         updateState={updateState}
         onCheckForUpdates={() => checkForUpdates()}
         onDownloadUpdate={downloadUpdate}
+        onOpenReleasePage={openReleasePageFromSettings}
         onOpenPrivacyPolicy={() => setShowPrivacyPolicy(true)}
         onApply={applySettings}
         onCancel={cancelSettings}
@@ -7091,6 +7551,7 @@ function EngineEditor() {
         targets={exportTargets}
         targetOptions={exportTargetOptions}
         pipeline={exportPipeline}
+        exportSettings={exportSettings}
         mobileBundleId={mobileBundleId}
         mobileVersionName={mobileVersionName}
         busy={exportBusy}
@@ -7100,6 +7561,7 @@ function EngineEditor() {
         onPickPath={pickExportPath}
         onToggleTarget={toggleExportTarget}
         onPipelineChange={changeExportPipeline}
+        onExportSettingsChange={(patch) => setExportSettings((current) => normalizeExportSettings({ ...current, ...patch }))}
         onMobileBundleIdChange={setMobileBundleId}
         onMobileVersionNameChange={setMobileVersionName}
         onExport={exportProject}
@@ -7120,6 +7582,8 @@ function ExportRuntimeApp() {
   const [loadError, setLoadError] = useState("");
   const [inputValues, setInputValues] = useState({});
   const [previewDevice, setPreviewDevice] = useState("desktop");
+  const [activeScene, setActiveScene] = useState("main");
+  const [hiddenUiIds, setHiddenUiIds] = useState([]);
   const [httpsNodesEnabled, setHttpsNodesEnabled] = useState(false);
   const [scriptExecutionAllowed, setScriptExecutionAllowed] = useState(false);
   const [interactionState, setInteractionState] = useState({
@@ -7155,6 +7619,7 @@ function ExportRuntimeApp() {
         setProject(migrated);
         setInputValues(migrated.inputValues || {});
         setPreviewDevice(migrated.previewDevice || "desktop");
+        setActiveScene(migrated.activeScene || "main");
       } catch (error) {
         if (mounted) {
           setLoadError(String(error.message || error));
@@ -7337,8 +7802,9 @@ function ExportRuntimeApp() {
       .filter((node) => !linkedInputNodeIds.has(node.id) && !(node.data?.refKey && linkedInputKeys.has(node.data.refKey)))
       .map((node, index) => createUiElementFromNode(node, existingElements.length + index, theme.accent));
 
-    return generatedInputs.length ? [...existingElements, ...generatedInputs] : existingElements;
-  }, [project]);
+    const combined = generatedInputs.length ? [...existingElements, ...generatedInputs] : existingElements;
+    return combined.map((element) => ({ ...element, hidden: element.hidden || hiddenUiIds.includes(element.id) }));
+  }, [hiddenUiIds, project]);
 
   useEffect(() => {
     if (!project) return;
@@ -7462,6 +7928,67 @@ function ExportRuntimeApp() {
     });
   }, []);
 
+  const openUiAction = useCallback(async (element) => {
+    if (!element?.actionType || element.actionType === "none") {
+      return { ok: true, label: "No action" };
+    }
+    const actionValue = applyTemplate(element.actionValue || "", runtime.context);
+    if (element.actionType === "open-url") {
+      const openedUrl = await openSecureExternalUrl(actionValue);
+      return { ok: true, label: `Open URL ${maskUrlForLog(openedUrl)}` };
+    }
+    if (element.actionType === "request-https") {
+      const result = await requestSecureHttps(actionValue);
+      return { ok: true, label: `Request HTTPS ${maskUrlForLog(result?.url || actionValue)}` };
+    }
+    if (element.actionType === "set-variable") {
+      const parsed = parseSetVariableAction(actionValue);
+      const targetNode = project?.nodes.find((node) => node.id === parsed.key || node.data?.refKey === parsed.key);
+      if (!targetNode) throw new Error(`Variable target was not found: ${parsed.key}`);
+      setInputValues((current) => ({ ...current, [targetNode.id]: parsed.value }));
+      return { ok: true, label: `Set ${parsed.key}` };
+    }
+    if (element.actionType === "toggle-ui") {
+      const target = actionValue || element.id;
+      const targetElements = runtimeUiElements.filter((item) => item.id === target || item.bindingKey === target);
+      setHiddenUiIds((current) => {
+        const next = new Set(current);
+        targetElements.forEach((item) => {
+          if (next.has(item.id)) next.delete(item.id);
+          else next.add(item.id);
+        });
+        return [...next];
+      });
+      return { ok: true, label: `Toggle UI ${target}` };
+    }
+    if (element.actionType === "go-scene") {
+      setActiveScene(actionValue || "main");
+      return { ok: true, label: `Go Scene ${actionValue || "main"}` };
+    }
+    if (element.actionType === "play-sound") {
+      const audio = new Audio(actionValue);
+      await audio.play();
+      return { ok: true, label: "Play Sound" };
+    }
+    if (element.actionType === "run-function") {
+      return { ok: true, label: `Function ${actionValue || "queued"}` };
+    }
+    return { ok: true, label: element.actionType };
+  }, [openSecureExternalUrl, project?.nodes, requestSecureHttps, runtime.context, runtimeUiElements]);
+
+  const language = project?.language || "ko";
+  const currentTheme = THEME_OPTIONS[project?.themeKey] || THEME_OPTIONS.mint;
+  const runtimeExportSettings = normalizeExportSettings(project?.exportSettings || {});
+
+  useEffect(() => {
+    if (!project) return undefined;
+    document.title = runtimeExportSettings.windowTitle || "IXO App";
+    document.body.style.background = runtimeExportSettings.backgroundColor;
+    return () => {
+      document.body.style.background = "";
+    };
+  }, [project, runtimeExportSettings.backgroundColor, runtimeExportSettings.windowTitle]);
+
   if (loadError) {
     return <div className="runtime-export-error">Export runtime load failed: {loadError}</div>;
   }
@@ -7470,9 +7997,6 @@ function ExportRuntimeApp() {
     return <div className="runtime-export-loading">Loading exported app...</div>;
   }
 
-  const language = project.language || "ko";
-  const currentTheme = THEME_OPTIONS[project.themeKey] || THEME_OPTIONS.mint;
-
   return (
     <div
       className={`runtime-export-shell lang-${language}`}
@@ -7480,7 +8004,8 @@ function ExportRuntimeApp() {
         "--accent": currentTheme.accent,
         "--accent-soft": currentTheme.accentSoft,
         "--accent-strong": currentTheme.accentStrong,
-        "--glow": currentTheme.glow
+        "--glow": currentTheme.glow,
+        "--runtime-bg": runtimeExportSettings.backgroundColor
       }}
     >
       <RuntimePanel
@@ -7500,7 +8025,7 @@ function ExportRuntimeApp() {
         builderCanvasRef={builderCanvasRef}
         debugOverlay={false}
         flowJson=""
-        onUiAction={openSecureExternalUrl}
+        onUiAction={openUiAction}
         onUiInteraction={handleUiInteraction}
         appendLog={() => {}}
         uiText={UI_TEXT[language] || UI_TEXT.ko}
@@ -7508,6 +8033,8 @@ function ExportRuntimeApp() {
         setPreviewDevice={setPreviewDevice}
         onUiElementSelect={() => {}}
         onOpenSettings={() => {}}
+        activeScene={activeScene}
+        setActiveScene={setActiveScene}
         runtimeOnly
       />
     </div>

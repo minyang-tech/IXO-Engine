@@ -1,8 +1,8 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("ixo", {
-  version: "1.0.1",
-  saveProject: (payload) => ipcRenderer.invoke("project:save", payload),
+  version: "1.1.0",
+  saveProject: (payload, options) => ipcRenderer.invoke("project:save", payload, options),
   loadProject: () => ipcRenderer.invoke("project:load"),
   chooseExportPath: (options) => ipcRenderer.invoke("project:chooseExportPath", options),
   getExportCapabilities: () => ipcRenderer.invoke("project:getExportCapabilities"),
@@ -27,5 +27,6 @@ contextBridge.exposeInMainWorld("ixo", {
   setDirtyState: (payload) => ipcRenderer.invoke("app:setDirtyState", payload),
   getAppInfo: () => ipcRenderer.invoke("app:getInfo"),
   checkForUpdates: () => ipcRenderer.invoke("app:checkForUpdates"),
-  downloadUpdate: (asset) => ipcRenderer.invoke("app:downloadUpdate", asset)
+  downloadUpdate: (asset) => ipcRenderer.invoke("app:downloadUpdate", asset),
+  openReleasePage: (releaseUrl) => ipcRenderer.invoke("app:openReleasePage", releaseUrl)
 });

@@ -6,9 +6,10 @@ const os = require("os");
 const dns = require("dns").promises;
 const nodeNet = require("net");
 const { spawn } = require("child_process");
-const { checkForUpdates, downloadReleaseAsset } = require("./updateService");
+const { checkForUpdates, downloadReleaseAsset, openReleasePage } = require("./updateService");
 const EXTERNAL_REQUEST_TIMEOUT_MS = 8000;
 const MAX_EXTERNAL_REDIRECTS = 3;
+const MAX_EXTERNAL_RESPONSE_BYTES = 1024 * 1024;
 const DEFAULT_EXPORT_APP_STEM = "myt-ixo";
 const MOBILE_ICON_BACKGROUND_COLOR = "#101713";
 const ANDROID_ICON_DENSITIES = [
@@ -56,6 +57,7 @@ let startupHttpsPreferencePromise = null;
 const windowState = {
   isDirty: false,
   latestProject: null,
+  currentProjectPath: "",
   allowClose: false
 };
 const hasSingleInstanceLock = app.requestSingleInstanceLock();
@@ -167,6 +169,27 @@ function getSecurityApprovals(webContentsId) {
     });
   }
   return securityApprovalsByWebContents.get(webContentsId);
+}
+
+function readEmbeddedRuntimeProject() {
+  try {
+    const projectPath = path.join(process.resourcesPath || "", "export", "project.json");
+    if (!fs.existsSync(projectPath)) return null;
+    return JSON.parse(fs.readFileSync(projectPath, "utf-8"));
+  } catch {
+    return null;
+  }
+}
+
+function getEmbeddedRuntimeWindowSettings() {
+  const settings = readEmbeddedRuntimeProject()?.exportSettings || {};
+  return {
+    title: String(settings.windowTitle || "IXO Engine").slice(0, 80),
+    width: Math.max(320, Math.min(Number(settings.windowWidth || 1600), 3840)),
+    height: Math.max(240, Math.min(Number(settings.windowHeight || 1000), 2160)),
+    resizable: Boolean(settings.windowResizable ?? true),
+    backgroundColor: /^#[0-9a-f]{6}$/i.test(String(settings.backgroundColor || "")) ? settings.backgroundColor : "#06130d"
+  };
 }
 
 function resetSecurityApprovals(webContentsId) {
@@ -313,10 +336,23 @@ async function fetchValidatedHttpsUrl(rawUrl, remainingRedirects = MAX_EXTERNAL_
       return fetchValidatedHttpsUrl(new URL(location, parsed).toString(), remainingRedirects - 1);
     }
 
+    const contentLength = Number(response.headers.get("content-length") || 0);
+    if (contentLength > MAX_EXTERNAL_RESPONSE_BYTES) {
+      throw new Error("HTTPS response is too large.");
+    }
+
+    const buffer = Buffer.from(await response.arrayBuffer());
+    if (buffer.length > MAX_EXTERNAL_RESPONSE_BYTES) {
+      throw new Error("HTTPS response exceeded the maximum size limit.");
+    }
+
     return {
       ok: response.ok,
       status: response.status,
-      url: parsed.toString()
+      url: parsed.toString(),
+      bytes: buffer.length,
+      contentType: response.headers.get("content-type") || "",
+      bodyPreview: buffer.toString("utf-8", 0, Math.min(buffer.length, 2048))
     };
   } finally {
     clearTimeout(timer);
@@ -1079,11 +1115,15 @@ function exportMobileWorkspace(project, options, targetKey, outputDir) {
 }
 
 function createMainWindow() {
+  const embeddedWindowSettings = getEmbeddedRuntimeWindowSettings();
   const mainWindow = new BrowserWindow({
-    width: 1600,
-    height: 1000,
+    width: embeddedWindowSettings.width,
+    height: embeddedWindowSettings.height,
     minWidth: 1024,
     minHeight: 640,
+    title: embeddedWindowSettings.title,
+    resizable: embeddedWindowSettings.resizable,
+    backgroundColor: embeddedWindowSettings.backgroundColor,
     // autoHideMenuBar: true, // 留뚯빟 Alt?ㅻ줈 硫붾돱瑜?蹂닿퀬 ?띕떎硫???二쇱꽍???댁젣?섏꽭??
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
@@ -1136,19 +1176,24 @@ function createMainWindow() {
       return;
     }
     if (answer.response === 0) {
-      const savePath = await dialog.showSaveDialog(mainWindow, {
-        title: "Save IXO Project",
-        filters: [{ name: "IXO Project", extensions: ["ixo"] }],
-        defaultPath: "project.ixo"
-      });
-      if (savePath.canceled || !savePath.filePath) {
-        return;
+      let targetPath = windowState.currentProjectPath;
+      if (!targetPath) {
+        const savePath = await dialog.showSaveDialog(mainWindow, {
+          title: "Save IXO Project",
+          filters: [{ name: "IXO Project", extensions: ["ixo"] }],
+          defaultPath: "project.ixo"
+        });
+        if (savePath.canceled || !savePath.filePath) {
+          return;
+        }
+        targetPath = savePath.filePath;
       }
       fs.writeFileSync(
-        savePath.filePath,
+        targetPath,
         JSON.stringify(windowState.latestProject || {}, null, 2),
         "utf-8"
       );
+      windowState.currentProjectPath = targetPath;
     }
     windowState.allowClose = true;
     mainWindow.close();
@@ -1200,6 +1245,11 @@ app.whenReady().then(() => {
   ipcMain.handle("app:downloadUpdate", async (event, asset) => {
     assertTrustedSender(event);
     return downloadReleaseAsset(asset);
+  });
+
+  ipcMain.handle("app:openReleasePage", async (event, releaseUrl) => {
+    assertTrustedSender(event);
+    return openReleasePage(releaseUrl);
   });
 
   ipcMain.handle("security:requestApproval", async (event, scope, context) => requestSecurityApproval(event, scope, context));
@@ -1277,20 +1327,25 @@ app.whenReady().then(() => {
     return { ok: true };
   });
 
-  ipcMain.handle("project:save", async (event, payload) => {
+  ipcMain.handle("project:save", async (event, payload, options = {}) => {
     assertTrustedSender(event);
-    const target = await dialog.showSaveDialog({
-      title: "Save IXO Project",
-      filters: [{ name: "IXO Project", extensions: ["ixo"] }],
-      defaultPath: "project.ixo"
-    });
-    if (target.canceled || !target.filePath) {
-      return { ok: false, canceled: true };
+    let targetPath = options?.saveAs ? "" : windowState.currentProjectPath;
+    if (!targetPath) {
+      const target = await dialog.showSaveDialog({
+        title: "Save IXO Project",
+        filters: [{ name: "IXO Project", extensions: ["ixo"] }],
+        defaultPath: windowState.currentProjectPath || "project.ixo"
+      });
+      if (target.canceled || !target.filePath) {
+        return { ok: false, canceled: true };
+      }
+      targetPath = target.filePath;
     }
-    fs.writeFileSync(target.filePath, JSON.stringify(payload, null, 2), "utf-8");
+    fs.writeFileSync(targetPath, JSON.stringify(payload, null, 2), "utf-8");
     windowState.isDirty = false;
     windowState.latestProject = payload;
-    return { ok: true, path: target.filePath };
+    windowState.currentProjectPath = targetPath;
+    return { ok: true, path: targetPath };
   });
 
   ipcMain.handle("project:load", async (event) => {
@@ -1307,6 +1362,7 @@ app.whenReady().then(() => {
     const data = JSON.parse(content);
     windowState.isDirty = false;
     windowState.latestProject = data;
+    windowState.currentProjectPath = target.filePaths[0];
     resetSecurityApprovals(event.sender.id);
     return { ok: true, path: target.filePaths[0], data };
   });
@@ -1331,11 +1387,7 @@ app.whenReady().then(() => {
 
   ipcMain.handle("project:getEmbeddedRuntimeProject", (event) => {
     assertTrustedSender(event);
-    const projectPath = path.join(process.resourcesPath, "export", "project.json");
-    if (!fs.existsSync(projectPath)) {
-      return null;
-    }
-    return JSON.parse(fs.readFileSync(projectPath, "utf-8"));
+    return readEmbeddedRuntimeProject();
   });
 
   ipcMain.handle("project:export", async (event, payload, options = {}) => {

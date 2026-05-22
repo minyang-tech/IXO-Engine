@@ -39,6 +39,9 @@ const PLATFORM_ASSET_RULES = {
     ]
   }
 };
+const UPDATE_REQUEST_TIMEOUT_MS = 8000;
+const MAX_RELEASE_JSON_BYTES = 1024 * 1024;
+const MAX_UPDATE_DOWNLOAD_BYTES = 600 * 1024 * 1024;
 
 function normalizeVersion(version) {
   return String(version || "")
@@ -128,10 +131,17 @@ function pickPlatformAsset(assets = [], platform = process.platform) {
 }
 
 async function fetchLatestRelease() {
-  const response = await net.fetch(
-    `https://api.github.com/repos/${GITHUB_REPOSITORY.owner}/${GITHUB_REPOSITORY.repo}/releases/latest`,
-    { headers: RELEASE_HEADERS }
-  );
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), UPDATE_REQUEST_TIMEOUT_MS);
+  let response;
+  try {
+    response = await net.fetch(
+      `https://api.github.com/repos/${GITHUB_REPOSITORY.owner}/${GITHUB_REPOSITORY.repo}/releases/latest`,
+      { headers: RELEASE_HEADERS, signal: controller.signal }
+    );
+  } finally {
+    clearTimeout(timer);
+  }
 
   if (response.status === 404) {
     return null;
@@ -141,7 +151,15 @@ async function fetchLatestRelease() {
     throw new Error(`GitHub release check failed (${response.status}).`);
   }
 
-  return response.json();
+  const contentLength = Number(response.headers.get("content-length") || 0);
+  if (contentLength > MAX_RELEASE_JSON_BYTES) {
+    throw new Error("GitHub release metadata is too large.");
+  }
+  const buffer = Buffer.from(await response.arrayBuffer());
+  if (buffer.length > MAX_RELEASE_JSON_BYTES) {
+    throw new Error("GitHub release metadata exceeded the maximum size limit.");
+  }
+  return JSON.parse(buffer.toString("utf-8"));
 }
 
 async function checkForUpdates() {
@@ -156,6 +174,7 @@ async function checkForUpdates() {
       releaseNotes: "",
       publishedAt: null,
       asset: null,
+      releaseUrl: `https://github.com/${GITHUB_REPOSITORY.owner}/${GITHUB_REPOSITORY.repo}/releases`,
       releasePublished: false
     };
   }
@@ -171,6 +190,7 @@ async function checkForUpdates() {
     releaseNotes: release.body || "",
     publishedAt: release.published_at || null,
     asset,
+    releaseUrl: release.html_url || `https://github.com/${GITHUB_REPOSITORY.owner}/${GITHUB_REPOSITORY.repo}/releases/latest`,
     releasePublished: true
   };
 }
@@ -204,13 +224,27 @@ async function downloadReleaseAsset(asset) {
     throw new Error("No downloadable release asset is available for this platform.");
   }
 
-  const response = await net.fetch(validateReleaseAssetUrl(asset.downloadUrl), { headers: RELEASE_HEADERS });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), UPDATE_REQUEST_TIMEOUT_MS);
+  let response;
+  try {
+    response = await net.fetch(validateReleaseAssetUrl(asset.downloadUrl), { headers: RELEASE_HEADERS, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
   if (!response.ok) {
     throw new Error(`Update download failed (${response.status}).`);
+  }
+  const contentLength = Number(response.headers.get("content-length") || 0);
+  if (contentLength > MAX_UPDATE_DOWNLOAD_BYTES) {
+    throw new Error("Update asset is larger than the allowed limit.");
   }
 
   const targetPath = path.join(app.getPath("downloads"), safeDownloadName(asset.name));
   const buffer = Buffer.from(await response.arrayBuffer());
+  if (buffer.length > MAX_UPDATE_DOWNLOAD_BYTES) {
+    throw new Error("Update download exceeded the maximum size limit.");
+  }
   fs.writeFileSync(targetPath, buffer);
   shell.showItemInFolder(targetPath);
 
@@ -222,7 +256,18 @@ async function downloadReleaseAsset(asset) {
   };
 }
 
+async function openReleasePage(rawUrl) {
+  const url = String(rawUrl || `https://github.com/${GITHUB_REPOSITORY.owner}/${GITHUB_REPOSITORY.repo}/releases`).trim();
+  const parsed = new URL(url);
+  if (parsed.protocol !== "https:" || parsed.hostname !== "github.com" || !parsed.pathname.startsWith(`/${GITHUB_REPOSITORY.owner}/${GITHUB_REPOSITORY.repo}/releases`)) {
+    throw new Error("Release page URL is not trusted.");
+  }
+  await shell.openExternal(parsed.toString());
+  return { ok: true, url: parsed.toString() };
+}
+
 module.exports = {
   checkForUpdates,
-  downloadReleaseAsset
+  downloadReleaseAsset,
+  openReleasePage
 };
