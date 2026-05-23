@@ -1,7 +1,7 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("ixo", {
-  version: "1.1.1",
+  version: "1.1.2",
   saveProject: (payload, options) => ipcRenderer.invoke("project:save", payload, options),
   loadProject: () => ipcRenderer.invoke("project:load"),
   chooseExportPath: (options) => ipcRenderer.invoke("project:chooseExportPath", options),

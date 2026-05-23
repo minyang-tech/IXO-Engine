@@ -2335,6 +2335,54 @@ img {
   color: var(--muted);
 }
 
+.settings-section-card {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.settings-section-heading {
+  display: grid;
+  gap: 4px;
+}
+
+.settings-section-heading strong {
+  color: var(--text);
+}
+
+.settings-section-heading span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.compact-grid {
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
+.reset-action-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.reset-action-grid button {
+  display: grid;
+  gap: 4px;
+  justify-items: start;
+  text-align: left;
+  padding: 12px;
+}
+
+.reset-action-grid button span {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
 .vector-draw-pad {
   display: grid;
   gap: 8px;

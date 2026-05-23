@@ -31,7 +31,7 @@ const LOGO_FALLBACKS = [
   "./IXO Logo.PNG",
   "https://github.com/minyang-tech/IXO-Engine/blob/main/IXO%20Logo.png?raw=true"
 ];
-const FALLBACK_APP_VERSION = typeof window !== "undefined" && window.ixo?.version ? window.ixo.version : "1.1.1";
+const FALLBACK_APP_VERSION = typeof window !== "undefined" && window.ixo?.version ? window.ixo.version : "1.1.2";
 
 // [노드 UI] 카테고리별 아이콘과 컬러를 최대한 차분한 톤으로 정리했습니다.
 const GROUP_ICON = {
@@ -626,7 +626,37 @@ const EXTRA_UI_TEXT = {
     chooseWatchPathHint: "파일 또는 폴더를 선택하세요.",
     privacyPolicy: "개인정보 처리방침",
     openPrivacyPolicy: "개인정보 처리방침 보기",
-    privacyPolicyIntro: "업데이트 확인과 네트워크 노드 사용 시 어떤 정보가 오갈 수 있는지 확인합니다."
+    privacyPolicyIntro: "업데이트 확인과 네트워크 노드 사용 시 어떤 정보가 오갈 수 있는지 확인합니다.",
+    settingsAppearance: "화면 및 테마",
+    settingsExportDefaults: "내보내기 기본값",
+    settingsSafetyReset: "초기화 및 복구",
+    settingsSafetyResetCopy: "프로젝트, 저장 데이터, 설정, 앱 로컬 데이터를 단계별로 초기화합니다.",
+    resetAll: "전체 초기화",
+    resetSavedData: "저장사항 초기화",
+    resetSettings: "설정 초기화",
+    resetApp: "앱 완전 초기화",
+    resetAllHint: "현재 프로젝트와 설정을 기본값으로 되돌립니다.",
+    resetSavedDataHint: "자동 저장과 백업 저장사항만 지웁니다.",
+    resetSettingsHint: "언어, 테마, 미리보기, 보안 설정만 기본값으로 되돌립니다.",
+    resetAppHint: "localStorage와 보안 승인까지 모두 지웁니다.",
+    confirmReset: "정말 초기화를 진행할까요?",
+    assetManager: "에셋 매니저",
+    cleanUnused: "미사용 정리",
+    dragUploadAsset: "에셋 또는 .ixo 업로드",
+    scenes: "Scene",
+    currentScene: "현재 Scene",
+    sceneHint: "Canvas Builder와 노드는 선택한 Scene에 추가됩니다.",
+    moveSceneToMain: "이 Scene을 main으로 이동",
+    vectorFill: "Vector 색상",
+    vectorAdvancedPath: "고급 SVG path",
+    customTheme: "사용자 테마",
+    customThemeHint: "JSON 테마 파일을 올리면 IXO Engine 전체 UI에 적용할 수 있습니다.",
+    exportWindowTitle: "창 제목",
+    exportWindowWidth: "기본 너비",
+    exportWindowHeight: "기본 높이",
+    exportBackground: "배경색",
+    exportResizable: "창 크기 변경 허용",
+    exportSplash: "시작 화면"
   },
   en: {
     preview: "Preview",
@@ -801,7 +831,37 @@ const EXTRA_UI_TEXT = {
     chooseWatchPathHint: "Choose a file or folder.",
     privacyPolicy: "Privacy Policy",
     openPrivacyPolicy: "Open Privacy Policy",
-    privacyPolicyIntro: "Review what may be exchanged during update checks and network-node use."
+    privacyPolicyIntro: "Review what may be exchanged during update checks and network-node use.",
+    settingsAppearance: "Appearance and Theme",
+    settingsExportDefaults: "Export Defaults",
+    settingsSafetyReset: "Reset and Recovery",
+    settingsSafetyResetCopy: "Reset the project, saved data, settings, or all local app data by scope.",
+    resetAll: "Reset All",
+    resetSavedData: "Reset Saved Data",
+    resetSettings: "Reset Settings",
+    resetApp: "Full App Reset",
+    resetAllHint: "Restore the current project and settings to defaults.",
+    resetSavedDataHint: "Remove only auto-save and backup data.",
+    resetSettingsHint: "Restore language, theme, preview, and security settings.",
+    resetAppHint: "Clear localStorage and security approvals as well.",
+    confirmReset: "Do you want to continue with this reset?",
+    assetManager: "Asset Manager",
+    cleanUnused: "Clean unused",
+    dragUploadAsset: "Upload asset or .ixo",
+    scenes: "Scenes",
+    currentScene: "Current Scene",
+    sceneHint: "Canvas Builder and nodes are added to the selected Scene.",
+    moveSceneToMain: "Move this Scene to main",
+    vectorFill: "Vector Fill",
+    vectorAdvancedPath: "Advanced SVG path",
+    customTheme: "Custom Theme",
+    customThemeHint: "Upload a JSON theme file to apply it across the IXO Engine editor.",
+    exportWindowTitle: "Window title",
+    exportWindowWidth: "Default width",
+    exportWindowHeight: "Default height",
+    exportBackground: "Background",
+    exportResizable: "Resizable window",
+    exportSplash: "Startup splash"
   },
   zh: {
     preview: "预览",
@@ -976,7 +1036,37 @@ const EXTRA_UI_TEXT = {
     chooseWatchPathHint: "请选择文件或文件夹。",
     privacyPolicy: "隐私政策",
     openPrivacyPolicy: "查看隐私政策",
-    privacyPolicyIntro: "查看更新检查和网络节点使用期间可能交换的信息。"
+    privacyPolicyIntro: "查看更新检查和网络节点使用期间可能交换的信息。",
+    settingsAppearance: "外观与主题",
+    settingsExportDefaults: "导出默认值",
+    settingsSafetyReset: "重置与恢复",
+    settingsSafetyResetCopy: "按范围重置项目、保存数据、设置或全部本地应用数据。",
+    resetAll: "全部重置",
+    resetSavedData: "重置保存数据",
+    resetSettings: "重置设置",
+    resetApp: "完整应用重置",
+    resetAllHint: "将当前项目和设置恢复为默认值。",
+    resetSavedDataHint: "仅删除自动保存和备份数据。",
+    resetSettingsHint: "恢复语言、主题、预览和安全设置。",
+    resetAppHint: "同时清除 localStorage 和安全授权。",
+    confirmReset: "确定要继续重置吗？",
+    assetManager: "资源管理器",
+    cleanUnused: "清理未使用",
+    dragUploadAsset: "上传资源或 .ixo",
+    scenes: "场景",
+    currentScene: "当前场景",
+    sceneHint: "Canvas Builder 和节点会添加到选中的场景。",
+    moveSceneToMain: "将此场景移动到 main",
+    vectorFill: "Vector 颜色",
+    vectorAdvancedPath: "高级 SVG path",
+    customTheme: "自定义主题",
+    customThemeHint: "上传 JSON 主题文件即可应用到整个 IXO Engine 编辑器。",
+    exportWindowTitle: "窗口标题",
+    exportWindowWidth: "默认宽度",
+    exportWindowHeight: "默认高度",
+    exportBackground: "背景色",
+    exportResizable: "允许调整窗口大小",
+    exportSplash: "启动画面"
   },
   ja: {
     preview: "プレビュー",
@@ -1152,7 +1242,37 @@ const EXTRA_UI_TEXT = {
     chooseWatchPathHint: "ファイルまたはフォルダーを選択してください。",
     privacyPolicy: "プライバシーポリシー",
     openPrivacyPolicy: "プライバシーポリシーを開く",
-    privacyPolicyIntro: "更新確認とネットワークノード利用時にやり取りされる情報を確認します。"
+    privacyPolicyIntro: "更新確認とネットワークノード利用時にやり取りされる情報を確認します。",
+    settingsAppearance: "外観とテーマ",
+    settingsExportDefaults: "書き出し既定値",
+    settingsSafetyReset: "初期化と復旧",
+    settingsSafetyResetCopy: "プロジェクト、保存データ、設定、アプリ全体のローカルデータを範囲別に初期化します。",
+    resetAll: "全体初期化",
+    resetSavedData: "保存データ初期化",
+    resetSettings: "設定初期化",
+    resetApp: "アプリ完全初期化",
+    resetAllHint: "現在のプロジェクトと設定を既定値に戻します。",
+    resetSavedDataHint: "自動保存とバックアップのみ削除します。",
+    resetSettingsHint: "言語、テーマ、プレビュー、セキュリティ設定を戻します。",
+    resetAppHint: "localStorage とセキュリティ承認もすべて削除します。",
+    confirmReset: "この初期化を続行しますか？",
+    assetManager: "アセットマネージャー",
+    cleanUnused: "未使用を整理",
+    dragUploadAsset: "アセットまたは .ixo をアップロード",
+    scenes: "Scene",
+    currentScene: "現在の Scene",
+    sceneHint: "Canvas Builder とノードは選択中の Scene に追加されます。",
+    moveSceneToMain: "この Scene を main へ移動",
+    vectorFill: "Vector 色",
+    vectorAdvancedPath: "高度な SVG path",
+    customTheme: "ユーザーテーマ",
+    customThemeHint: "JSON テーマファイルをアップロードすると IXO Engine 全体に適用できます。",
+    exportWindowTitle: "ウィンドウタイトル",
+    exportWindowWidth: "既定の幅",
+    exportWindowHeight: "既定の高さ",
+    exportBackground: "背景色",
+    exportResizable: "ウィンドウサイズ変更を許可",
+    exportSplash: "起動画面"
   }
 };
 
@@ -1947,7 +2067,8 @@ const cloneState = (
   activeScene = "main",
   assets = [],
   exportSettings = normalizeExportSettings(),
-  customThemes = {}
+  customThemes = {},
+  scenes = ["main"]
 ) => ({
   nodes: JSON.parse(JSON.stringify(nodes)),
   edges: JSON.parse(JSON.stringify(edges)),
@@ -1959,7 +2080,8 @@ const cloneState = (
   activeScene,
   assets: JSON.parse(JSON.stringify(assets)),
   exportSettings: normalizeExportSettings(exportSettings),
-  customThemes: JSON.parse(JSON.stringify(customThemes || {}))
+  customThemes: JSON.parse(JSON.stringify(customThemes || {})),
+  scenes: normalizeScenes(scenes)
 });
 
 // [로그] 콘솔에 쌓일 로그 엔트리를 공통 포맷으로 생성합니다.
@@ -1972,6 +2094,43 @@ function makeLog(level, source, message, details = "") {
     message,
     details
   };
+}
+
+function normalizeSceneName(name) {
+  const normalized = String(name || "main")
+    .replace(/[\u0000-\u001f<>:"\\|?*]/g, "")
+    .trim();
+  return (normalized || "main").slice(0, 48);
+}
+
+function normalizeScenes(items = []) {
+  const ordered = [];
+  const addScene = (name) => {
+    const normalized = normalizeSceneName(name);
+    if (!ordered.includes(normalized)) {
+      ordered.push(normalized);
+    }
+  };
+
+  addScene("main");
+  items.forEach(addScene);
+  return ordered.sort((a, b) => (a === "main" ? -1 : b === "main" ? 1 : a.localeCompare(b)));
+}
+
+function getUiElementScenes(items = []) {
+  return items.map((item) => item?.scene || "main");
+}
+
+function getNodeScene(node) {
+  return normalizeSceneName(node?.data?.scene || "main");
+}
+
+function getNodeScenes(items = []) {
+  return items.map((node) => getNodeScene(node));
+}
+
+function isNodeInScene(node, sceneName) {
+  return getNodeScene(node) === normalizeSceneName(sceneName || "main");
 }
 
 // [UI 요소] 저장된 UI Builder 요소를 누락 없이 안전하게 보정합니다.
@@ -1993,7 +2152,7 @@ function normalizeUiElements(items = []) {
     align: item.align ?? "left",
     actionType: item.actionType ?? "none",
     actionValue: item.actionValue ?? "",
-    scene: String(item.scene || "main"),
+    scene: normalizeSceneName(item.scene || "main"),
     hidden: Boolean(item.hidden),
     cssText: String(item.cssText || ""),
     hoverCssText: String(item.hoverCssText || ""),
@@ -2046,6 +2205,7 @@ function getDefaultProjectState() {
     uiElements: normalizeUiElements(initialUiElements),
     functions: [],
     activeScene: "main",
+    scenes: ["main"],
     assets: [],
     exportSettings: normalizeExportSettings(),
     customThemes: {}
@@ -2093,19 +2253,26 @@ function createFunctionParameter(index = 1) {
 
 function migrateProjectState(input = {}) {
   const parsed = typeof input === "string" ? JSON.parse(input) : input;
+  const normalizedUiElements = normalizeUiElements(parsed.uiElements || []);
   const migrated = {
     schemaVersion: Number(parsed.schemaVersion || 1),
     nodes: Array.isArray(parsed.nodes) ? parsed.nodes : [],
     edges: Array.isArray(parsed.edges) ? parsed.edges : [],
     inputValues: parsed.inputValues && typeof parsed.inputValues === "object" ? parsed.inputValues : {},
     nodeCounter: Number(parsed.nodeCounter || 1),
-    uiElements: normalizeUiElements(parsed.uiElements || []),
+    uiElements: normalizedUiElements,
     functions: normalizeFunctions(parsed.functions || []),
     viewMode: parsed.viewMode,
     language: parsed.language,
     themeKey: parsed.themeKey,
     previewDevice: parsed.previewDevice,
-    activeScene: String(parsed.activeScene || "main"),
+    activeScene: normalizeSceneName(parsed.activeScene || "main"),
+    scenes: normalizeScenes([
+      ...(Array.isArray(parsed.scenes) ? parsed.scenes : []),
+      parsed.activeScene || "main",
+      ...getUiElementScenes(normalizedUiElements),
+      ...getNodeScenes(Array.isArray(parsed.nodes) ? parsed.nodes : [])
+    ]),
     assets: Array.isArray(parsed.assets) ? parsed.assets : [],
     exportSettings: normalizeExportSettings(parsed.exportSettings || {}),
     customThemes: parsed.customThemes && typeof parsed.customThemes === "object" ? parsed.customThemes : {},
@@ -2126,6 +2293,7 @@ function validateProjectState(state) {
     && Array.isArray(state.edges)
     && Array.isArray(state.uiElements)
     && Array.isArray(state.functions)
+    && Array.isArray(state.scenes)
     && Number.isFinite(state.nodeCounter)
   );
 }
@@ -2415,6 +2583,7 @@ function createUiElementFromNode(node, index = 0, accentColor = ACCENT) {
     text: kind === "image" ? base.text : String(node.data?.value || base.text),
     src: kind === "image" ? String(node.data?.value || base.src) : base.src,
     bindingKey: node.data?.refKey || "",
+    scene: getNodeScene(node),
     linkedNodeId: node.id
   };
 }
@@ -3184,6 +3353,8 @@ const BuilderElement = memo(function BuilderElement({
   const inputValue = element.linkedNodeId ? (inputValues?.[element.linkedNodeId] ?? "") : "";
   const inputPlaceholder = textValue || element.text || "Input";
   const isActionElement = element.kind === "button" || element.kind === "custom-button";
+  const vectorSubPathCount = String(element.vectorPath || "").match(/\bM/gi)?.length || 0;
+  const vectorIsSingleClosedShape = vectorSubPathCount <= 1 && /z\s*$/i.test(element.vectorPath || "");
 
   const baseStyle = {
     left: `${element.x}px`,
@@ -3235,9 +3406,9 @@ const BuilderElement = memo(function BuilderElement({
             {element.vectorPath ? (
               <path
                 d={element.vectorPath}
-                fill={/z\s*$/i.test(element.vectorPath) ? (element.vectorFill || element.background || ACCENT) : "none"}
-                stroke={!/z\s*$/i.test(element.vectorPath) ? (element.vectorFill || element.background || ACCENT) : "none"}
-                strokeWidth={!/z\s*$/i.test(element.vectorPath) ? 4 : 0}
+                fill={vectorIsSingleClosedShape ? (element.vectorFill || element.background || ACCENT) : "none"}
+                stroke={vectorIsSingleClosedShape ? "none" : (element.vectorFill || element.background || ACCENT)}
+                strokeWidth={vectorIsSingleClosedShape ? 0 : 4}
                 strokeLinecap="round"
                 strokeLinejoin="round"
               />
@@ -3386,7 +3557,7 @@ function RuntimePanel({
   const visibleUiElements = useMemo(
     () => uiElements
       .filter((element) => !element.hidden)
-      .filter((element) => !element.scene || element.scene === activeScene),
+      .filter((element) => (element.scene || "main") === activeScene),
     [activeScene, uiElements]
   );
 
@@ -3607,6 +3778,7 @@ function RuntimePanel({
 function VectorDrawPad({ element, accent, onChange }) {
   const [draftPath, setDraftPath] = useState(element?.vectorPath || "");
   const pointsRef = useRef([]);
+  const basePathRef = useRef("");
   const drawingRef = useRef(false);
   const width = Math.max(1, Number(element?.width || 180));
   const height = Math.max(1, Number(element?.height || 100));
@@ -3628,16 +3800,34 @@ function VectorDrawPad({ element, accent, onChange }) {
       : ""
   ), []);
 
+  const appendPath = useCallback((base, next) => [base, next].map((item) => String(item || "").trim()).filter(Boolean).join(" "), []);
+  const splitSubPaths = useCallback((path) => String(path || "").match(/M[^M]+/g) || [], []);
+
   const finishDrawing = useCallback(() => {
     if (!drawingRef.current) return;
     drawingRef.current = false;
-    const nextPath = buildFreehandPath(pointsRef.current);
-    if (nextPath) onChange(nextPath);
-  }, [buildFreehandPath, onChange]);
+    const nextPath = appendPath(basePathRef.current, buildFreehandPath(pointsRef.current));
+    if (nextPath) {
+      setDraftPath(nextPath);
+      onChange(nextPath);
+    }
+  }, [appendPath, buildFreehandPath, onChange]);
 
   const applyPreset = useCallback((path) => {
-    setDraftPath(path);
-    onChange(path);
+    const nextPath = appendPath(draftPath, path);
+    setDraftPath(nextPath);
+    onChange(nextPath);
+  }, [appendPath, draftPath, onChange]);
+
+  const undoLastStroke = useCallback(() => {
+    const nextPath = splitSubPaths(draftPath).slice(0, -1).join(" ");
+    setDraftPath(nextPath);
+    onChange(nextPath);
+  }, [draftPath, onChange, splitSubPaths]);
+
+  const clearPath = useCallback(() => {
+    setDraftPath("");
+    onChange("");
   }, [onChange]);
 
   return (
@@ -3646,7 +3836,8 @@ function VectorDrawPad({ element, accent, onChange }) {
         <button type="button" className="ghost-btn" onClick={() => applyPreset(`M${Math.round(width * 0.08)} ${Math.round(height * 0.1)} H${Math.round(width * 0.92)} V${Math.round(height * 0.9)} H${Math.round(width * 0.08)} Z`)}>Box</button>
         <button type="button" className="ghost-btn" onClick={() => applyPreset(`M${Math.round(width * 0.5)} ${Math.round(height * 0.08)} L${Math.round(width * 0.92)} ${Math.round(height * 0.9)} H${Math.round(width * 0.08)} Z`)}>Triangle</button>
         <button type="button" className="ghost-btn" onClick={() => applyPreset(`M${Math.round(width * 0.5)} ${Math.round(height * 0.06)} L${Math.round(width * 0.61)} ${Math.round(height * 0.36)} H${Math.round(width * 0.95)} L${Math.round(width * 0.67)} ${Math.round(height * 0.56)} L${Math.round(width * 0.78)} ${Math.round(height * 0.92)} L${Math.round(width * 0.5)} ${Math.round(height * 0.68)} L${Math.round(width * 0.22)} ${Math.round(height * 0.92)} L${Math.round(width * 0.33)} ${Math.round(height * 0.56)} L${Math.round(width * 0.05)} ${Math.round(height * 0.36)} H${Math.round(width * 0.39)} Z`)}>Star</button>
-        <button type="button" className="ghost-btn danger-lite" onClick={() => applyPreset("")}>Clear</button>
+        <button type="button" className="ghost-btn" onClick={undoLastStroke}>Undo Stroke</button>
+        <button type="button" className="ghost-btn danger-lite" onClick={clearPath}>Clear</button>
       </div>
       <svg
         className="vector-draw-surface"
@@ -3654,14 +3845,15 @@ function VectorDrawPad({ element, accent, onChange }) {
         onPointerDown={(event) => {
           event.preventDefault();
           drawingRef.current = true;
+          basePathRef.current = draftPath;
           pointsRef.current = [getPoint(event)];
-          setDraftPath(buildFreehandPath(pointsRef.current));
+          setDraftPath(appendPath(basePathRef.current, buildFreehandPath(pointsRef.current)));
           event.currentTarget.setPointerCapture?.(event.pointerId);
         }}
         onPointerMove={(event) => {
           if (!drawingRef.current) return;
           pointsRef.current = [...pointsRef.current, getPoint(event)].slice(-400);
-          setDraftPath(buildFreehandPath(pointsRef.current));
+          setDraftPath(appendPath(basePathRef.current, buildFreehandPath(pointsRef.current)));
         }}
         onPointerUp={(event) => {
           event.currentTarget.releasePointerCapture?.(event.pointerId);
@@ -3672,7 +3864,7 @@ function VectorDrawPad({ element, accent, onChange }) {
         <rect x="0" y="0" width={width} height={height} rx="12" />
         {draftPath ? <path d={draftPath} fill="none" stroke={accent} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" /> : null}
       </svg>
-      <small>마우스로 직접 그리면 SVG path가 자동 생성됩니다.</small>
+      <small>{splitSubPaths(draftPath).length} stroke(s). 새로 그린 선은 기존 Vector에 누적됩니다.</small>
     </div>
   );
 }
@@ -3731,7 +3923,10 @@ function SettingsModal({
   onOpenPrivacyPolicy,
   onApply,
   onCancel,
-  onClearAutosave
+  onClearAutosave,
+  onResetData,
+  exportSettings,
+  onExportSettingsChange
 }) {
   if (!open) return null;
 
@@ -3744,37 +3939,43 @@ function SettingsModal({
         </div>
 
         <div className="settings-modal-body">
-          <label className="settings-field">
-            <span>{uiText.language}</span>
-            <select value={draftLanguage} onChange={(event) => setDraftLanguage(event.target.value)}>
-              {LANGUAGE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>{option.label}</option>
-              ))}
-            </select>
-          </label>
+          <section className="settings-section-card">
+            <div className="settings-section-heading">
+              <strong>{uiText.settingsAppearance}</strong>
+              <span>{uiText.responsivePreview}</span>
+            </div>
+            <label className="settings-field">
+              <span>{uiText.language}</span>
+              <select value={draftLanguage} onChange={(event) => setDraftLanguage(event.target.value)}>
+                {LANGUAGE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+            </label>
 
-          <label className="settings-field">
-            <span>{uiText.theme}</span>
-            <select value={draftThemeKey} onChange={(event) => setDraftThemeKey(event.target.value)}>
-              {Object.entries(themeOptions).map(([key, option]) => (
-                <option key={key} value={key}>{option.label}</option>
-              ))}
-            </select>
-          </label>
-          <label className="settings-field theme-upload-field">
-            <span>Custom Theme</span>
-            <input type="file" accept=".json,.ixo-theme,application/json" onChange={(event) => onThemeUpload?.(event.target.files?.[0])} />
-            <small>JSON 테마 파일을 올리면 IXO Engine 전체 UI에 적용할 수 있습니다.</small>
-          </label>
+            <label className="settings-field">
+              <span>{uiText.theme}</span>
+              <select value={draftThemeKey} onChange={(event) => setDraftThemeKey(event.target.value)}>
+                {Object.entries(themeOptions).map(([key, option]) => (
+                  <option key={key} value={key}>{option.label}</option>
+                ))}
+              </select>
+            </label>
+            <label className="settings-field theme-upload-field">
+              <span>{uiText.customTheme}</span>
+              <input type="file" accept=".json,.ixo-theme,application/json" onChange={(event) => onThemeUpload?.(event.target.files?.[0])} />
+              <small>{uiText.customThemeHint}</small>
+            </label>
 
-          <label className="settings-field">
-            <span>{uiText.responsivePreview}</span>
-            <select value={draftPreviewDevice} onChange={(event) => setDraftPreviewDevice(event.target.value)}>
-              {Object.entries(PREVIEW_DEVICE_OPTIONS).map(([key, option]) => (
-                <option key={key} value={key}>{getPreviewDeviceLabel(key, uiText)}</option>
-              ))}
-            </select>
-          </label>
+            <label className="settings-field">
+              <span>{uiText.responsivePreview}</span>
+              <select value={draftPreviewDevice} onChange={(event) => setDraftPreviewDevice(event.target.value)}>
+                {Object.entries(PREVIEW_DEVICE_OPTIONS).map(([key, option]) => (
+                  <option key={key} value={key}>{getPreviewDeviceLabel(key, uiText)}</option>
+                ))}
+              </select>
+            </label>
+          </section>
 
           <label className="settings-field">
             <span>{uiText.templates}</span>
@@ -3797,6 +3998,46 @@ function SettingsModal({
               onChange={(event) => setDraftHttpsNodesEnabled(event.target.checked)}
             />
           </label>
+
+          <section className="settings-section-card">
+            <div className="settings-section-heading">
+              <strong>{uiText.settingsExportDefaults}</strong>
+              <span>{uiText.exportRequirementHint}</span>
+            </div>
+            <div className="export-polish-grid compact-grid">
+              <label className="settings-field">
+                <span>{uiText.exportWindowTitle}</span>
+                <input type="text" value={exportSettings.windowTitle} onChange={(event) => onExportSettingsChange({ windowTitle: event.target.value })} />
+              </label>
+              <label className="settings-field">
+                <span>{uiText.exportWindowWidth}</span>
+                <input type="number" value={exportSettings.windowWidth} onChange={(event) => onExportSettingsChange({ windowWidth: event.target.value })} />
+              </label>
+              <label className="settings-field">
+                <span>{uiText.exportWindowHeight}</span>
+                <input type="number" value={exportSettings.windowHeight} onChange={(event) => onExportSettingsChange({ windowHeight: event.target.value })} />
+              </label>
+              <label className="settings-field">
+                <span>{uiText.exportBackground}</span>
+                <input type="color" value={exportSettings.backgroundColor} onChange={(event) => onExportSettingsChange({ backgroundColor: event.target.value })} />
+              </label>
+              <label className="settings-toggle-card compact">
+                <span>
+                  <strong>{uiText.exportResizable}</strong>
+                  <small>{uiText.settingsExportDefaults}</small>
+                </span>
+                <input type="checkbox" checked={exportSettings.windowResizable} onChange={(event) => onExportSettingsChange({ windowResizable: event.target.checked })} />
+              </label>
+              <label className="settings-field">
+                <span>{uiText.exportSplash}</span>
+                <select value={exportSettings.splash} onChange={(event) => onExportSettingsChange({ splash: event.target.value })}>
+                  <option value="none">None</option>
+                  <option value="minimal">Minimal</option>
+                  <option value="brand">Brand</option>
+                </select>
+              </label>
+            </div>
+          </section>
 
           <section className="update-card">
             <div className="update-card-heading">
@@ -3869,6 +4110,26 @@ function SettingsModal({
               <span>{uiText.privacyPolicyIntro}</span>
             </div>
             <button className="ghost-btn" onClick={onOpenPrivacyPolicy}>{uiText.openPrivacyPolicy}</button>
+          </section>
+
+          <section className="settings-section-card reset-section-card">
+            <div className="settings-section-heading">
+              <strong>{uiText.settingsSafetyReset}</strong>
+              <span>{uiText.settingsSafetyResetCopy}</span>
+            </div>
+            <div className="reset-action-grid">
+              {[
+                ["all", uiText.resetAll, uiText.resetAllHint],
+                ["saved", uiText.resetSavedData, uiText.resetSavedDataHint],
+                ["settings", uiText.resetSettings, uiText.resetSettingsHint],
+                ["app", uiText.resetApp, uiText.resetAppHint]
+              ].map(([key, label, hint]) => (
+                <button key={key} type="button" className={key === "app" ? "ghost-btn danger-lite" : "ghost-btn"} onClick={() => onResetData?.(key)}>
+                  <strong>{label}</strong>
+                  <span>{hint}</span>
+                </button>
+              ))}
+            </div>
           </section>
         </div>
 
@@ -4584,6 +4845,7 @@ function EngineEditor() {
   const [customThemes, setCustomThemes] = useState({});
   const [previewDevice, setPreviewDevice] = useState("desktop");
   const [activeScene, setActiveScene] = useState("main");
+  const [scenes, setScenes] = useState(["main"]);
   const [draftLanguage, setDraftLanguage] = useState("ko");
   const [draftThemeKey, setDraftThemeKey] = useState("mint");
   const [draftPreviewDevice, setDraftPreviewDevice] = useState("desktop");
@@ -4926,13 +5188,28 @@ function EngineEditor() {
       : functions
   ), [activeFunctionId, edges, functions, inputValues, nodes]);
 
+  const activeSceneNodes = useMemo(
+    () => nodes.filter((node) => isNodeInScene(node, activeScene)),
+    [activeScene, nodes]
+  );
+  const activeSceneNodeIds = useMemo(
+    () => new Set(activeSceneNodes.map((node) => node.id)),
+    [activeSceneNodes]
+  );
+  const activeSceneEdges = useMemo(
+    () => edges.filter((edge) => activeSceneNodeIds.has(edge.source) && activeSceneNodeIds.has(edge.target)),
+    [activeSceneNodeIds, edges]
+  );
+  const flowNodes = activeFunctionId ? nodes : activeSceneNodes;
+  const flowEdges = activeFunctionId ? edges : activeSceneEdges;
+
   const runtime = useMemo(
-    () => runPipeline(nodes, edges, inputValues, paused, scriptExecutionAllowed, interactionState, runtimeFunctions),
-    [edges, inputValues, interactionState, nodes, paused, runtimeFunctions, scriptExecutionAllowed]
+    () => runPipeline(flowNodes, flowEdges, inputValues, paused, scriptExecutionAllowed, interactionState, runtimeFunctions),
+    [flowEdges, flowNodes, inputValues, interactionState, paused, runtimeFunctions, scriptExecutionAllowed]
   );
   const runtimeRevision = useMemo(
-    () => createRuntimeRevision(nodes, edges, inputValues, runtimeRevisionRef.current),
-    [edges, inputValues, nodes]
+    () => createRuntimeRevision(flowNodes, flowEdges, inputValues, runtimeRevisionRef.current),
+    [flowEdges, flowNodes, inputValues]
   );
   useEffect(() => {
     runtimeRevisionRef.current = runtimeRevision;
@@ -4944,7 +5221,7 @@ function EngineEditor() {
 
   const nodesWithTrace = useMemo(
     () =>
-      nodes.map((node) => ({
+      flowNodes.map((node) => ({
         ...node,
         data: {
           ...node.data,
@@ -4956,15 +5233,15 @@ function EngineEditor() {
           executionOrder: runtime.topo.indexOf(node.id) >= 0 ? runtime.topo.indexOf(node.id) + 1 : null
         }
       })),
-    [language, nodes, runtime.activeNodeIds, runtime.focusedNodeId, runtime.liveValues, runtime.topo]
+    [flowNodes, language, runtime.activeNodeIds, runtime.focusedNodeId, runtime.liveValues, runtime.topo]
   );
 
   const flowJson = useMemo(
-    () => JSON.stringify({ nodes, edges, inputValues, uiElements }, null, 2),
-    [nodes, edges, inputValues, uiElements]
+    () => JSON.stringify({ scene: activeScene, nodes: flowNodes, edges: flowEdges, inputValues, uiElements }, null, 2),
+    [activeScene, flowEdges, flowNodes, inputValues, uiElements]
   );
 
-  const selectedNode = useMemo(() => nodes.find((node) => node.id === selectedNodeId) || null, [nodes, selectedNodeId]);
+  const selectedNode = useMemo(() => flowNodes.find((node) => node.id === selectedNodeId) || null, [flowNodes, selectedNodeId]);
   const selectedFunctionDefinition = useMemo(
     () => functions.find((item) => item.id === selectedNode?.data?.functionId) || null,
     [functions, selectedNode]
@@ -4974,8 +5251,8 @@ function EngineEditor() {
     [uiElements, selectedUiElementId]
   );
   const fullScriptNodeCount = useMemo(
-    () => nodes.filter((node) => node.data?.nodeType === "script" && !canRunRestrictedScript(node.data?.value)).length,
-    [nodes]
+    () => flowNodes.filter((node) => node.data?.nodeType === "script" && !canRunRestrictedScript(node.data?.value)).length,
+    [flowNodes]
   );
   const selectedScriptRequiresFullJs = Boolean(
     selectedNode?.data?.nodeType === "script"
@@ -4984,10 +5261,8 @@ function EngineEditor() {
   const themeOptions = useMemo(() => ({ ...THEME_OPTIONS, ...customThemes }), [customThemes]);
   const currentTheme = themeOptions[themeKey] || THEME_OPTIONS.mint;
   const sceneNames = useMemo(() => {
-    const names = new Set(["main", activeScene]);
-    uiElements.forEach((element) => names.add(String(element.scene || "main")));
-    return [...names].filter(Boolean).sort((a, b) => (a === "main" ? -1 : b === "main" ? 1 : a.localeCompare(b)));
-  }, [activeScene, uiElements]);
+    return normalizeScenes([...scenes, activeScene, ...getUiElementScenes(uiElements), ...getNodeScenes(nodes)]);
+  }, [activeScene, nodes, scenes, uiElements]);
   const uiText = UI_TEXT[language] || UI_TEXT.ko;
   const uiRenderStats = useMemo(
     () => createCanvasRenderStats(uiElements, { x: 0, y: 0, width: 1280, height: 720 }),
@@ -5097,6 +5372,7 @@ function EngineEditor() {
       uiElements,
       functions: serializedFunctions,
       activeScene,
+      scenes: sceneNames,
       assets,
       exportSettings: normalizeExportSettings(exportSettings),
       customThemes,
@@ -5106,7 +5382,7 @@ function EngineEditor() {
       previewDevice,
       savedAt: Date.now()
     };
-  }, [activeFunctionId, activeScene, assets, customThemes, edges, exportSettings, functions, inputValues, language, nodes, previewDevice, themeKey, uiElements, viewMode]);
+  }, [activeFunctionId, activeScene, assets, customThemes, edges, exportSettings, functions, inputValues, language, nodes, previewDevice, sceneNames, themeKey, uiElements, viewMode]);
 
   const snapshot = useCallback(({ mergeKey = "" } = {}) => {
     const now = Date.now();
@@ -5118,11 +5394,11 @@ function EngineEditor() {
     setHistory((current) => (
       canMerge
         ? current
-        : [...current.slice(-79), cloneState(nodes, edges, inputValues, nodeCounterRef.current, uiElements, functions, activeFunctionId, activeScene, assets, exportSettings, customThemes)]
+        : [...current.slice(-79), cloneState(nodes, edges, inputValues, nodeCounterRef.current, uiElements, functions, activeFunctionId, activeScene, assets, exportSettings, customThemes, sceneNames)]
     ));
     setFuture([]);
     lastSnapshotMetaRef.current = { mergeKey, at: now };
-  }, [activeFunctionId, activeScene, assets, customThemes, edges, exportSettings, functions, inputValues, nodes, uiElements]);
+  }, [activeFunctionId, activeScene, assets, customThemes, edges, exportSettings, functions, inputValues, nodes, sceneNames, uiElements]);
 
   // [이력 적용] 되돌리기 시 복구할 상태를 일관된 방식으로 반영합니다.
   const applyState = useCallback((state) => {
@@ -5132,9 +5408,12 @@ function EngineEditor() {
     setNodes(nextNodes);
     setEdges((state.edges || []).map((edge) => ({ ...edge, selected: false })));
     setInputValues(state.inputValues || {});
-    setUiElements(normalizeUiElements(state.uiElements || []));
+    const normalizedUiElements = normalizeUiElements(state.uiElements || []);
+    setUiElements(normalizedUiElements);
     setFunctions(normalizeFunctions(state.functions || []));
-    setActiveScene(state.activeScene || "main");
+    const normalizedScenes = normalizeScenes([...(state.scenes || []), state.activeScene || "main", ...getUiElementScenes(normalizedUiElements)]);
+    setScenes(normalizedScenes);
+    setActiveScene(normalizeSceneName(state.activeScene || "main"));
     setAssets(Array.isArray(state.assets) ? state.assets : []);
     setExportSettings(normalizeExportSettings(state.exportSettings || {}));
     setCustomThemes(state.customThemes && typeof state.customThemes === "object" ? state.customThemes : {});
@@ -5461,27 +5740,27 @@ function EngineEditor() {
     setHistory((current) => {
       if (current.length === 0) return current;
       const previous = current[current.length - 1];
-      setFuture((futureState) => [...futureState, cloneState(nodes, edges, inputValues, nodeCounterRef.current, uiElements, functions, activeFunctionId, activeScene, assets, exportSettings, customThemes)]);
+      setFuture((futureState) => [...futureState, cloneState(nodes, edges, inputValues, nodeCounterRef.current, uiElements, functions, activeFunctionId, activeScene, assets, exportSettings, customThemes, sceneNames)]);
       applyState(previous);
       setIsDirty(true);
       setStatus("Undo applied.");
       lastSnapshotMetaRef.current = { mergeKey: "", at: 0 };
       return current.slice(0, -1);
     });
-  }, [activeFunctionId, activeScene, applyState, assets, customThemes, edges, exportSettings, functions, inputValues, nodes, uiElements]);
+  }, [activeFunctionId, activeScene, applyState, assets, customThemes, edges, exportSettings, functions, inputValues, nodes, sceneNames, uiElements]);
 
   const redo = useCallback(() => {
     setFuture((current) => {
       if (current.length === 0) return current;
       const next = current[current.length - 1];
-      setHistory((historyState) => [...historyState, cloneState(nodes, edges, inputValues, nodeCounterRef.current, uiElements, functions, activeFunctionId, activeScene, assets, exportSettings, customThemes)]);
+      setHistory((historyState) => [...historyState, cloneState(nodes, edges, inputValues, nodeCounterRef.current, uiElements, functions, activeFunctionId, activeScene, assets, exportSettings, customThemes, sceneNames)]);
       applyState(next);
       setIsDirty(true);
       setStatus("Redo applied.");
       lastSnapshotMetaRef.current = { mergeKey: "", at: 0 };
       return current.slice(0, -1);
     });
-  }, [activeFunctionId, activeScene, applyState, assets, customThemes, edges, exportSettings, functions, inputValues, nodes, uiElements]);
+  }, [activeFunctionId, activeScene, applyState, assets, customThemes, edges, exportSettings, functions, inputValues, nodes, sceneNames, uiElements]);
 
   const updateInputValue = useCallback((nodeId, value) => {
     setInputValues((current) => ({ ...current, [nodeId]: value }));
@@ -5510,13 +5789,14 @@ function EngineEditor() {
         category: nodeDef.group.toUpperCase(),
         value: getDefaultNodeValue(nodeType, nodeDef.label),
         nodeType,
+        scene: normalizeSceneName(activeScene),
         permissionScope: getNodePermissionScope(nodeType),
         refKey: `${nodeType.replace(/[^a-z0-9]/gi, "").toLowerCase()}${id.replace("node-", "")}`,
         groupLabel: "",
         ...(nodeDef.functionId ? { functionId: nodeDef.functionId, functionArgs: {} } : {})
       }
     };
-  }, [createNodeId]);
+  }, [activeScene, createNodeId]);
 
   const getCommittedFunctions = useCallback(() => (
     activeFunctionId
@@ -6265,7 +6545,7 @@ function EngineEditor() {
 
       if (event.shiftKey && event.key.toLowerCase() === "a" && !editing) {
         event.preventDefault();
-        const nodeIds = nodes.map((node) => node.id);
+        const nodeIds = flowNodes.map((node) => node.id);
         setSelectedUiElementId(null);
         setSelectedEdgeIds([]);
         setSelectedNodeIds(nodeIds);
@@ -6287,12 +6567,12 @@ function EngineEditor() {
 
     window.addEventListener("keydown", onKeyDown, true);
     return () => window.removeEventListener("keydown", onKeyDown, true);
-  }, [createGroupBox, deleteSelection, duplicateSelection, nodes, redo, saveProject, selectedNodeIds.length, setEdges, setNodes, undo]);
+  }, [createGroupBox, deleteSelection, duplicateSelection, flowNodes, redo, saveProject, selectedNodeIds.length, setEdges, setNodes, undo]);
 
   // [엣지 하이라이트] 실행 중인 선을 민트 톤과 애니메이션으로 강조합니다.
   const edgeView = useMemo(
     () =>
-      edges.map((edge) => {
+      flowEdges.map((edge) => {
         const active = runtime.activeEdgeIds.includes(edge.id);
         return {
           ...edge,
@@ -6303,7 +6583,7 @@ function EngineEditor() {
             : { ...edge.style, opacity: 0.64 }
         };
       }),
-    [currentTheme.accent, edges, runtime.activeEdgeIds]
+    [currentTheme.accent, flowEdges, runtime.activeEdgeIds]
   );
 
   const onConnect = useCallback(async (connection) => {
@@ -6397,13 +6677,13 @@ function EngineEditor() {
   const magicAlign = useCallback(() => {
     snapshot();
 
-    const order = topoOrder(nodes, edges);
+    const order = topoOrder(flowNodes, flowEdges);
     const depth = {};
-    nodes.forEach((node) => {
+    flowNodes.forEach((node) => {
       depth[node.id] = 0;
     });
 
-    edges.forEach((edge) => {
+    flowEdges.forEach((edge) => {
       depth[edge.target] = Math.max(depth[edge.target] || 0, (depth[edge.source] || 0) + 1);
     });
 
@@ -6413,7 +6693,7 @@ function EngineEditor() {
       byDepth[d] = [...(byDepth[d] || []), id];
     });
 
-    const nextNodes = nodes.map((node) => {
+    const alignedNodes = flowNodes.map((node) => {
       const d = depth[node.id] || 0;
       const row = (byDepth[d] || []).indexOf(node.id);
       return {
@@ -6421,11 +6701,12 @@ function EngineEditor() {
         position: { x: 120 + d * 280, y: 84 + row * 156 }
       };
     });
+    const alignedMap = new Map(alignedNodes.map((node) => [node.id, node]));
 
-    setNodes(nextNodes);
+    setNodes((current) => current.map((node) => alignedMap.get(node.id) || node));
     setStatus("Magic Align completed.");
     setIsDirty(true);
-  }, [edges, nodes, setNodes, snapshot]);
+  }, [flowEdges, flowNodes, setNodes, snapshot]);
 
   const onDragStartNode = (event, nodeDef) => {
     event.dataTransfer.setData("application/ixo-node", JSON.stringify(nodeDef));
@@ -6483,6 +6764,7 @@ function EngineEditor() {
       },
       data: {
         ...(node.data || {}),
+        scene: normalizeSceneName(activeScene),
         linkedUiElementId: uiIdMap[node.data?.linkedUiElementId] || ""
       }
     }));
@@ -6639,19 +6921,33 @@ function EngineEditor() {
     reader.readAsText(file, "utf-8");
   }, [appendLog, currentTheme, snapshot]);
 
+  const switchScene = useCallback((sceneName) => {
+    const nextScene = normalizeSceneName(sceneName || "main");
+    setActiveScene(nextScene);
+    setSelectedNodeId(null);
+    setSelectedNodeIds([]);
+    setSelectedEdgeIds([]);
+    setSelectedUiElementId(null);
+    setNodes((current) => applyNodeSelectionState(current, []));
+    setEdges((current) => current.map((edge) => ({ ...edge, selected: false })));
+    setFlowRevision((current) => current + 1);
+    setStatus(`Scene switched: ${nextScene}`);
+  }, [setEdges, setNodes]);
+
   const createScene = useCallback(() => {
     const base = "scene";
-    let index = sceneNames.length + 1;
+    let index = 1;
     let nextName = `${base}-${index}`;
     while (sceneNames.includes(nextName)) {
       index += 1;
       nextName = `${base}-${index}`;
     }
     snapshot();
-    setActiveScene(nextName);
+    setScenes((current) => normalizeScenes([...current, nextName]));
+    switchScene(nextName);
     setStatus(`Scene created: ${nextName}`);
     setIsDirty(true);
-  }, [sceneNames, snapshot]);
+  }, [sceneNames, snapshot, switchScene]);
 
   const deleteScene = useCallback((sceneName) => {
     if (!sceneName || sceneName === "main") return;
@@ -6659,13 +6955,19 @@ function EngineEditor() {
     const confirmed = window.confirm(`${sceneName} Scene을 삭제할까요?\n이 Scene의 UI ${count}개가 main으로 이동됩니다.`);
     if (!confirmed) return;
     snapshot();
+    setScenes((current) => normalizeScenes(current.filter((scene) => scene !== sceneName)));
     setUiElements((current) => current.map((element) => (
       (element.scene || "main") === sceneName ? { ...element, scene: "main" } : element
     )));
-    setActiveScene("main");
+    setNodes((current) => current.map((node) => (
+      isNodeInScene(node, sceneName)
+        ? { ...node, data: { ...node.data, scene: "main" } }
+        : node
+    )));
+    switchScene("main");
     setStatus(`Scene removed: ${sceneName}`);
     setIsDirty(true);
-  }, [snapshot, uiElements]);
+  }, [snapshot, switchScene, uiElements]);
 
   const updateNodeField = (field, value) => {
     if (!selectedNode) return;
@@ -6707,7 +7009,7 @@ function EngineEditor() {
           : item
       ))
     );
-    if (selectedUiElement.linkedNodeId && ["text", "src", "bindingKey"].includes(field)) {
+    if (selectedUiElement.linkedNodeId && ["text", "src", "bindingKey", "scene"].includes(field)) {
       setNodes((current) =>
         current.map((node) => (
           node.id === selectedUiElement.linkedNodeId
@@ -6717,10 +7019,15 @@ function EngineEditor() {
                   ...node.data,
                   value: field === "bindingKey"
                     ? node.data.value
+                    : field === "scene"
+                      ? node.data.value
                     : String(nextValue ?? ""),
                   refKey: field === "bindingKey"
                     ? String(nextValue || node.data.refKey || "")
-                    : node.data.refKey
+                    : node.data.refKey,
+                  scene: field === "scene"
+                    ? normalizeSceneName(nextValue || "main")
+                    : node.data.scene
                 }
               }
             : node
@@ -6820,14 +7127,47 @@ function EngineEditor() {
   const handleBuilderDrop = useCallback((event) => {
     event.preventDefault();
     const kind = event.dataTransfer.getData("application/ixo-ui");
-    const assetId = event.dataTransfer.getData("application/ixo-asset-id");
-    if ((!kind && !assetId) || !builderCanvasRef.current) return;
+    const rawAssetPayload = event.dataTransfer.getData("application/ixo-asset");
+    const fallbackAssetId = event.dataTransfer.getData("text/ixo-asset-id");
+    let assetId = event.dataTransfer.getData("application/ixo-asset-id") || fallbackAssetId;
+    if (!assetId && rawAssetPayload) {
+      try {
+        assetId = JSON.parse(rawAssetPayload)?.id || "";
+      } catch {
+        assetId = "";
+      }
+    }
+    const droppedFile = Array.from(event.dataTransfer.files || []).find((file) => String(file.type || "").startsWith("image/") || isImageAsset({ name: file.name, type: file.type }));
+    if ((!kind && !assetId && !droppedFile) || !builderCanvasRef.current) return;
 
     const rect = builderCanvasRef.current.getBoundingClientRect();
     const point = {
       x: Math.max(0, Math.round(event.clientX - rect.left - 40)),
       y: Math.max(0, Math.round(event.clientY - rect.top - 20))
     };
+
+    if (droppedFile) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = String(reader.result || "");
+        const asset = {
+          id: `asset-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          name: droppedFile.name,
+          type: droppedFile.type || "image/*",
+          size: droppedFile.size,
+          dataUrl,
+          createdAt: Date.now()
+        };
+        setAssets((current) => [...current, asset]);
+        createUiElementFromPalette("image", point, {
+          src: dataUrl,
+          text: droppedFile.name,
+          background: "transparent"
+        });
+      };
+      reader.readAsDataURL(droppedFile);
+      return;
+    }
 
     if (assetId) {
       const asset = assets.find((item) => item.id === assetId);
@@ -6915,7 +7255,7 @@ function EngineEditor() {
       return { ok: true, label: `Toggle UI ${target}` };
     }
     if (element.actionType === "go-scene") {
-      setActiveScene(actionValue || "main");
+      switchScene(actionValue || "main");
       return { ok: true, label: `Go Scene ${actionValue || "main"}` };
     }
     if (element.actionType === "play-sound") {
@@ -6932,7 +7272,7 @@ function EngineEditor() {
     }
 
     return { ok: true, label: element.actionType };
-  }, [appendLog, functions, nodes, openSecureExternalUrl, requestSecureHttps, runtime.context]);
+  }, [appendLog, functions, nodes, openSecureExternalUrl, requestSecureHttps, runtime.context, switchScene]);
 
   const handleUiInteraction = useCallback((id, action) => {
     setInteractionState((current) => {
@@ -7005,9 +7345,78 @@ function EngineEditor() {
 
   const clearLocalAutosave = useCallback(() => {
     window.localStorage?.removeItem(LOCAL_AUTOSAVE_KEY);
+    window.localStorage?.removeItem(LOCAL_BACKUPS_KEY);
     appendLog(makeLog("info", "Local Auto-Save", "로컬 자동 저장 데이터를 삭제했습니다."));
     setStatus("Local auto-save cleared.");
   }, [appendLog]);
+
+  const resetScopedData = useCallback(async (scope) => {
+    const confirmed = window.confirm(`${uiText.confirmReset}\n\n${scope}`);
+    if (!confirmed) return;
+
+    const resetSettingsOnly = async () => {
+      setLanguage("ko");
+      setThemeKey("mint");
+      setPreviewDevice("desktop");
+      setDraftLanguage("ko");
+      setDraftThemeKey("mint");
+      setDraftPreviewDevice("desktop");
+      setDraftTemplateKey("");
+      setHttpsNodesEnabled(false);
+      setDraftHttpsNodesEnabled(false);
+      setCustomThemes({});
+      setExportSettings(normalizeExportSettings());
+      await window.ixo?.setHttpsNodesEnabled?.(false);
+      await resetSecurityState();
+    };
+
+    if (scope === "saved") {
+      window.localStorage?.removeItem(LOCAL_AUTOSAVE_KEY);
+      window.localStorage?.removeItem(LOCAL_BACKUPS_KEY);
+      setProjectFilePath("");
+      setStatus("Saved project data reset.");
+      appendLog(makeLog("info", "Settings", "자동 저장과 백업 저장사항을 초기화했습니다."));
+      return;
+    }
+
+    if (scope === "settings") {
+      await resetSettingsOnly();
+      setStatus("Settings reset.");
+      appendLog(makeLog("info", "Settings", "설정을 기본값으로 초기화했습니다."));
+      return;
+    }
+
+    if (scope === "app") {
+      snapshot();
+      window.localStorage?.clear();
+      await resetSettingsOnly();
+      applyState(getDefaultProjectState());
+      setLogs([]);
+      setProjectFilePath("");
+      setSafeModeInfo({
+        active: true,
+        source: "full-reset",
+        message: "앱 로컬 데이터를 완전히 초기화했습니다."
+      });
+      setStatus("Full app reset completed.");
+      appendLog(makeLog("info", "Settings", "앱 완전 초기화를 완료했습니다."));
+      return;
+    }
+
+    snapshot();
+    await resetSettingsOnly();
+    const fallback = getDefaultProjectState();
+    applyState(fallback);
+    window.localStorage?.setItem(LOCAL_AUTOSAVE_KEY, JSON.stringify(fallback));
+    setProjectFilePath("");
+    setSafeModeInfo({
+      active: true,
+      source: "all-reset",
+      message: "프로젝트와 설정을 모두 기본값으로 초기화했습니다."
+    });
+    setStatus("Project and settings reset.");
+    appendLog(makeLog("info", "Settings", "전체 초기화를 완료했습니다."));
+  }, [appendLog, applyState, resetSecurityState, snapshot, uiText]);
 
   const restoreLatestBackup = useCallback(() => {
     try {
@@ -7113,7 +7522,8 @@ function EngineEditor() {
             activeScene,
             assets,
             exportSettings,
-            customThemes
+            customThemes,
+            sceneNames
           );
         }}
         onSelectionChange={({ nodes: selectedNodes = [], edges: selectedEdges = [] }) => {
@@ -7353,8 +7763,8 @@ function EngineEditor() {
 
           <section className="scene-manager-card">
             <div className="scene-manager-head">
-              <strong>Scenes</strong>
-              <button className="ghost-btn" onClick={createScene}>+ Scene</button>
+              <strong>{uiText.scenes}</strong>
+              <button className="ghost-btn" onClick={createScene}>+ {uiText.scenes}</button>
             </div>
             <div className="scene-button-list">
               {sceneNames.map((scene) => (
@@ -7362,16 +7772,20 @@ function EngineEditor() {
                   key={scene}
                   type="button"
                   className={activeScene === scene ? "active" : ""}
-                  onClick={() => setActiveScene(scene)}
+                  onClick={() => switchScene(scene)}
                 >
                   <span>{scene}</span>
-                  <em>{uiElements.filter((element) => (element.scene || "main") === scene).length}</em>
+                  <em>
+                    UI {uiElements.filter((element) => (element.scene || "main") === scene).length}
+                    {" / "}
+                    N {nodes.filter((node) => isNodeInScene(node, scene)).length}
+                  </em>
                 </button>
               ))}
             </div>
-            <small>현재 Scene: {activeScene}. Canvas Builder의 UI는 선택한 Scene에 추가됩니다.</small>
+            <small>{uiText.currentScene}: {activeScene}. {uiText.sceneHint}</small>
             {activeScene !== "main" ? (
-              <button className="ghost-btn danger-lite" onClick={() => deleteScene(activeScene)}>Move scene UI to main</button>
+              <button className="ghost-btn danger-lite" onClick={() => deleteScene(activeScene)}>{uiText.moveSceneToMain}</button>
             ) : null}
           </section>
 
@@ -7572,7 +7986,7 @@ function EngineEditor() {
                     onUiElementSelect={handleUiElementSelect}
                     onOpenSettings={() => setShowSettings(true)}
                     activeScene={activeScene}
-                    setActiveScene={setActiveScene}
+                    setActiveScene={switchScene}
                     sceneNames={sceneNames}
                     onCreateScene={createScene}
                     onDeleteScene={deleteScene}
@@ -7621,12 +8035,12 @@ function EngineEditor() {
 
             <section className="asset-manager-card">
               <div className="asset-manager-head">
-                <strong>Asset Manager</strong>
+                <strong>{uiText.assetManager}</strong>
                 <span>{assets.length} assets</span>
               </div>
               <label className="asset-upload-btn">
                 <input type="file" accept="image/*,audio/*,.svg,.json,.ixo,.ixo-theme" onChange={(event) => addAssetFile(event.target.files?.[0])} />
-                Drag/upload asset or .ixo
+                {uiText.dragUploadAsset}
               </label>
               {assets.length ? (
                 <div className="asset-list">
@@ -7637,6 +8051,9 @@ function EngineEditor() {
                       draggable={isImageAsset(asset) || isIxoProjectAsset(asset)}
                       onDragStart={(event) => {
                         event.dataTransfer.setData("application/ixo-asset-id", asset.id);
+                        event.dataTransfer.setData("application/ixo-asset", JSON.stringify({ id: asset.id, name: asset.name, type: asset.type }));
+                        event.dataTransfer.setData("text/ixo-asset-id", asset.id);
+                        event.dataTransfer.setData("text/plain", asset.name);
                         event.dataTransfer.effectAllowed = "copy";
                       }}
                       title={isImageAsset(asset) ? "Canvas Builder로 끌어 이미지 UI를 만들 수 있습니다." : isIxoProjectAsset(asset) ? "Canvas Builder로 끌어 노드/UI를 붙여넣을 수 있습니다." : asset.name}
@@ -7649,7 +8066,7 @@ function EngineEditor() {
               ) : (
                 <span className="field-hint">Export에는 사용 중인 파일만 포함되도록 정리할 수 있습니다.</span>
               )}
-              <button className="ghost-btn" onClick={cleanupUnusedAssets}>Clean unused</button>
+              <button className="ghost-btn" onClick={cleanupUnusedAssets}>{uiText.cleanUnused}</button>
             </section>
 
             {selectedUiElement ? (
@@ -7720,11 +8137,11 @@ function EngineEditor() {
                       onChange={(path) => updateUiField("vectorPath", path)}
                     />
                     <label>
-                      Vector Fill
+                      {uiText.vectorFill}
                       <input type="color" value={selectedUiElement.vectorFill || currentTheme.accent} onChange={(event) => updateUiField("vectorFill", event.target.value)} />
                     </label>
                     <details className="advanced-vector-path">
-                      <summary>Advanced SVG path</summary>
+                      <summary>{uiText.vectorAdvancedPath}</summary>
                       <textarea value={selectedUiElement.vectorPath || ""} onChange={(event) => updateUiField("vectorPath", event.target.value)} placeholder="M10 10 H120 V60 H10 Z" />
                     </details>
                   </>
@@ -7924,6 +8341,9 @@ function EngineEditor() {
         onApply={applySettings}
         onCancel={cancelSettings}
         onClearAutosave={clearLocalAutosave}
+        onResetData={resetScopedData}
+        exportSettings={exportSettings}
+        onExportSettingsChange={(patch) => setExportSettings((current) => normalizeExportSettings({ ...current, ...patch }))}
       />
 
       <PrivacyPolicyModal
@@ -8146,11 +8566,24 @@ function ExportRuntimeApp() {
     return validation.url;
   }, [requestSecurityApproval]);
 
+  const runtimeSceneNodes = useMemo(
+    () => (project?.nodes || []).filter((node) => isNodeInScene(node, activeScene)),
+    [activeScene, project]
+  );
+  const runtimeSceneNodeIds = useMemo(
+    () => new Set(runtimeSceneNodes.map((node) => node.id)),
+    [runtimeSceneNodes]
+  );
+  const runtimeSceneEdges = useMemo(
+    () => (project?.edges || []).filter((edge) => runtimeSceneNodeIds.has(edge.source) && runtimeSceneNodeIds.has(edge.target)),
+    [project, runtimeSceneNodeIds]
+  );
+
   const runtime = useMemo(() => (
     project
       ? runPipeline(
-          project.nodes,
-          project.edges,
+          runtimeSceneNodes,
+          runtimeSceneEdges,
           inputValues,
           false,
           scriptExecutionAllowed,
@@ -8158,10 +8591,10 @@ function ExportRuntimeApp() {
           project.functions
         )
       : createRuntimeState()
-  ), [inputValues, interactionState, project, scriptExecutionAllowed]);
+  ), [inputValues, interactionState, project, runtimeSceneEdges, runtimeSceneNodes, scriptExecutionAllowed]);
 
   const nodesWithTrace = useMemo(() => (
-    (project?.nodes || []).map((node) => ({
+    runtimeSceneNodes.map((node) => ({
       ...node,
       data: {
         ...node.data,
@@ -8172,7 +8605,7 @@ function ExportRuntimeApp() {
         isFocused: runtime.focusedNodeId === node.id
       }
     }))
-  ), [project, runtime.activeNodeIds, runtime.focusedNodeId, runtime.liveValues]);
+  ), [project, runtime.activeNodeIds, runtime.focusedNodeId, runtime.liveValues, runtimeSceneNodes]);
 
   const runtimeUiElements = useMemo(() => {
     const existingElements = Array.isArray(project?.uiElements) ? project.uiElements : [];
@@ -8189,14 +8622,14 @@ function ExportRuntimeApp() {
         .filter(Boolean)
     );
     const theme = THEME_OPTIONS[project?.themeKey] || THEME_OPTIONS.mint;
-    const generatedInputs = (project?.nodes || [])
+    const generatedInputs = runtimeSceneNodes
       .filter((node) => node.data?.nodeType === "input")
       .filter((node) => !linkedInputNodeIds.has(node.id) && !(node.data?.refKey && linkedInputKeys.has(node.data.refKey)))
       .map((node, index) => createUiElementFromNode(node, existingElements.length + index, theme.accent));
 
     const combined = generatedInputs.length ? [...existingElements, ...generatedInputs] : existingElements;
     return combined.map((element) => ({ ...element, hidden: element.hidden || hiddenUiIds.includes(element.id) }));
-  }, [hiddenUiIds, project]);
+  }, [hiddenUiIds, project, runtimeSceneNodes]);
 
   useEffect(() => {
     if (!project) return;
