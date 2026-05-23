@@ -5,7 +5,17 @@ export const ADVANCED_THEME_PRESETS = Object.freeze({
     accentSoft: "rgba(62, 207, 142, 0.16)",
     accentStrong: "rgba(62, 207, 142, 0.28)",
     glow: "rgba(62, 207, 142, 0.28)",
-    background: "#06130d"
+    background: "#06130d",
+    bg: "#08110d",
+    bgSoft: "#0d1712",
+    panel: "#101915",
+    panelAlt: "#13211c",
+    panelElevated: "#172923",
+    text: "#edf6f1",
+    muted: "#95ada2",
+    line: "rgba(128, 162, 145, 0.18)",
+    lineStrong: "rgba(128, 162, 145, 0.3)",
+    inputBg: "#0d1511"
   },
   glass: {
     label: "Glass Panel",
@@ -13,7 +23,17 @@ export const ADVANCED_THEME_PRESETS = Object.freeze({
     accentSoft: "rgba(146, 247, 208, 0.14)",
     accentStrong: "rgba(146, 247, 208, 0.26)",
     glow: "rgba(146, 247, 208, 0.24)",
-    background: "linear-gradient(135deg, rgba(8, 20, 16, 0.94), rgba(20, 34, 42, 0.92))"
+    background: "linear-gradient(135deg, rgba(8, 20, 16, 0.94), rgba(20, 34, 42, 0.92))",
+    bg: "#07120f",
+    bgSoft: "#101c1c",
+    panel: "rgba(20, 34, 32, 0.76)",
+    panelAlt: "rgba(29, 48, 48, 0.68)",
+    panelElevated: "rgba(40, 64, 64, 0.78)",
+    text: "#f0fff9",
+    muted: "#a8c9c0",
+    line: "rgba(184, 255, 230, 0.18)",
+    lineStrong: "rgba(184, 255, 230, 0.34)",
+    inputBg: "rgba(4, 14, 12, 0.72)"
   },
   pixel: {
     label: "Pixel Retro",
@@ -21,7 +41,17 @@ export const ADVANCED_THEME_PRESETS = Object.freeze({
     accentSoft: "rgba(255, 207, 92, 0.16)",
     accentStrong: "rgba(255, 207, 92, 0.30)",
     glow: "rgba(255, 207, 92, 0.28)",
-    background: "#10110c"
+    background: "#10110c",
+    bg: "#10110c",
+    bgSoft: "#181610",
+    panel: "#19170f",
+    panelAlt: "#221d10",
+    panelElevated: "#2c2412",
+    text: "#fff7da",
+    muted: "#c7b98a",
+    line: "rgba(255, 207, 92, 0.20)",
+    lineStrong: "rgba(255, 207, 92, 0.36)",
+    inputBg: "#120f0a"
   },
   saas: {
     label: "Clean SaaS",
@@ -29,7 +59,17 @@ export const ADVANCED_THEME_PRESETS = Object.freeze({
     accentSoft: "rgba(90, 212, 255, 0.14)",
     accentStrong: "rgba(90, 212, 255, 0.28)",
     glow: "rgba(90, 212, 255, 0.22)",
-    background: "#071018"
+    background: "#f5f8fb",
+    bg: "#f5f8fb",
+    bgSoft: "#eaf1f7",
+    panel: "#ffffff",
+    panelAlt: "#edf4f9",
+    panelElevated: "#ffffff",
+    text: "#10202b",
+    muted: "#60727f",
+    line: "rgba(31, 59, 78, 0.16)",
+    lineStrong: "rgba(31, 59, 78, 0.28)",
+    inputBg: "#f3f7fb"
   },
   hud: {
     label: "Game HUD",
@@ -37,7 +77,17 @@ export const ADVANCED_THEME_PRESETS = Object.freeze({
     accentSoft: "rgba(124, 255, 155, 0.14)",
     accentStrong: "rgba(124, 255, 155, 0.30)",
     glow: "rgba(124, 255, 155, 0.30)",
-    background: "radial-gradient(circle at top, #13251a, #050908 70%)"
+    background: "radial-gradient(circle at top, #13251a, #050908 70%)",
+    bg: "#050908",
+    bgSoft: "#0b1510",
+    panel: "#0e1a13",
+    panelAlt: "#14251a",
+    panelElevated: "#1d3325",
+    text: "#edfff2",
+    muted: "#9bc7a9",
+    line: "rgba(124, 255, 155, 0.18)",
+    lineStrong: "rgba(124, 255, 155, 0.34)",
+    inputBg: "#07100b"
   },
   crimson: {
     label: "Dark Red",
@@ -45,7 +95,17 @@ export const ADVANCED_THEME_PRESETS = Object.freeze({
     accentSoft: "rgba(200, 76, 93, 0.16)",
     accentStrong: "rgba(200, 76, 93, 0.3)",
     glow: "rgba(200, 76, 93, 0.28)",
-    background: "#14080b"
+    background: "#14080b",
+    bg: "#14080b",
+    bgSoft: "#1d0c12",
+    panel: "#211016",
+    panelAlt: "#2d141c",
+    panelElevated: "#3b1a24",
+    text: "#ffeef1",
+    muted: "#c99aa4",
+    line: "rgba(200, 76, 93, 0.22)",
+    lineStrong: "rgba(200, 76, 93, 0.38)",
+    inputBg: "#15080d"
   },
   ocean: {
     label: "Ocean Blue",
@@ -53,7 +113,17 @@ export const ADVANCED_THEME_PRESETS = Object.freeze({
     accentSoft: "rgba(74, 168, 255, 0.16)",
     accentStrong: "rgba(74, 168, 255, 0.3)",
     glow: "rgba(74, 168, 255, 0.26)",
-    background: "#07121c"
+    background: "#07121c",
+    bg: "#07121c",
+    bgSoft: "#0b1b2a",
+    panel: "#102235",
+    panelAlt: "#132b43",
+    panelElevated: "#173752",
+    text: "#eaf6ff",
+    muted: "#96b8d3",
+    line: "rgba(74, 168, 255, 0.22)",
+    lineStrong: "rgba(74, 168, 255, 0.38)",
+    inputBg: "#081522"
   }
 });
 

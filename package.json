@@ -1,6 +1,6 @@
 {
   "name": "ixo-engine",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "IXO Engine - Developed by Minyang Tech",
   "author": {
     "name": "민양테크",
@@ -31,7 +31,7 @@
     "appId": "com.minyangtech.ixoengine",
     "productName": "IXO Engine",
     "directories": {
-      "output": "dist_electron"
+      "output": "release"
     },
     "files": [
       "dist/renderer/**/*",

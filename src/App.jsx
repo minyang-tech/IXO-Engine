@@ -16,7 +16,7 @@ import ReactFlow, {
 import "reactflow/dist/style.css";
 import logoImage from "../IXO Logo.png";
 import { getNodePermissionScope, parseSafeCssText } from "./core/securityPolicy";
-import { ADVANCED_THEME_PRESETS } from "./editor/themePresets";
+import { ADVANCED_THEME_PRESETS, normalizeThemePreset } from "./editor/themePresets";
 import { UI_COMPONENT_LIBRARY, createComponentElements } from "./editor/uiComponents";
 import { ACTION_SYSTEM_OPTIONS, parseSetVariableAction } from "./runtime/actionSystem";
 import { createRuntimeRevision } from "./runtime/incrementalRuntime";
@@ -31,7 +31,7 @@ const LOGO_FALLBACKS = [
   "./IXO Logo.PNG",
   "https://github.com/minyang-tech/IXO-Engine/blob/main/IXO%20Logo.png?raw=true"
 ];
-const FALLBACK_APP_VERSION = typeof window !== "undefined" && window.ixo?.version ? window.ixo.version : "1.1.0";
+const FALLBACK_APP_VERSION = typeof window !== "undefined" && window.ixo?.version ? window.ixo.version : "1.1.1";
 
 // [노드 UI] 카테고리별 아이콘과 컬러를 최대한 차분한 톤으로 정리했습니다.
 const GROUP_ICON = {
@@ -196,6 +196,39 @@ const LANGUAGE_OPTIONS = [
 ];
 
 const THEME_OPTIONS = ADVANCED_THEME_PRESETS;
+const CUSTOM_THEME_PREFIX = "custom-theme-";
+
+function sanitizeThemeToken(value, fallback) {
+  const text = String(value || "").trim();
+  if (!text) return fallback;
+  if (/^#[0-9a-f]{3,8}$/i.test(text)) return text;
+  if (/^rgba?\([0-9\s,./%]+\)$/i.test(text)) return text;
+  if (/^linear-gradient\(/i.test(text) || /^radial-gradient\(/i.test(text)) return text;
+  return fallback;
+}
+
+function normalizeUploadedTheme(input, fallback = THEME_OPTIONS.mint) {
+  const parsed = typeof input === "string" ? JSON.parse(input) : input;
+  const normalized = normalizeThemePreset(parsed || {}, fallback);
+  return {
+    label: String(normalized.label || "Custom Theme").slice(0, 48),
+    accent: sanitizeThemeToken(normalized.accent, fallback.accent),
+    accentSoft: sanitizeThemeToken(normalized.accentSoft, fallback.accentSoft),
+    accentStrong: sanitizeThemeToken(normalized.accentStrong, fallback.accentStrong),
+    glow: sanitizeThemeToken(normalized.glow, fallback.glow),
+    background: sanitizeThemeToken(normalized.background, fallback.background),
+    bg: sanitizeThemeToken(normalized.bg, fallback.bg || "#08110d"),
+    bgSoft: sanitizeThemeToken(normalized.bgSoft, fallback.bgSoft || "#0d1712"),
+    panel: sanitizeThemeToken(normalized.panel, fallback.panel || "#101915"),
+    panelAlt: sanitizeThemeToken(normalized.panelAlt, fallback.panelAlt || "#13211c"),
+    panelElevated: sanitizeThemeToken(normalized.panelElevated, fallback.panelElevated || "#172923"),
+    text: sanitizeThemeToken(normalized.text, fallback.text || "#edf6f1"),
+    muted: sanitizeThemeToken(normalized.muted, fallback.muted || "#95ada2"),
+    line: sanitizeThemeToken(normalized.line, fallback.line || "rgba(128, 162, 145, 0.18)"),
+    lineStrong: sanitizeThemeToken(normalized.lineStrong, fallback.lineStrong || "rgba(128, 162, 145, 0.3)"),
+    inputBg: sanitizeThemeToken(normalized.inputBg, fallback.inputBg || "#0d1511")
+  };
+}
 
 const PREVIEW_DEVICE_OPTIONS = {
   desktop: { label: "Desktop", width: "100%" },
@@ -1913,7 +1946,8 @@ const cloneState = (
   activeFunctionId = null,
   activeScene = "main",
   assets = [],
-  exportSettings = normalizeExportSettings()
+  exportSettings = normalizeExportSettings(),
+  customThemes = {}
 ) => ({
   nodes: JSON.parse(JSON.stringify(nodes)),
   edges: JSON.parse(JSON.stringify(edges)),
@@ -1924,7 +1958,8 @@ const cloneState = (
   activeFunctionId,
   activeScene,
   assets: JSON.parse(JSON.stringify(assets)),
-  exportSettings: normalizeExportSettings(exportSettings)
+  exportSettings: normalizeExportSettings(exportSettings),
+  customThemes: JSON.parse(JSON.stringify(customThemes || {}))
 });
 
 // [로그] 콘솔에 쌓일 로그 엔트리를 공통 포맷으로 생성합니다.
@@ -2012,7 +2047,8 @@ function getDefaultProjectState() {
     functions: [],
     activeScene: "main",
     assets: [],
-    exportSettings: normalizeExportSettings()
+    exportSettings: normalizeExportSettings(),
+    customThemes: {}
   };
 }
 
@@ -2072,6 +2108,7 @@ function migrateProjectState(input = {}) {
     activeScene: String(parsed.activeScene || "main"),
     assets: Array.isArray(parsed.assets) ? parsed.assets : [],
     exportSettings: normalizeExportSettings(parsed.exportSettings || {}),
+    customThemes: parsed.customThemes && typeof parsed.customThemes === "object" ? parsed.customThemes : {},
     savedAt: parsed.savedAt
   };
 
@@ -2100,6 +2137,39 @@ function parseStoredProject(raw) {
   } catch (error) {
     return { ok: false, error: String(error.message || error) };
   }
+}
+
+function getAssetExtension(name = "") {
+  const match = String(name).toLowerCase().match(/\.([a-z0-9]+)$/);
+  return match ? match[1] : "";
+}
+
+function isImageAsset(asset) {
+  const extension = getAssetExtension(asset?.name);
+  return String(asset?.type || "").startsWith("image/") || ["png", "jpg", "jpeg", "gif", "webp", "svg"].includes(extension);
+}
+
+function isIxoProjectAsset(asset) {
+  return getAssetExtension(asset?.name) === "ixo";
+}
+
+function getAssetKindLabel(asset) {
+  if (isImageAsset(asset)) return "Image UI";
+  if (isIxoProjectAsset(asset)) return "IXO Project";
+  if (String(asset?.type || "").startsWith("audio/")) return "Sound";
+  return "Asset";
+}
+
+function decodeDataUrlText(dataUrl = "") {
+  const source = String(dataUrl || "");
+  const commaIndex = source.indexOf(",");
+  if (!source.startsWith("data:") || commaIndex < 0) return source;
+  const meta = source.slice(0, commaIndex);
+  const body = source.slice(commaIndex + 1);
+  if (meta.includes(";base64")) {
+    return decodeURIComponent(escape(window.atob(body)));
+  }
+  return decodeURIComponent(body);
 }
 
 function applyNodeSelectionState(nodes, selectedIds) {
@@ -3163,7 +3233,14 @@ const BuilderElement = memo(function BuilderElement({
         <>
           <svg className="builder-vector-layer" viewBox={`0 0 ${Math.max(1, element.width)} ${Math.max(1, element.height)}`} preserveAspectRatio="none" aria-hidden="true">
             {element.vectorPath ? (
-              <path d={element.vectorPath} fill={element.vectorFill || element.background || ACCENT} />
+              <path
+                d={element.vectorPath}
+                fill={/z\s*$/i.test(element.vectorPath) ? (element.vectorFill || element.background || ACCENT) : "none"}
+                stroke={!/z\s*$/i.test(element.vectorPath) ? (element.vectorFill || element.background || ACCENT) : "none"}
+                strokeWidth={!/z\s*$/i.test(element.vectorPath) ? 4 : 0}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
             ) : (
               <rect x="0" y="0" width={Math.max(1, element.width)} height={Math.max(1, element.height)} rx={element.radius || 0} fill={element.vectorFill || element.background || ACCENT} />
             )}
@@ -3295,6 +3372,9 @@ function RuntimePanel({
   onOpenSettings,
   activeScene = "main",
   setActiveScene,
+  sceneNames = ["main"],
+  onCreateScene,
+  onDeleteScene,
   onAddComponent,
   runtimeOnly = false
 }) {
@@ -3375,10 +3455,18 @@ function RuntimePanel({
             <strong>{uiText.builderToolbarTitle}</strong>
             <span>{uiText.builderToolbarCopy}</span>
           </div>
-          <label className="builder-scene-field">
+          <div className="builder-scene-switcher">
             <span>Scene</span>
-            <input value={activeScene} onChange={(event) => setActiveScene?.(event.target.value || "main")} />
-          </label>
+            <div>
+              {sceneNames.map((scene) => (
+                <button key={scene} type="button" className={activeScene === scene ? "active" : ""} onClick={() => setActiveScene?.(scene)}>
+                  {scene}
+                </button>
+              ))}
+              <button type="button" className="ghost-btn" onClick={onCreateScene}>+ Scene</button>
+              {activeScene !== "main" ? <button type="button" className="ghost-btn danger-lite" onClick={() => onDeleteScene?.(activeScene)}>Delete</button> : null}
+            </div>
+          </div>
           <div className="builder-palette">
             {UI_PALETTE.map((item) => (
               <button
@@ -3516,6 +3604,79 @@ function RuntimePanel({
   );
 }
 
+function VectorDrawPad({ element, accent, onChange }) {
+  const [draftPath, setDraftPath] = useState(element?.vectorPath || "");
+  const pointsRef = useRef([]);
+  const drawingRef = useRef(false);
+  const width = Math.max(1, Number(element?.width || 180));
+  const height = Math.max(1, Number(element?.height || 100));
+
+  useEffect(() => {
+    setDraftPath(element?.vectorPath || "");
+  }, [element?.id, element?.vectorPath]);
+
+  const getPoint = useCallback((event) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = Math.max(0, Math.min(width, ((event.clientX - rect.left) / rect.width) * width));
+    const y = Math.max(0, Math.min(height, ((event.clientY - rect.top) / rect.height) * height));
+    return { x: Math.round(x), y: Math.round(y) };
+  }, [height, width]);
+
+  const buildFreehandPath = useCallback((points) => (
+    points.length
+      ? `M${points[0].x} ${points[0].y} ${points.slice(1).map((point) => `L${point.x} ${point.y}`).join(" ")}`
+      : ""
+  ), []);
+
+  const finishDrawing = useCallback(() => {
+    if (!drawingRef.current) return;
+    drawingRef.current = false;
+    const nextPath = buildFreehandPath(pointsRef.current);
+    if (nextPath) onChange(nextPath);
+  }, [buildFreehandPath, onChange]);
+
+  const applyPreset = useCallback((path) => {
+    setDraftPath(path);
+    onChange(path);
+  }, [onChange]);
+
+  return (
+    <div className="vector-draw-pad">
+      <div className="vector-draw-toolbar">
+        <button type="button" className="ghost-btn" onClick={() => applyPreset(`M${Math.round(width * 0.08)} ${Math.round(height * 0.1)} H${Math.round(width * 0.92)} V${Math.round(height * 0.9)} H${Math.round(width * 0.08)} Z`)}>Box</button>
+        <button type="button" className="ghost-btn" onClick={() => applyPreset(`M${Math.round(width * 0.5)} ${Math.round(height * 0.08)} L${Math.round(width * 0.92)} ${Math.round(height * 0.9)} H${Math.round(width * 0.08)} Z`)}>Triangle</button>
+        <button type="button" className="ghost-btn" onClick={() => applyPreset(`M${Math.round(width * 0.5)} ${Math.round(height * 0.06)} L${Math.round(width * 0.61)} ${Math.round(height * 0.36)} H${Math.round(width * 0.95)} L${Math.round(width * 0.67)} ${Math.round(height * 0.56)} L${Math.round(width * 0.78)} ${Math.round(height * 0.92)} L${Math.round(width * 0.5)} ${Math.round(height * 0.68)} L${Math.round(width * 0.22)} ${Math.round(height * 0.92)} L${Math.round(width * 0.33)} ${Math.round(height * 0.56)} L${Math.round(width * 0.05)} ${Math.round(height * 0.36)} H${Math.round(width * 0.39)} Z`)}>Star</button>
+        <button type="button" className="ghost-btn danger-lite" onClick={() => applyPreset("")}>Clear</button>
+      </div>
+      <svg
+        className="vector-draw-surface"
+        viewBox={`0 0 ${width} ${height}`}
+        onPointerDown={(event) => {
+          event.preventDefault();
+          drawingRef.current = true;
+          pointsRef.current = [getPoint(event)];
+          setDraftPath(buildFreehandPath(pointsRef.current));
+          event.currentTarget.setPointerCapture?.(event.pointerId);
+        }}
+        onPointerMove={(event) => {
+          if (!drawingRef.current) return;
+          pointsRef.current = [...pointsRef.current, getPoint(event)].slice(-400);
+          setDraftPath(buildFreehandPath(pointsRef.current));
+        }}
+        onPointerUp={(event) => {
+          event.currentTarget.releasePointerCapture?.(event.pointerId);
+          finishDrawing();
+        }}
+        onPointerLeave={finishDrawing}
+      >
+        <rect x="0" y="0" width={width} height={height} rx="12" />
+        {draftPath ? <path d={draftPath} fill="none" stroke={accent} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" /> : null}
+      </svg>
+      <small>마우스로 직접 그리면 SVG path가 자동 생성됩니다.</small>
+    </div>
+  );
+}
+
 // [로그 콘솔] 내부 에러와 실행 이력을 하단 섹션에 정리합니다.
 function LogConsole({ logs, onClear, uiText }) {
   return (
@@ -3553,6 +3714,8 @@ function SettingsModal({
   setDraftLanguage,
   draftThemeKey,
   setDraftThemeKey,
+  themeOptions = THEME_OPTIONS,
+  onThemeUpload,
   draftPreviewDevice,
   setDraftPreviewDevice,
   draftTemplateKey,
@@ -3593,10 +3756,15 @@ function SettingsModal({
           <label className="settings-field">
             <span>{uiText.theme}</span>
             <select value={draftThemeKey} onChange={(event) => setDraftThemeKey(event.target.value)}>
-              {Object.entries(THEME_OPTIONS).map(([key, option]) => (
+              {Object.entries(themeOptions).map(([key, option]) => (
                 <option key={key} value={key}>{option.label}</option>
               ))}
             </select>
+          </label>
+          <label className="settings-field theme-upload-field">
+            <span>Custom Theme</span>
+            <input type="file" accept=".json,.ixo-theme,application/json" onChange={(event) => onThemeUpload?.(event.target.files?.[0])} />
+            <small>JSON 테마 파일을 올리면 IXO Engine 전체 UI에 적용할 수 있습니다.</small>
           </label>
 
           <label className="settings-field">
@@ -4413,6 +4581,7 @@ function EngineEditor() {
   const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
   const [language, setLanguage] = useState("ko");
   const [themeKey, setThemeKey] = useState("mint");
+  const [customThemes, setCustomThemes] = useState({});
   const [previewDevice, setPreviewDevice] = useState("desktop");
   const [activeScene, setActiveScene] = useState("main");
   const [draftLanguage, setDraftLanguage] = useState("ko");
@@ -4812,7 +4981,13 @@ function EngineEditor() {
     selectedNode?.data?.nodeType === "script"
       && !canRunRestrictedScript(selectedNode.data?.value)
   );
-  const currentTheme = THEME_OPTIONS[themeKey] || THEME_OPTIONS.mint;
+  const themeOptions = useMemo(() => ({ ...THEME_OPTIONS, ...customThemes }), [customThemes]);
+  const currentTheme = themeOptions[themeKey] || THEME_OPTIONS.mint;
+  const sceneNames = useMemo(() => {
+    const names = new Set(["main", activeScene]);
+    uiElements.forEach((element) => names.add(String(element.scene || "main")));
+    return [...names].filter(Boolean).sort((a, b) => (a === "main" ? -1 : b === "main" ? 1 : a.localeCompare(b)));
+  }, [activeScene, uiElements]);
   const uiText = UI_TEXT[language] || UI_TEXT.ko;
   const uiRenderStats = useMemo(
     () => createCanvasRenderStats(uiElements, { x: 0, y: 0, width: 1280, height: 720 }),
@@ -4924,13 +5099,14 @@ function EngineEditor() {
       activeScene,
       assets,
       exportSettings: normalizeExportSettings(exportSettings),
+      customThemes,
       viewMode,
       language,
       themeKey,
       previewDevice,
       savedAt: Date.now()
     };
-  }, [activeFunctionId, activeScene, assets, edges, exportSettings, functions, inputValues, language, nodes, previewDevice, themeKey, uiElements, viewMode]);
+  }, [activeFunctionId, activeScene, assets, customThemes, edges, exportSettings, functions, inputValues, language, nodes, previewDevice, themeKey, uiElements, viewMode]);
 
   const snapshot = useCallback(({ mergeKey = "" } = {}) => {
     const now = Date.now();
@@ -4942,11 +5118,11 @@ function EngineEditor() {
     setHistory((current) => (
       canMerge
         ? current
-        : [...current.slice(-79), cloneState(nodes, edges, inputValues, nodeCounterRef.current, uiElements, functions, activeFunctionId, activeScene, assets, exportSettings)]
+        : [...current.slice(-79), cloneState(nodes, edges, inputValues, nodeCounterRef.current, uiElements, functions, activeFunctionId, activeScene, assets, exportSettings, customThemes)]
     ));
     setFuture([]);
     lastSnapshotMetaRef.current = { mergeKey, at: now };
-  }, [activeFunctionId, activeScene, assets, edges, exportSettings, functions, inputValues, nodes, uiElements]);
+  }, [activeFunctionId, activeScene, assets, customThemes, edges, exportSettings, functions, inputValues, nodes, uiElements]);
 
   // [이력 적용] 되돌리기 시 복구할 상태를 일관된 방식으로 반영합니다.
   const applyState = useCallback((state) => {
@@ -4961,6 +5137,7 @@ function EngineEditor() {
     setActiveScene(state.activeScene || "main");
     setAssets(Array.isArray(state.assets) ? state.assets : []);
     setExportSettings(normalizeExportSettings(state.exportSettings || {}));
+    setCustomThemes(state.customThemes && typeof state.customThemes === "object" ? state.customThemes : {});
     setNodeCounter(state.nodeCounter || 1);
     nodeCounterRef.current = state.nodeCounter || 1;
     setActiveFunctionId(state.activeFunctionId || null);
@@ -5284,27 +5461,27 @@ function EngineEditor() {
     setHistory((current) => {
       if (current.length === 0) return current;
       const previous = current[current.length - 1];
-      setFuture((futureState) => [...futureState, cloneState(nodes, edges, inputValues, nodeCounterRef.current, uiElements, functions, activeFunctionId, activeScene, assets, exportSettings)]);
+      setFuture((futureState) => [...futureState, cloneState(nodes, edges, inputValues, nodeCounterRef.current, uiElements, functions, activeFunctionId, activeScene, assets, exportSettings, customThemes)]);
       applyState(previous);
       setIsDirty(true);
       setStatus("Undo applied.");
       lastSnapshotMetaRef.current = { mergeKey: "", at: 0 };
       return current.slice(0, -1);
     });
-  }, [activeFunctionId, activeScene, applyState, assets, edges, exportSettings, functions, inputValues, nodes, uiElements]);
+  }, [activeFunctionId, activeScene, applyState, assets, customThemes, edges, exportSettings, functions, inputValues, nodes, uiElements]);
 
   const redo = useCallback(() => {
     setFuture((current) => {
       if (current.length === 0) return current;
       const next = current[current.length - 1];
-      setHistory((historyState) => [...historyState, cloneState(nodes, edges, inputValues, nodeCounterRef.current, uiElements, functions, activeFunctionId, activeScene, assets, exportSettings)]);
+      setHistory((historyState) => [...historyState, cloneState(nodes, edges, inputValues, nodeCounterRef.current, uiElements, functions, activeFunctionId, activeScene, assets, exportSettings, customThemes)]);
       applyState(next);
       setIsDirty(true);
       setStatus("Redo applied.");
       lastSnapshotMetaRef.current = { mergeKey: "", at: 0 };
       return current.slice(0, -1);
     });
-  }, [activeFunctionId, activeScene, applyState, assets, edges, exportSettings, functions, inputValues, nodes, uiElements]);
+  }, [activeFunctionId, activeScene, applyState, assets, customThemes, edges, exportSettings, functions, inputValues, nodes, uiElements]);
 
   const updateInputValue = useCallback((nodeId, value) => {
     setInputValues((current) => ({ ...current, [nodeId]: value }));
@@ -6260,8 +6437,92 @@ function EngineEditor() {
     event.dataTransfer.dropEffect = "copy";
   }, []);
 
+  const importIxoAssetIntoWorkspace = useCallback((asset, point = null) => {
+    const parsed = parseStoredProject(decodeDataUrlText(asset.dataUrl));
+    if (!parsed.ok) {
+      throw new Error(parsed.error || "Invalid .ixo file.");
+    }
+    const project = parsed.data;
+    const importedNodesSource = Array.isArray(project.nodes) ? project.nodes : [];
+    const importedUiSource = normalizeUiElements(project.uiElements || []);
+    if (!importedNodesSource.length && !importedUiSource.length) {
+      throw new Error("No nodes or UI elements found in .ixo file.");
+    }
+
+    snapshot();
+    const nodeIdMap = {};
+    const uiIdMap = {};
+    importedNodesSource.forEach((node) => {
+      nodeIdMap[node.id] = createNodeId();
+    });
+    importedUiSource.forEach((element) => {
+      uiIdMap[element.id] = `ui-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    });
+
+    const minNodeX = Math.min(...importedNodesSource.map((node) => Number(node.position?.x || 0)), 0);
+    const minNodeY = Math.min(...importedNodesSource.map((node) => Number(node.position?.y || 0)), 0);
+    const minUiX = Math.min(...importedUiSource.map((element) => Number(element.x || 0)), 0);
+    const minUiY = Math.min(...importedUiSource.map((element) => Number(element.y || 0)), 0);
+    const origin = point || { x: 80, y: 80 };
+
+    const importedUi = importedUiSource.map((element) => ({
+      ...element,
+      id: uiIdMap[element.id],
+      x: Math.max(0, origin.x + Number(element.x || 0) - minUiX),
+      y: Math.max(0, origin.y + Number(element.y || 0) - minUiY),
+      scene: activeScene,
+      linkedNodeId: nodeIdMap[element.linkedNodeId] || ""
+    }));
+    const importedNodes = importedNodesSource.map((node, index) => ({
+      ...node,
+      id: nodeIdMap[node.id],
+      selected: false,
+      position: {
+        x: (point?.x ? point.x + 120 : 160) + Number(node.position?.x || 0) - minNodeX + index * 8,
+        y: (point?.y ? point.y + 80 : 120) + Number(node.position?.y || 0) - minNodeY + index * 8
+      },
+      data: {
+        ...(node.data || {}),
+        linkedUiElementId: uiIdMap[node.data?.linkedUiElementId] || ""
+      }
+    }));
+    const importedEdges = (project.edges || [])
+      .filter((edge) => nodeIdMap[edge.source] && nodeIdMap[edge.target])
+      .map((edge, index) => ({
+        ...edge,
+        id: `edge-${Date.now()}-${index}`,
+        source: nodeIdMap[edge.source],
+        target: nodeIdMap[edge.target],
+        selected: false
+      }));
+
+    setNodes((current) => [...current, ...importedNodes]);
+    setEdges((current) => [...current, ...importedEdges]);
+    setUiElements((current) => [...current, ...importedUi]);
+    if (Array.isArray(project.assets) && project.assets.length) {
+      setAssets((current) => [...current, ...project.assets.map((item) => ({ ...item, id: `asset-${Date.now()}-${Math.random().toString(36).slice(2, 7)}` }))]);
+    }
+    setSelectedUiElementId(importedUi[0]?.id || null);
+    setViewMode(importedUi.length ? "builder" : viewMode);
+    setStatus(`IXO asset imported: ${asset.name}`);
+    setIsDirty(true);
+  }, [activeScene, createNodeId, setEdges, setNodes, snapshot, viewMode]);
+
   const onDrop = useCallback((event) => {
     event.preventDefault();
+    const assetId = event.dataTransfer.getData("application/ixo-asset-id");
+    if (assetId) {
+      const asset = assets.find((item) => item.id === assetId);
+      if (!asset || !isIxoProjectAsset(asset)) return;
+      try {
+        importIxoAssetIntoWorkspace(asset, screenToFlowPosition({ x: event.clientX, y: event.clientY }));
+      } catch (error) {
+        setStatus(`IXO import failed: ${error.message}`);
+        appendLog(makeLog("error", "Asset Manager", ".ixo asset을 노드 workspace에 붙여넣지 못했습니다.", String(error.message || error)));
+      }
+      return;
+    }
+
     const raw = event.dataTransfer.getData("application/ixo-node");
     if (!raw) return;
 
@@ -6272,7 +6533,7 @@ function EngineEditor() {
     setNodes((current) => [...current, nextNode]);
     setStatus(`Node added: ${nodeDef.label}`);
     setIsDirty(true);
-  }, [makeNode, screenToFlowPosition, setNodes, snapshot]);
+  }, [appendLog, assets, importIxoAssetIntoWorkspace, makeNode, screenToFlowPosition, setNodes, snapshot]);
 
   const onPaneContextMenu = useCallback((event) => {
     event.preventDefault();
@@ -6357,6 +6618,55 @@ function EngineEditor() {
     setIsDirty(true);
   }, [snapshot, uiElements]);
 
+  const handleThemeUpload = useCallback((file) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const theme = normalizeUploadedTheme(String(reader.result || ""), currentTheme);
+        const key = `${CUSTOM_THEME_PREFIX}${Date.now()}`;
+        snapshot();
+        setCustomThemes((current) => ({ ...current, [key]: theme }));
+        setDraftThemeKey(key);
+        setThemeKey(key);
+        setStatus(`Theme uploaded: ${theme.label}`);
+        setIsDirty(true);
+      } catch (error) {
+        setStatus(`Theme upload failed: ${error.message}`);
+        appendLog(makeLog("error", "Theme", "사용자 지정 테마를 불러오지 못했습니다.", String(error.message || error)));
+      }
+    };
+    reader.readAsText(file, "utf-8");
+  }, [appendLog, currentTheme, snapshot]);
+
+  const createScene = useCallback(() => {
+    const base = "scene";
+    let index = sceneNames.length + 1;
+    let nextName = `${base}-${index}`;
+    while (sceneNames.includes(nextName)) {
+      index += 1;
+      nextName = `${base}-${index}`;
+    }
+    snapshot();
+    setActiveScene(nextName);
+    setStatus(`Scene created: ${nextName}`);
+    setIsDirty(true);
+  }, [sceneNames, snapshot]);
+
+  const deleteScene = useCallback((sceneName) => {
+    if (!sceneName || sceneName === "main") return;
+    const count = uiElements.filter((element) => (element.scene || "main") === sceneName).length;
+    const confirmed = window.confirm(`${sceneName} Scene을 삭제할까요?\n이 Scene의 UI ${count}개가 main으로 이동됩니다.`);
+    if (!confirmed) return;
+    snapshot();
+    setUiElements((current) => current.map((element) => (
+      (element.scene || "main") === sceneName ? { ...element, scene: "main" } : element
+    )));
+    setActiveScene("main");
+    setStatus(`Scene removed: ${sceneName}`);
+    setIsDirty(true);
+  }, [snapshot, uiElements]);
+
   const updateNodeField = (field, value) => {
     if (!selectedNode) return;
     snapshot({ mergeKey: `node:${selectedNode.id}:${field}` });
@@ -6435,10 +6745,13 @@ function EngineEditor() {
     }
   }, [appendLog, selectedNode]);
 
-  const createUiElementFromPalette = useCallback((kind, point = null) => {
+  const createUiElementFromPalette = useCallback((kind, point = null, overrides = {}) => {
     snapshot();
 
-    const next = createUiElement(kind, "", currentTheme.accent);
+    const next = {
+      ...createUiElement(kind, "", currentTheme.accent),
+      ...overrides
+    };
     const definition = getUiNodeDefinition(kind);
     const linkedNode = makeNode(
       definition,
@@ -6466,6 +6779,7 @@ function EngineEditor() {
     setStatus(`UI element added: ${kind}`);
     setIsDirty(true);
   }, [activeScene, currentTheme.accent, makeNode, setNodes, snapshot, uiElements.length]);
+
 
   const createUiComponentFromPalette = useCallback((componentKey, point = null) => {
     snapshot();
@@ -6506,14 +6820,41 @@ function EngineEditor() {
   const handleBuilderDrop = useCallback((event) => {
     event.preventDefault();
     const kind = event.dataTransfer.getData("application/ixo-ui");
-    if (!kind || !builderCanvasRef.current) return;
+    const assetId = event.dataTransfer.getData("application/ixo-asset-id");
+    if ((!kind && !assetId) || !builderCanvasRef.current) return;
 
     const rect = builderCanvasRef.current.getBoundingClientRect();
-    createUiElementFromPalette(kind, {
+    const point = {
       x: Math.max(0, Math.round(event.clientX - rect.left - 40)),
       y: Math.max(0, Math.round(event.clientY - rect.top - 20))
-    });
-  }, [createUiElementFromPalette]);
+    };
+
+    if (assetId) {
+      const asset = assets.find((item) => item.id === assetId);
+      if (!asset) return;
+      try {
+        if (isImageAsset(asset)) {
+          createUiElementFromPalette("image", point, {
+            src: asset.dataUrl,
+            text: asset.name,
+            background: "transparent"
+          });
+          return;
+        }
+        if (isIxoProjectAsset(asset)) {
+          importIxoAssetIntoWorkspace(asset, point);
+          return;
+        }
+        setStatus(`이 asset은 캔버스에 직접 배치할 수 없습니다: ${asset.name}`);
+      } catch (error) {
+        setStatus(`Asset import failed: ${error.message}`);
+        appendLog(makeLog("error", "Asset Manager", "Asset을 캔버스에 배치하지 못했습니다.", String(error.message || error)));
+      }
+      return;
+    }
+
+    createUiElementFromPalette(kind, point);
+  }, [appendLog, assets, createUiElementFromPalette, importIxoAssetIntoWorkspace]);
 
   const handleBuilderPointerDown = useCallback((event, id, mode = "move") => {
     if (typeof event.button === "number" && event.button !== 0) return;
@@ -6771,7 +7112,8 @@ function EngineEditor() {
             activeFunctionId,
             activeScene,
             assets,
-            exportSettings
+            exportSettings,
+            customThemes
           );
         }}
         onSelectionChange={({ nodes: selectedNodes = [], edges: selectedEdges = [] }) => {
@@ -6908,7 +7250,17 @@ function EngineEditor() {
         "--accent-soft": currentTheme.accentSoft,
         "--accent-strong": currentTheme.accentStrong,
         "--glow": currentTheme.glow,
-        "--theme-bg": currentTheme.background || "#08110d"
+        "--theme-bg": currentTheme.background || "#08110d",
+        "--bg": currentTheme.bg || "#08110d",
+        "--bg-soft": currentTheme.bgSoft || "#0d1712",
+        "--panel": currentTheme.panel || "#101915",
+        "--panel-alt": currentTheme.panelAlt || "#13211c",
+        "--panel-elevated": currentTheme.panelElevated || "#172923",
+        "--text": currentTheme.text || "#edf6f1",
+        "--muted": currentTheme.muted || "#95ada2",
+        "--line": currentTheme.line || "rgba(128, 162, 145, 0.18)",
+        "--line-strong": currentTheme.lineStrong || "rgba(128, 162, 145, 0.3)",
+        "--input-bg": currentTheme.inputBg || "#0d1511"
       }}
     >
       <main className="workspace">
@@ -6998,6 +7350,30 @@ function EngineEditor() {
               </div>
             </div>
           </div>
+
+          <section className="scene-manager-card">
+            <div className="scene-manager-head">
+              <strong>Scenes</strong>
+              <button className="ghost-btn" onClick={createScene}>+ Scene</button>
+            </div>
+            <div className="scene-button-list">
+              {sceneNames.map((scene) => (
+                <button
+                  key={scene}
+                  type="button"
+                  className={activeScene === scene ? "active" : ""}
+                  onClick={() => setActiveScene(scene)}
+                >
+                  <span>{scene}</span>
+                  <em>{uiElements.filter((element) => (element.scene || "main") === scene).length}</em>
+                </button>
+              ))}
+            </div>
+            <small>현재 Scene: {activeScene}. Canvas Builder의 UI는 선택한 Scene에 추가됩니다.</small>
+            {activeScene !== "main" ? (
+              <button className="ghost-btn danger-lite" onClick={() => deleteScene(activeScene)}>Move scene UI to main</button>
+            ) : null}
+          </section>
 
           <div className="sidebar-header">
             <div className="panel-title">{uiText.nodeLibrary}</div>
@@ -7197,6 +7573,9 @@ function EngineEditor() {
                     onOpenSettings={() => setShowSettings(true)}
                     activeScene={activeScene}
                     setActiveScene={setActiveScene}
+                    sceneNames={sceneNames}
+                    onCreateScene={createScene}
+                    onDeleteScene={deleteScene}
                     onAddComponent={createUiComponentFromPalette}
                   />
                 </ResizablePanel>
@@ -7246,14 +7625,23 @@ function EngineEditor() {
                 <span>{assets.length} assets</span>
               </div>
               <label className="asset-upload-btn">
-                <input type="file" accept="image/*,audio/*,.svg,.json" onChange={(event) => addAssetFile(event.target.files?.[0])} />
-                Drag/upload asset
+                <input type="file" accept="image/*,audio/*,.svg,.json,.ixo,.ixo-theme" onChange={(event) => addAssetFile(event.target.files?.[0])} />
+                Drag/upload asset or .ixo
               </label>
               {assets.length ? (
                 <div className="asset-list">
                   {assets.slice(-5).map((asset) => (
-                    <div key={asset.id} className="asset-row">
-                      <span>{asset.name}</span>
+                    <div
+                      key={asset.id}
+                      className={`asset-row ${isImageAsset(asset) || isIxoProjectAsset(asset) ? "is-draggable" : ""}`}
+                      draggable={isImageAsset(asset) || isIxoProjectAsset(asset)}
+                      onDragStart={(event) => {
+                        event.dataTransfer.setData("application/ixo-asset-id", asset.id);
+                        event.dataTransfer.effectAllowed = "copy";
+                      }}
+                      title={isImageAsset(asset) ? "Canvas Builder로 끌어 이미지 UI를 만들 수 있습니다." : isIxoProjectAsset(asset) ? "Canvas Builder로 끌어 노드/UI를 붙여넣을 수 있습니다." : asset.name}
+                    >
+                      <span>{asset.name}<em>{getAssetKindLabel(asset)}</em></span>
                       <button className="ghost-btn danger-lite" onClick={() => removeAsset(asset.id)}>{uiText.delete}</button>
                     </div>
                   ))}
@@ -7284,7 +7672,9 @@ function EngineEditor() {
                 </label>
                 <label>
                   Scene
-                  <input type="text" value={selectedUiElement.scene || "main"} onChange={(event) => updateUiField("scene", event.target.value)} placeholder="main, settings, game-over..." />
+                  <select value={selectedUiElement.scene || "main"} onChange={(event) => updateUiField("scene", event.target.value)}>
+                    {sceneNames.map((scene) => <option key={scene} value={scene}>{scene}</option>)}
+                  </select>
                 </label>
                 <label>
                   X
@@ -7324,19 +7714,19 @@ function EngineEditor() {
                 </label>
                 {["custom-button", "vector"].includes(selectedUiElement.kind) ? (
                   <>
-                    <label>
-                      Vector Path
-                      <textarea value={selectedUiElement.vectorPath || ""} onChange={(event) => updateUiField("vectorPath", event.target.value)} placeholder="M10 10 H120 V60 H10 Z" />
-                    </label>
+                    <VectorDrawPad
+                      element={selectedUiElement}
+                      accent={selectedUiElement.vectorFill || currentTheme.accent}
+                      onChange={(path) => updateUiField("vectorPath", path)}
+                    />
                     <label>
                       Vector Fill
                       <input type="color" value={selectedUiElement.vectorFill || currentTheme.accent} onChange={(event) => updateUiField("vectorFill", event.target.value)} />
                     </label>
-                    <div className="vector-drawer-presets">
-                      <button type="button" className="ghost-btn" onClick={() => updateUiField("vectorPath", "M60 8 L112 112 H8 Z")}>Triangle</button>
-                      <button type="button" className="ghost-btn" onClick={() => updateUiField("vectorPath", "M12 8 H178 Q186 8 186 16 V42 Q186 50 178 50 H12 Q4 50 4 42 V16 Q4 8 12 8 Z")}>Button</button>
-                      <button type="button" className="ghost-btn" onClick={() => updateUiField("vectorPath", "M50 4 L61 36 H95 L67 56 L78 90 L50 68 L22 90 L33 56 L5 36 H39 Z")}>Star</button>
-                    </div>
+                    <details className="advanced-vector-path">
+                      <summary>Advanced SVG path</summary>
+                      <textarea value={selectedUiElement.vectorPath || ""} onChange={(event) => updateUiField("vectorPath", event.target.value)} placeholder="M10 10 H120 V60 H10 Z" />
+                    </details>
                   </>
                 ) : null}
                 <label>
@@ -7516,6 +7906,8 @@ function EngineEditor() {
         setDraftLanguage={setDraftLanguage}
         draftThemeKey={draftThemeKey}
         setDraftThemeKey={setDraftThemeKey}
+        themeOptions={themeOptions}
+        onThemeUpload={handleThemeUpload}
         draftPreviewDevice={draftPreviewDevice}
         setDraftPreviewDevice={setDraftPreviewDevice}
         draftTemplateKey={draftTemplateKey}

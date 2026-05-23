@@ -120,10 +120,7 @@ function getRuntimePlatformInfo(targetPlatform = process.platform) {
       folderName: "IXO-Engine-Windows",
       executableName: "IXO Engine.exe",
       devRuntimePaths: [
-        path.join(__dirname, "..", "dist_electron_final", "win-unpacked"),
-        path.join(__dirname, "..", "release", "windows", "win-unpacked"),
-        path.join(__dirname, "..", "dist_release_final", "win-unpacked"),
-        path.join(__dirname, "..", "dist_electron", "win-unpacked")
+        path.join(__dirname, "..", "release", "windows", "win-unpacked")
       ]
     };
   }
@@ -135,9 +132,7 @@ function getRuntimePlatformInfo(targetPlatform = process.platform) {
       folderName: "IXO-Engine-Linux",
       executableName: "ixo-engine",
       devRuntimePaths: [
-        path.join(__dirname, "..", "dist_electron_final", "linux-unpacked"),
-        path.join(__dirname, "..", "release", "linux", "linux-unpacked"),
-        path.join(__dirname, "..", "dist_release_linux_final", "linux-unpacked")
+        path.join(__dirname, "..", "release", "linux", "linux-unpacked")
       ]
     };
   }
@@ -149,9 +144,7 @@ function getRuntimePlatformInfo(targetPlatform = process.platform) {
       folderName: "IXO-Engine-macOS",
       executableName: "IXO Engine.app",
       devRuntimePaths: [
-        path.join(__dirname, "..", "dist_electron_final", "mac"),
-        path.join(__dirname, "..", "release", "macos", "mac"),
-        path.join(__dirname, "..", "dist_release_mac_final", "mac")
+        path.join(__dirname, "..", "release", "macos", "mac")
       ]
     };
   }
