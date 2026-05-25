@@ -118,3 +118,6 @@ Copyright 2026. MinyangTech. All rights Reserved.
 > **민양테크 표준 기여 방침 적용안내**  
 > 본 프로젝트는 민양테크 표준 기여방침이 적용받습니다.  
 > 자세한 내용은 [여기](https://minyangtech.n-e.kr/Contributing.html)
+
+*매주 토요일 업데이트 예정입니다. 
+그러나, 개발자의 개인 사정으로 인해 지연 및 연기 될 수 있는점, 양해부탁드립니다.
