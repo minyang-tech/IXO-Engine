@@ -1116,8 +1116,8 @@ img {
 }
 
 .node-link-dot {
-  width: 9px;
-  height: 9px;
+  width: var(--node-link-dot-size, 9px);
+  height: var(--node-link-dot-size, 9px);
   border-radius: 999px;
   background: var(--accent);
   box-shadow: 0 0 16px rgba(62, 207, 142, 0.42);
@@ -1154,8 +1154,8 @@ img {
 }
 
 .node-handle {
-  width: 12px;
-  height: 12px;
+  width: var(--node-handle-size, 12px);
+  height: var(--node-handle-size, 12px);
   border-radius: 999px;
   border: 2px solid rgba(4, 14, 9, 0.95);
   background: var(--node-color);
@@ -1932,6 +1932,32 @@ img {
 
 .privacy-modal {
   width: min(720px, 94vw);
+}
+
+.network-consent-modal {
+  width: min(680px, 94vw);
+}
+
+.network-consent-lead {
+  align-items: start;
+}
+
+.network-notice-card {
+  display: grid;
+  gap: 10px;
+  max-height: 320px;
+  overflow: auto;
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.network-notice-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
 }
 
 .privacy-modal-body {

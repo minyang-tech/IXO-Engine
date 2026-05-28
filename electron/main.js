@@ -53,6 +53,7 @@ const FALLBACK_NETWORK_SAFETY_NOTICE = [
 const trustedWebContentsIds = new Set();
 const securityApprovalsByWebContents = new Map();
 const fileWatchersByWebContents = new Map();
+const previewProjectsByWebContents = new Map();
 let startupHttpsPreferencePromise = null;
 const windowState = {
   isDirty: false,
@@ -1212,6 +1213,58 @@ function createMainWindow() {
   mainWindow.loadFile(path.join(__dirname, "..", "dist", "renderer", "index.html"));
 }
 
+function loadRendererEntry(window, query = {}) {
+  const devUrl = process.env.ELECTRON_START_URL || "http://localhost:5173";
+  if (!app.isPackaged) {
+    const url = new URL(devUrl);
+    Object.entries(query).forEach(([key, value]) => url.searchParams.set(key, String(value)));
+    window.loadURL(url.toString());
+    return;
+  }
+
+  window.loadFile(path.join(__dirname, "..", "dist", "renderer", "index.html"), { query });
+}
+
+function createPreviewWindow(project) {
+  const previewWindow = new BrowserWindow({
+    width: 1280,
+    height: 820,
+    minWidth: 720,
+    minHeight: 480,
+    title: "IXO Preview",
+    backgroundColor: "#06130d",
+    webPreferences: {
+      preload: path.join(__dirname, "preload.js"),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+      webSecurity: true,
+      allowRunningInsecureContent: false
+    }
+  });
+
+  const webContentsId = previewWindow.webContents.id;
+  trustedWebContentsIds.add(webContentsId);
+  resetSecurityApprovals(webContentsId);
+  previewProjectsByWebContents.set(webContentsId, project);
+  previewWindow.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+  previewWindow.webContents.on("will-navigate", (event) => {
+    event.preventDefault();
+  });
+  previewWindow.webContents.session.setPermissionRequestHandler((_webContents, _permission, callback) => {
+    callback(false);
+  });
+  previewWindow.on("closed", () => {
+    trustedWebContentsIds.delete(webContentsId);
+    securityApprovalsByWebContents.delete(webContentsId);
+    previewProjectsByWebContents.delete(webContentsId);
+    closeWatchers(webContentsId);
+  });
+
+  loadRendererEntry(previewWindow, { runtime: "1", preview: "1" });
+  return previewWindow;
+}
+
 app.whenReady().then(() => {
   ipcMain.handle("app:setDirtyState", (event, payload) => {
     assertTrustedSender(event);
@@ -1380,7 +1433,13 @@ app.whenReady().then(() => {
 
   ipcMain.handle("project:getEmbeddedRuntimeProject", (event) => {
     assertTrustedSender(event);
-    return readEmbeddedRuntimeProject();
+    return previewProjectsByWebContents.get(event.sender.id) || readEmbeddedRuntimeProject();
+  });
+
+  ipcMain.handle("project:openPreview", (event, payload) => {
+    assertTrustedSender(event);
+    createPreviewWindow(payload || {});
+    return { ok: true };
   });
 
   ipcMain.handle("project:export", async (event, payload, options = {}) => {

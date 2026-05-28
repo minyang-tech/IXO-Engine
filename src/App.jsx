@@ -31,7 +31,7 @@ const LOGO_FALLBACKS = [
   "./IXO Logo.PNG",
   "https://github.com/minyang-tech/IXO-Engine/blob/main/IXO%20Logo.png?raw=true"
 ];
-const FALLBACK_APP_VERSION = typeof window !== "undefined" && window.ixo?.version ? window.ixo.version : "1.1.2";
+const FALLBACK_APP_VERSION = typeof window !== "undefined" && window.ixo?.version ? window.ixo.version : "1.1.3";
 
 // [노드 UI] 카테고리별 아이콘과 컬러를 최대한 차분한 톤으로 정리했습니다.
 const GROUP_ICON = {
@@ -70,6 +70,7 @@ const HISTORY_MERGE_WINDOW_MS = 700;
 const LOCAL_AUTOSAVE_KEY = "ixo-engine-local-autosave-v1";
 const LOCAL_BACKUPS_KEY = "ixo-engine-local-backups-v1";
 const LOCAL_SAFE_MODE_KEY = "ixo-engine-safe-mode-v1";
+const LOCAL_EDITOR_SETTINGS_KEY = "ixo-engine-editor-settings-v1";
 const PROJECT_SCHEMA_VERSION = 2;
 const MAX_LOCAL_BACKUPS = 5;
 const NETWORK_SAFETY_NOTICE = [
@@ -83,6 +84,23 @@ const NETWORK_SAFETY_NOTICE = [
   "다만 사용자가 만든 네트워크 노드는 사용자가 지정한 외부 서버와 데이터를 주고받을 수 있습니다.",
   "비밀번호, 인증 토큰, 개인정보 등 민감한 정보는 신뢰할 수 없는 서버나 스크립트에 입력하지 마십시오."
 ].join("\n");
+
+function readLocalEditorSettings() {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = window.localStorage?.getItem(LOCAL_EDITOR_SETTINGS_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+function clampNodeHandleSize(value) {
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue)) return 16;
+  return Math.max(10, Math.min(28, Math.round(numericValue)));
+}
+
 const PRIVACY_POLICY_TEXT = {
   ko: {
     effectiveDate: "시행일: 2026-05-18",
@@ -306,15 +324,15 @@ const UI_TEXT = {
     latestVersion: "\uCD5C\uC2E0 \uBC84\uC804",
     checkUpdates: "\uC5C5\uB370\uC774\uD2B8 \uD655\uC778",
     checkingUpdates: "\uD655\uC778 \uC911...",
-    downloadUpdate: "\uC5C5\uB370\uC774\uD2B8 \uB2E4\uC6B4\uB85C\uB4DC",
-    downloadingUpdate: "\uB2E4\uC6B4\uB85C\uB4DC \uC911...",
+    downloadUpdate: "\uC5C5\uB370\uC774\uD2B8 \uC801\uC6A9",
+    downloadingUpdate: "\uC801\uC6A9 \uC900\uBE44 \uC911...",
     upToDate: "\uCD5C\uC2E0 \uBC84\uC804\uC785\uB2C8\uB2E4.",
     updateAvailable: "\uC0C8 \uBC84\uC804\uC774 \uC788\uC2B5\uB2C8\uB2E4.",
     updateUnavailable: "\uC5C5\uB370\uC774\uD2B8 \uC815\uBCF4\uB97C \uD655\uC778\uD560 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4.",
     noReleasePublished: "\uC544\uC9C1 \uACF5\uAC1C\uB41C GitHub Release\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.",
     noPlatformAsset: "\uC774 \uD50C\uB7AB\uD3FC\uC6A9 \uBC30\uD3EC \uD30C\uC77C\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.",
     releaseNotes: "\uB9B4\uB9AC\uC2A4 \uB178\uD2B8",
-    downloadReady: "\uB2E4\uC6B4\uB85C\uB4DC \uC644\uB8CC",
+    downloadReady: "\uC5C5\uB370\uC774\uD2B8 \uC2E4\uD589\uB428",
     apply: "Apply",
     cancel: "Cancel",
     applied: "\uC801\uC6A9\uB418\uC5C8\uC2B5\uB2C8\uB2E4!",
@@ -349,15 +367,15 @@ const UI_TEXT = {
     latestVersion: "Latest version",
     checkUpdates: "Check Updates",
     checkingUpdates: "Checking...",
-    downloadUpdate: "Download Update",
-    downloadingUpdate: "Downloading...",
+    downloadUpdate: "Apply Update",
+    downloadingUpdate: "Preparing...",
     upToDate: "You are up to date.",
     updateAvailable: "A newer version is available.",
     updateUnavailable: "Update information is unavailable.",
     noReleasePublished: "No public GitHub Release has been published yet.",
     noPlatformAsset: "No release file is available for this platform.",
     releaseNotes: "Release notes",
-    downloadReady: "Download ready",
+    downloadReady: "Update launched",
     apply: "Apply",
     cancel: "Cancel",
     applied: "Applied!",
@@ -392,15 +410,15 @@ const UI_TEXT = {
     latestVersion: "\u6700\u65B0\u7248\u672C",
     checkUpdates: "\u68C0\u67E5\u66F4\u65B0",
     checkingUpdates: "\u68C0\u67E5\u4E2D...",
-    downloadUpdate: "\u4E0B\u8F7D\u66F4\u65B0",
-    downloadingUpdate: "\u4E0B\u8F7D\u4E2D...",
+    downloadUpdate: "\u5E94\u7528\u66F4\u65B0",
+    downloadingUpdate: "\u6B63\u5728\u51C6\u5907...",
     upToDate: "\u5DF2\u662F\u6700\u65B0\u7248\u672C\u3002",
     updateAvailable: "\u6709\u53EF\u7528\u7684\u65B0\u7248\u672C\u3002",
     updateUnavailable: "\u65E0\u6CD5\u83B7\u53D6\u66F4\u65B0\u4FE1\u606F\u3002",
     noReleasePublished: "\u5C1A\u672A\u53D1\u5E03\u516C\u5F00\u7684 GitHub Release\u3002",
     noPlatformAsset: "\u6CA1\u6709\u9002\u7528\u4E8E\u6B64\u5E73\u53F0\u7684\u53D1\u5E03\u6587\u4EF6\u3002",
     releaseNotes: "\u53D1\u5E03\u8BF4\u660E",
-    downloadReady: "\u4E0B\u8F7D\u5B8C\u6210",
+    downloadReady: "\u66F4\u65B0\u5DF2\u542F\u52A8",
     apply: "\u5E94\u7528",
     cancel: "\u53D6\u6D88",
     applied: "\u5DF2\u5E94\u7528\uff01",
@@ -435,15 +453,15 @@ const UI_TEXT = {
     latestVersion: "\u6700\u65B0\u30D0\u30FC\u30B8\u30E7\u30F3",
     checkUpdates: "\u66F4\u65B0\u3092\u78BA\u8A8D",
     checkingUpdates: "\u78BA\u8A8D\u4E2D...",
-    downloadUpdate: "\u66F4\u65B0\u3092\u30C0\u30A6\u30F3\u30ED\u30FC\u30C9",
-    downloadingUpdate: "\u30C0\u30A6\u30F3\u30ED\u30FC\u30C9\u4E2D...",
+    downloadUpdate: "\u66F4\u65B0\u3092\u9069\u7528",
+    downloadingUpdate: "\u6E96\u5099\u4E2D...",
     upToDate: "\u6700\u65B0\u30D0\u30FC\u30B8\u30E7\u30F3\u3067\u3059\u3002",
     updateAvailable: "\u65B0\u3057\u3044\u30D0\u30FC\u30B8\u30E7\u30F3\u304C\u3042\u308A\u307E\u3059\u3002",
     updateUnavailable: "\u66F4\u65B0\u60C5\u5831\u3092\u53D6\u5F97\u3067\u304D\u307E\u305B\u3093\u3002",
     noReleasePublished: "\u516C\u958B\u3055\u308C\u305F GitHub Release \u306F\u307E\u3060\u3042\u308A\u307E\u305B\u3093\u3002",
     noPlatformAsset: "\u3053\u306E\u30D7\u30E9\u30C3\u30C8\u30D5\u30A9\u30FC\u30E0\u7528\u306E\u914D\u5E03\u30D5\u30A1\u30A4\u30EB\u304C\u3042\u308A\u307E\u305B\u3093\u3002",
     releaseNotes: "\u30EA\u30EA\u30FC\u30B9\u30CE\u30FC\u30C8",
-    downloadReady: "\u30C0\u30A6\u30F3\u30ED\u30FC\u30C9\u5B8C\u4E86",
+    downloadReady: "\u66F4\u65B0\u3092\u8D77\u52D5\u3057\u307E\u3057\u305F",
     apply: "\u9069\u7528",
     cancel: "\u30AD\u30E3\u30F3\u30BB\u30EB",
     applied: "\u9069\u7528\u3055\u308C\u307E\u3057\u305F\uff01",
@@ -656,7 +674,19 @@ const EXTRA_UI_TEXT = {
     exportWindowHeight: "기본 높이",
     exportBackground: "배경색",
     exportResizable: "창 크기 변경 허용",
-    exportSplash: "시작 화면"
+    exportSplash: "시작 화면",
+    appPreview: "앱 미리보기",
+    advancedMode: "고급모드 활성화",
+    advancedModeHint: "기존처럼 모든 속성, 에셋, 고급 편집 도구를 표시합니다.",
+    nodePortSize: "노드 연결점 크기",
+    nodePortSizeHint: "노드끼리 선을 연결하는 점의 클릭 영역을 조절합니다.",
+    simpleInspectorHint: "기본 모드에서는 자주 쓰는 항목만 보여줍니다. 전체 항목은 설정에서 고급모드를 켜면 다시 보입니다.",
+    networkConsentTitle: "네트워크 계열 노드 사용 동의",
+    networkConsentIntro: "업데이트 확인, HTTPS 요청, 외부 브라우저 열기 등 네트워크 기능은 사용자가 승인한 뒤에만 실행됩니다.",
+    networkConsentNoticeTitle: "안전 안내",
+    networkConsentAllow: "동의하고 켜기",
+    networkConsentDeny: "거부하고 끄기",
+    networkConsentSettingsHint: "거부해도 설정에서 언제든 다시 켤 수 있습니다."
   },
   en: {
     preview: "Preview",
@@ -861,7 +891,19 @@ const EXTRA_UI_TEXT = {
     exportWindowHeight: "Default height",
     exportBackground: "Background",
     exportResizable: "Resizable window",
-    exportSplash: "Startup splash"
+    exportSplash: "Startup splash",
+    appPreview: "App Preview",
+    advancedMode: "Enable Advanced Mode",
+    advancedModeHint: "Shows all properties, assets, and advanced editing tools like the previous UI.",
+    nodePortSize: "Node port size",
+    nodePortSizeHint: "Adjusts the clickable connector size between nodes.",
+    simpleInspectorHint: "Basic mode shows only common fields. Turn on Advanced Mode in Settings to restore every field.",
+    networkConsentTitle: "Network Node Consent",
+    networkConsentIntro: "Update checks, HTTPS requests, and external browser actions run only after your approval.",
+    networkConsentNoticeTitle: "Safety Notice",
+    networkConsentAllow: "Agree and Enable",
+    networkConsentDeny: "Deny and Disable",
+    networkConsentSettingsHint: "You can turn this back on later in Settings."
   },
   zh: {
     preview: "预览",
@@ -1066,7 +1108,19 @@ const EXTRA_UI_TEXT = {
     exportWindowHeight: "默认高度",
     exportBackground: "背景色",
     exportResizable: "允许调整窗口大小",
-    exportSplash: "启动画面"
+    exportSplash: "启动画面",
+    appPreview: "应用预览",
+    advancedMode: "启用高级模式",
+    advancedModeHint: "显示所有属性、资源和高级编辑工具，恢复旧版完整界面。",
+    nodePortSize: "节点连接点大小",
+    nodePortSizeHint: "调整节点连线连接点的可点击区域。",
+    simpleInspectorHint: "基础模式只显示常用项目。可在设置中开启高级模式显示全部字段。",
+    networkConsentTitle: "网络节点使用同意",
+    networkConsentIntro: "更新检查、HTTPS 请求和外部浏览器动作只有在你同意后才会执行。",
+    networkConsentNoticeTitle: "安全说明",
+    networkConsentAllow: "同意并启用",
+    networkConsentDeny: "拒绝并关闭",
+    networkConsentSettingsHint: "拒绝后也可以稍后在设置中重新开启。"
   },
   ja: {
     preview: "プレビュー",
@@ -1272,7 +1326,19 @@ const EXTRA_UI_TEXT = {
     exportWindowHeight: "既定の高さ",
     exportBackground: "背景色",
     exportResizable: "ウィンドウサイズ変更を許可",
-    exportSplash: "起動画面"
+    exportSplash: "起動画面",
+    appPreview: "アプリプレビュー",
+    advancedMode: "高度モードを有効化",
+    advancedModeHint: "以前の UI と同じように、全プロパティ、アセット、高度な編集ツールを表示します。",
+    nodePortSize: "ノード接続点サイズ",
+    nodePortSizeHint: "ノード同士を接続する点のクリック領域を調整します。",
+    simpleInspectorHint: "基本モードではよく使う項目だけを表示します。すべて表示するには設定で高度モードを有効にしてください。",
+    networkConsentTitle: "ネットワーク系ノード利用同意",
+    networkConsentIntro: "更新確認、HTTPS リクエスト、外部ブラウザー起動は、同意後にのみ実行されます。",
+    networkConsentNoticeTitle: "安全案内",
+    networkConsentAllow: "同意して有効化",
+    networkConsentDeny: "拒否して無効化",
+    networkConsentSettingsHint: "拒否しても後から設定で再度有効化できます。"
   }
 };
 
@@ -3428,11 +3494,24 @@ const BuilderElement = memo(function BuilderElement({
           readOnly={editable}
           tabIndex={editable ? -1 : 0}
           onPointerDown={(event) => {
+            if (editable) {
+              event.preventDefault();
+              event.stopPropagation();
+              onSelect?.(element.id);
+              onPointerDown?.(event, element.id, "move");
+              return;
+            }
             if (!editable) {
               event.stopPropagation();
             }
           }}
           onClick={(event) => {
+            if (editable) {
+              event.preventDefault();
+              event.stopPropagation();
+              onSelect?.(element.id);
+              return;
+            }
             if (!editable) {
               event.stopPropagation();
             }
@@ -3910,6 +3989,10 @@ function SettingsModal({
   onThemeUpload,
   draftPreviewDevice,
   setDraftPreviewDevice,
+  draftAdvancedMode,
+  setDraftAdvancedMode,
+  draftNodeHandleSize,
+  setDraftNodeHandleSize,
   draftTemplateKey,
   setDraftTemplateKey,
   draftHttpsNodesEnabled,
@@ -3974,6 +4057,30 @@ function SettingsModal({
                   <option key={key} value={key}>{getPreviewDeviceLabel(key, uiText)}</option>
                 ))}
               </select>
+            </label>
+
+            <label className="settings-toggle-card compact">
+              <span>
+                <strong>{uiText.advancedMode}</strong>
+                <small>{uiText.advancedModeHint}</small>
+              </span>
+              <input
+                type="checkbox"
+                checked={draftAdvancedMode}
+                onChange={(event) => setDraftAdvancedMode(event.target.checked)}
+              />
+            </label>
+
+            <label className="settings-field">
+              <span>{uiText.nodePortSize}</span>
+              <input
+                type="range"
+                min="10"
+                max="28"
+                value={draftNodeHandleSize}
+                onChange={(event) => setDraftNodeHandleSize(clampNodeHandleSize(event.target.value))}
+              />
+              <small>{uiText.nodePortSizeHint} ({draftNodeHandleSize}px)</small>
             </label>
           </section>
 
@@ -4164,6 +4271,45 @@ function PrivacyPolicyModal({ open, uiText, language, onClose }) {
               <p>{section.body}</p>
             </section>
           ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function NetworkConsentModal({ open, uiText, onAllow, onDeny, onOpenPrivacyPolicy }) {
+  if (!open) return null;
+  const noticeLines = NETWORK_SAFETY_NOTICE.split("\n");
+
+  return (
+    <div className="settings-modal-backdrop network-consent-backdrop">
+      <div className="settings-modal network-consent-modal" onClick={(event) => event.stopPropagation()}>
+        <div className="settings-modal-header">
+          <strong>{uiText.networkConsentTitle}</strong>
+        </div>
+        <div className="settings-modal-body">
+          <section className="privacy-card network-consent-lead">
+            <div>
+              <strong>{uiText.networkConsentTitle}</strong>
+              <span>{uiText.networkConsentIntro}</span>
+            </div>
+            <button className="ghost-btn" onClick={onOpenPrivacyPolicy}>{uiText.openPrivacyPolicy}</button>
+          </section>
+          <section className="network-notice-card">
+            <strong>{uiText.networkConsentNoticeTitle}</strong>
+            <div>
+              {noticeLines.map((line, index) => (
+                line.trim()
+                  ? <p key={`${line}-${index}`}>{line.replace(/^#+\s*/, "")}</p>
+                  : <br key={`blank-${index}`} />
+              ))}
+            </div>
+          </section>
+          <p className="field-hint">{uiText.networkConsentSettingsHint}</p>
+        </div>
+        <div className="settings-modal-actions">
+          <button className="ghost-btn" onClick={onDeny}>{uiText.networkConsentDeny}</button>
+          <button className="menu-btn docs-btn" onClick={onAllow}>{uiText.networkConsentAllow}</button>
         </div>
       </div>
     </div>
@@ -4840,15 +4986,20 @@ function EngineEditor() {
   const [dragState, setDragState] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
+  const [showNetworkConsentModal, setShowNetworkConsentModal] = useState(false);
   const [language, setLanguage] = useState("ko");
   const [themeKey, setThemeKey] = useState("mint");
   const [customThemes, setCustomThemes] = useState({});
   const [previewDevice, setPreviewDevice] = useState("desktop");
+  const [advancedMode, setAdvancedMode] = useState(() => Boolean(readLocalEditorSettings().advancedMode));
+  const [nodeHandleSize, setNodeHandleSize] = useState(() => clampNodeHandleSize(readLocalEditorSettings().nodeHandleSize || 16));
   const [activeScene, setActiveScene] = useState("main");
   const [scenes, setScenes] = useState(["main"]);
   const [draftLanguage, setDraftLanguage] = useState("ko");
   const [draftThemeKey, setDraftThemeKey] = useState("mint");
   const [draftPreviewDevice, setDraftPreviewDevice] = useState("desktop");
+  const [draftAdvancedMode, setDraftAdvancedMode] = useState(false);
+  const [draftNodeHandleSize, setDraftNodeHandleSize] = useState(16);
   const [draftTemplateKey, setDraftTemplateKey] = useState("");
   const [httpsNodesEnabled, setHttpsNodesEnabled] = useState(false);
   const [draftHttpsNodesEnabled, setDraftHttpsNodesEnabled] = useState(false);
@@ -4921,9 +5072,22 @@ function EngineEditor() {
     setDraftLanguage(language);
     setDraftThemeKey(themeKey);
     setDraftPreviewDevice(previewDevice);
+    setDraftAdvancedMode(advancedMode);
+    setDraftNodeHandleSize(nodeHandleSize);
     setDraftTemplateKey("");
     setDraftHttpsNodesEnabled(httpsNodesEnabled);
-  }, [httpsNodesEnabled, language, previewDevice, showSettings, themeKey]);
+  }, [advancedMode, httpsNodesEnabled, language, nodeHandleSize, previewDevice, showSettings, themeKey]);
+
+  useEffect(() => {
+    try {
+      window.localStorage?.setItem(
+        LOCAL_EDITOR_SETTINGS_KEY,
+        JSON.stringify({ advancedMode, nodeHandleSize })
+      );
+    } catch {
+      // 로컬 설정 저장 실패는 편집 흐름을 막지 않습니다.
+    }
+  }, [advancedMode, nodeHandleSize]);
 
   const appendLog = useCallback((entry) => {
     setLogs((current) => [...current.slice(-(DEFAULT_LOG_LIMIT - 1)), entry]);
@@ -4937,6 +5101,27 @@ function EngineEditor() {
     setScriptTrustState("restricted");
     await window.ixo?.resetSecurityApprovals?.();
   }, []);
+
+  const allowNetworkNodes = useCallback(async () => {
+    setHttpsNodesEnabled(true);
+    setDraftHttpsNodesEnabled(true);
+    securityDecisionRef.current.httpsNode = "approved";
+    securityDecisionRef.current.external = "approved";
+    await window.ixo?.setHttpsNodesEnabled?.(true);
+    setShowNetworkConsentModal(false);
+    appendLog(makeLog("info", "Security", "네트워크 계열 노드 사용을 허용했습니다."));
+  }, [appendLog]);
+
+  const denyNetworkNodes = useCallback(async () => {
+    setHttpsNodesEnabled(false);
+    setDraftHttpsNodesEnabled(false);
+    await window.ixo?.setHttpsNodesEnabled?.(false);
+    await resetSecurityState();
+    securityDecisionRef.current.httpsNode = "denied";
+    securityDecisionRef.current.external = "denied";
+    setShowNetworkConsentModal(false);
+    appendLog(makeLog("info", "Security", "네트워크 계열 노드 사용을 거부했습니다. 설정에서 다시 켤 수 있습니다."));
+  }, [appendLog, resetSecurityState]);
 
   const requestSecurityApproval = useCallback(async (scope, context = {}) => {
     const currentDecision = securityDecisionRef.current[scope];
@@ -4991,16 +5176,20 @@ function EngineEditor() {
       try {
         let preferences = await window.ixo?.getSecurityPreferences?.();
         if (typeof preferences?.httpsNodesEnabled !== "boolean") {
-          if (!startupHttpsPreferencePromiseRef.current) {
-            startupHttpsPreferencePromiseRef.current = window.ixo?.promptStartupHttpsPreference?.();
+          if (mounted) {
+            setHttpsNodesEnabled(false);
+            setDraftHttpsNodesEnabled(false);
+            setShowNetworkConsentModal(true);
           }
-          preferences = await startupHttpsPreferencePromiseRef.current;
+          return;
         }
 
         const enabled = Boolean(preferences?.httpsNodesEnabled);
         if (mounted) {
           setHttpsNodesEnabled(enabled);
           setDraftHttpsNodesEnabled(enabled);
+          securityDecisionRef.current.httpsNode = enabled ? "approved" : "denied";
+          securityDecisionRef.current.external = enabled ? "approved" : "denied";
         }
       } catch (error) {
         appendLog(makeLog("error", "HTTPS Nodes", "HTTPS 노드 권한 상태를 불러오지 못했습니다.", String(error.message || error)));
@@ -6457,14 +6646,32 @@ function EngineEditor() {
     try {
       const result = await window.ixo.downloadUpdate(updateInfo.asset);
       setUpdateState("downloaded");
-      setStatus(`Update downloaded: ${result.path}`);
-      appendLog(makeLog("info", "Updates", `Update downloaded: ${result.path}`));
+      setStatus(`Update launched: ${result.name || result.path}`);
+      appendLog(makeLog("info", "Updates", `업데이트 적용 프로그램을 실행했습니다: ${result.name || result.path}`));
     } catch (error) {
       setUpdateState("error");
-      setStatus(`Update download failed: ${error.message}`);
-      appendLog(makeLog("error", "Updates", error.message || "Update download failed."));
+      setStatus(`Update apply failed: ${error.message}`);
+      appendLog(makeLog("error", "Updates", error.message || "Update apply failed."));
     }
   }, [appendLog, updateInfo]);
+
+  const openDetachedPreview = useCallback(async () => {
+    if (!window.ixo?.openProjectPreview) {
+      setStatus("Detached preview is available in the desktop app.");
+      return;
+    }
+
+    try {
+      const result = await window.ixo.openProjectPreview(getSerializableProject());
+      if (result?.ok) {
+        setStatus("Detached app preview opened.");
+        appendLog(makeLog("info", "Preview", "F5 미리보기 창을 열었습니다."));
+      }
+    } catch (error) {
+      setStatus(`Preview failed: ${error.message}`);
+      appendLog(makeLog("error", "Preview", "F5 미리보기 창을 열지 못했습니다.", String(error.message || error)));
+    }
+  }, [appendLog, getSerializableProject]);
 
   const openReleasePageFromSettings = useCallback(async () => {
     const releaseUrl = updateInfo?.releaseUrl || "https://github.com/minyang-tech/IXO-Engine/releases";
@@ -6528,6 +6735,11 @@ function EngineEditor() {
         saveProject({ saveAs: event.shiftKey });
       }
 
+      if (event.key === "F5") {
+        event.preventDefault();
+        openDetachedPreview();
+      }
+
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z") {
         event.preventDefault();
         undo();
@@ -6567,7 +6779,7 @@ function EngineEditor() {
 
     window.addEventListener("keydown", onKeyDown, true);
     return () => window.removeEventListener("keydown", onKeyDown, true);
-  }, [createGroupBox, deleteSelection, duplicateSelection, flowNodes, redo, saveProject, selectedNodeIds.length, setEdges, setNodes, undo]);
+  }, [createGroupBox, deleteSelection, duplicateSelection, flowNodes, openDetachedPreview, redo, saveProject, selectedNodeIds.length, setEdges, setNodes, undo]);
 
   // [엣지 하이라이트] 실행 중인 선을 민트 톤과 애니메이션으로 강조합니다.
   const edgeView = useMemo(
@@ -7205,6 +7417,13 @@ function EngineEditor() {
     if (!target) return;
 
     snapshot();
+    setSelectedUiElementId(id);
+    setSelectedNodeId(null);
+    setSelectedNodeIds([]);
+    setSelectedEdgeIds([]);
+    setInspectorMode("basic");
+    setNodes((current) => applyNodeSelectionState(current, []));
+    setEdges((current) => current.map((edge) => ({ ...edge, selected: false })));
     setDragState({
       id,
       mode: mode === "resize" ? "resize" : "move",
@@ -7217,7 +7436,7 @@ function EngineEditor() {
       startWidth: target.width,
       startHeight: target.height
     });
-  }, [snapshot, uiElements, viewMode]);
+  }, [setEdges, setNodes, snapshot, uiElements, viewMode]);
 
   const handleBuilderPointerUp = useCallback(() => {
     setDragState(null);
@@ -7303,6 +7522,7 @@ function EngineEditor() {
     setSelectedNodeId(null);
     setSelectedNodeIds([]);
     setSelectedEdgeIds([]);
+    setInspectorMode("basic");
     setNodes((current) => applyNodeSelectionState(current, []));
     setEdges((current) => current.map((edge) => ({ ...edge, selected: false })));
   }, [setEdges, setNodes]);
@@ -7311,10 +7531,17 @@ function EngineEditor() {
     setLanguage(draftLanguage);
     setThemeKey(draftThemeKey);
     setPreviewDevice(draftPreviewDevice);
+    setAdvancedMode(Boolean(draftAdvancedMode));
+    setNodeHandleSize(clampNodeHandleSize(draftNodeHandleSize));
     setHttpsNodesEnabled(draftHttpsNodesEnabled);
     await window.ixo?.setHttpsNodesEnabled?.(draftHttpsNodesEnabled);
     if (!draftHttpsNodesEnabled) {
       await resetSecurityState();
+      securityDecisionRef.current.httpsNode = "denied";
+      securityDecisionRef.current.external = "denied";
+    } else {
+      securityDecisionRef.current.httpsNode = "approved";
+      securityDecisionRef.current.external = "approved";
     }
 
     if (draftTemplateKey) {
@@ -7332,16 +7559,18 @@ function EngineEditor() {
     }
 
     setToastMessage((UI_TEXT[draftLanguage] || UI_TEXT.ko).applied);
-  }, [applyState, draftHttpsNodesEnabled, draftLanguage, draftPreviewDevice, draftTemplateKey, draftThemeKey, resetSecurityState, snapshot]);
+  }, [applyState, draftAdvancedMode, draftHttpsNodesEnabled, draftLanguage, draftNodeHandleSize, draftPreviewDevice, draftTemplateKey, draftThemeKey, resetSecurityState, snapshot]);
 
   const cancelSettings = useCallback(() => {
     setDraftLanguage(language);
     setDraftThemeKey(themeKey);
     setDraftPreviewDevice(previewDevice);
+    setDraftAdvancedMode(advancedMode);
+    setDraftNodeHandleSize(nodeHandleSize);
     setDraftTemplateKey("");
     setDraftHttpsNodesEnabled(httpsNodesEnabled);
     setShowSettings(false);
-  }, [httpsNodesEnabled, language, previewDevice, themeKey]);
+  }, [advancedMode, httpsNodesEnabled, language, nodeHandleSize, previewDevice, themeKey]);
 
   const clearLocalAutosave = useCallback(() => {
     window.localStorage?.removeItem(LOCAL_AUTOSAVE_KEY);
@@ -7358,9 +7587,13 @@ function EngineEditor() {
       setLanguage("ko");
       setThemeKey("mint");
       setPreviewDevice("desktop");
+      setAdvancedMode(false);
+      setNodeHandleSize(16);
       setDraftLanguage("ko");
       setDraftThemeKey("mint");
       setDraftPreviewDevice("desktop");
+      setDraftAdvancedMode(false);
+      setDraftNodeHandleSize(16);
       setDraftTemplateKey("");
       setHttpsNodesEnabled(false);
       setDraftHttpsNodesEnabled(false);
@@ -7654,7 +7887,7 @@ function EngineEditor() {
 
   return (
     <div
-      className={`app-shell lang-${language}`}
+      className={`app-shell lang-${language} ${advancedMode ? "mode-advanced" : "mode-simple"}`}
       style={{
         "--accent": currentTheme.accent,
         "--accent-soft": currentTheme.accentSoft,
@@ -7670,7 +7903,9 @@ function EngineEditor() {
         "--muted": currentTheme.muted || "#95ada2",
         "--line": currentTheme.line || "rgba(128, 162, 145, 0.18)",
         "--line-strong": currentTheme.lineStrong || "rgba(128, 162, 145, 0.3)",
-        "--input-bg": currentTheme.inputBg || "#0d1511"
+        "--input-bg": currentTheme.inputBg || "#0d1511",
+        "--node-handle-size": `${nodeHandleSize}px`,
+        "--node-link-dot-size": `${Math.max(8, Math.round(nodeHandleSize * 0.72))}px`
       }}
     >
       <main className="workspace">
@@ -7716,6 +7951,7 @@ function EngineEditor() {
                     <button onClick={() => saveProject()}>{uiText.save}</button>
                     <button onClick={() => saveProject({ saveAs: true })}>Save As...</button>
                     <button onClick={loadProject}>{uiText.load}</button>
+                    <button onClick={openDetachedPreview}>{uiText.appPreview} (F5)</button>
                     <button onClick={openExportModal}>{uiText.export}</button>
                     <button onClick={magicAlign}>{uiText.magicAlign}</button>
                   </div>
@@ -8033,6 +8269,7 @@ function EngineEditor() {
               </div>
             </div>
 
+            {advancedMode ? (
             <section className="asset-manager-card">
               <div className="asset-manager-head">
                 <strong>{uiText.assetManager}</strong>
@@ -8068,9 +8305,11 @@ function EngineEditor() {
               )}
               <button className="ghost-btn" onClick={cleanupUnusedAssets}>{uiText.cleanUnused}</button>
             </section>
+            ) : null}
 
             {selectedUiElement ? (
               <div className="property-form">
+                {!advancedMode ? <p className="field-hint">{uiText.simpleInspectorHint}</p> : null}
                 <label>
                   {uiText.elementKind}
                   <input type="text" value={selectedUiElement.kind} readOnly />
@@ -8087,12 +8326,14 @@ function EngineEditor() {
                   {uiText.bindingRefKey}
                   <input type="text" value={selectedUiElement.bindingKey || ""} onChange={(event) => updateUiField("bindingKey", event.target.value)} placeholder="welcomeText, username..." />
                 </label>
-                <label>
-                  Scene
-                  <select value={selectedUiElement.scene || "main"} onChange={(event) => updateUiField("scene", event.target.value)}>
-                    {sceneNames.map((scene) => <option key={scene} value={scene}>{scene}</option>)}
-                  </select>
-                </label>
+                {advancedMode ? (
+                  <label>
+                    Scene
+                    <select value={selectedUiElement.scene || "main"} onChange={(event) => updateUiField("scene", event.target.value)}>
+                      {sceneNames.map((scene) => <option key={scene} value={scene}>{scene}</option>)}
+                    </select>
+                  </label>
+                ) : null}
                 <label>
                   X
                   <input type="number" value={selectedUiElement.x} onChange={(event) => updateUiField("x", event.target.value)} />
@@ -8109,41 +8350,45 @@ function EngineEditor() {
                   {uiText.height}
                   <input type="number" value={selectedUiElement.height} onChange={(event) => updateUiField("height", event.target.value)} />
                 </label>
-                <label>
-                  {uiText.fontSize}
-                  <input type="number" value={selectedUiElement.fontSize} onChange={(event) => updateUiField("fontSize", event.target.value)} />
-                </label>
-                <label>
-                  {uiText.radius}
-                  <input type="number" value={selectedUiElement.radius} onChange={(event) => updateUiField("radius", event.target.value)} />
-                </label>
-                <label>
-                  {uiText.textColor}
-                  <input type="color" value={selectedUiElement.color} onChange={(event) => updateUiField("color", event.target.value)} />
-                </label>
-                <label>
-                  {uiText.background}
-                  <input type="text" value={selectedUiElement.background} onChange={(event) => updateUiField("background", event.target.value)} />
-                </label>
-                <label>
-                  CSS
-                  <textarea value={selectedUiElement.cssText || ""} onChange={(event) => updateUiField("cssText", event.target.value)} placeholder="box-shadow: 0 12px 36px rgba(0,0,0,.22); padding: 12px;" />
-                </label>
-                {["custom-button", "vector"].includes(selectedUiElement.kind) ? (
+                {advancedMode ? (
                   <>
-                    <VectorDrawPad
-                      element={selectedUiElement}
-                      accent={selectedUiElement.vectorFill || currentTheme.accent}
-                      onChange={(path) => updateUiField("vectorPath", path)}
-                    />
                     <label>
-                      {uiText.vectorFill}
-                      <input type="color" value={selectedUiElement.vectorFill || currentTheme.accent} onChange={(event) => updateUiField("vectorFill", event.target.value)} />
+                      {uiText.fontSize}
+                      <input type="number" value={selectedUiElement.fontSize} onChange={(event) => updateUiField("fontSize", event.target.value)} />
                     </label>
-                    <details className="advanced-vector-path">
-                      <summary>{uiText.vectorAdvancedPath}</summary>
-                      <textarea value={selectedUiElement.vectorPath || ""} onChange={(event) => updateUiField("vectorPath", event.target.value)} placeholder="M10 10 H120 V60 H10 Z" />
-                    </details>
+                    <label>
+                      {uiText.radius}
+                      <input type="number" value={selectedUiElement.radius} onChange={(event) => updateUiField("radius", event.target.value)} />
+                    </label>
+                    <label>
+                      {uiText.textColor}
+                      <input type="color" value={selectedUiElement.color} onChange={(event) => updateUiField("color", event.target.value)} />
+                    </label>
+                    <label>
+                      {uiText.background}
+                      <input type="text" value={selectedUiElement.background} onChange={(event) => updateUiField("background", event.target.value)} />
+                    </label>
+                    <label>
+                      CSS
+                      <textarea value={selectedUiElement.cssText || ""} onChange={(event) => updateUiField("cssText", event.target.value)} placeholder="box-shadow: 0 12px 36px rgba(0,0,0,.22); padding: 12px;" />
+                    </label>
+                    {["custom-button", "vector"].includes(selectedUiElement.kind) ? (
+                      <>
+                        <VectorDrawPad
+                          element={selectedUiElement}
+                          accent={selectedUiElement.vectorFill || currentTheme.accent}
+                          onChange={(path) => updateUiField("vectorPath", path)}
+                        />
+                        <label>
+                          {uiText.vectorFill}
+                          <input type="color" value={selectedUiElement.vectorFill || currentTheme.accent} onChange={(event) => updateUiField("vectorFill", event.target.value)} />
+                        </label>
+                        <details className="advanced-vector-path">
+                          <summary>{uiText.vectorAdvancedPath}</summary>
+                          <textarea value={selectedUiElement.vectorPath || ""} onChange={(event) => updateUiField("vectorPath", event.target.value)} placeholder="M10 10 H120 V60 H10 Z" />
+                        </details>
+                      </>
+                    ) : null}
                   </>
                 ) : null}
                 <label>
@@ -8162,6 +8407,7 @@ function EngineEditor() {
               </div>
             ) : selectedNode ? (
               <div className="property-form">
+                {!advancedMode ? <p className="field-hint">{uiText.simpleInspectorHint}</p> : null}
                 <label>
                   {uiText.nodeLabel}
                   <input type="text" value={selectedNode.data.label} onChange={(event) => updateNodeField("label", event.target.value)} />
@@ -8231,18 +8477,22 @@ function EngineEditor() {
                   {uiText.refKey}
                   <input type="text" value={selectedNode.data.refKey || ""} onChange={(event) => updateNodeField("refKey", event.target.value)} placeholder="username, totalPrice..." />
                 </label>
-                <label>
-                  {uiText.groupLabel}
-                  <input type="text" value={selectedNode.data.groupLabel || ""} onChange={(event) => updateNodeField("groupLabel", event.target.value)} placeholder="Flow A, Login, UI..." />
-                </label>
-                <label>
-                  {uiText.nodeType}
-                  <input type="text" value={selectedNode.data.nodeType || ""} onChange={(event) => updateNodeField("nodeType", event.target.value)} />
-                </label>
-                <label>
-                  Permission Scope
-                  <input type="text" value={selectedNode.data.permissionScope || getNodePermissionScope(selectedNode.data.nodeType) || "none"} readOnly />
-                </label>
+                {advancedMode ? (
+                  <>
+                    <label>
+                      {uiText.groupLabel}
+                      <input type="text" value={selectedNode.data.groupLabel || ""} onChange={(event) => updateNodeField("groupLabel", event.target.value)} placeholder="Flow A, Login, UI..." />
+                    </label>
+                    <label>
+                      {uiText.nodeType}
+                      <input type="text" value={selectedNode.data.nodeType || ""} onChange={(event) => updateNodeField("nodeType", event.target.value)} />
+                    </label>
+                    <label>
+                      Permission Scope
+                      <input type="text" value={selectedNode.data.permissionScope || getNodePermissionScope(selectedNode.data.nodeType) || "none"} readOnly />
+                    </label>
+                  </>
+                ) : null}
                 {selectedNode.data.nodeType === "function-call" && selectedFunctionDefinition ? (
                   <div className="function-call-args">
                     <strong>{uiText.functionArguments}</strong>
@@ -8268,14 +8518,18 @@ function EngineEditor() {
                     </span>
                   </div>
                 ) : null}
-                <label>
-                  {uiText.numericSlider}
-                  <input type="range" min="0" max="100" value={Number(selectedNode.data.sliderValue || 0)} onChange={(event) => updateNodeField("sliderValue", event.target.value)} />
-                </label>
-                <label>
-                  {uiText.colorPicker}
-                  <input type="color" value={selectedNode.data.colorValue || ACCENT} onChange={(event) => updateNodeField("colorValue", event.target.value)} />
-                </label>
+                {advancedMode ? (
+                  <>
+                    <label>
+                      {uiText.numericSlider}
+                      <input type="range" min="0" max="100" value={Number(selectedNode.data.sliderValue || 0)} onChange={(event) => updateNodeField("sliderValue", event.target.value)} />
+                    </label>
+                    <label>
+                      {uiText.colorPicker}
+                      <input type="color" value={selectedNode.data.colorValue || ACCENT} onChange={(event) => updateNodeField("colorValue", event.target.value)} />
+                    </label>
+                  </>
+                ) : null}
                 {["audio-player", "sound-play", "sound-play-wait", "bgm-play"].includes(selectedNode.data.nodeType) ? (
                   <label>
                     {uiText.soundUpload}
@@ -8286,7 +8540,7 @@ function EngineEditor() {
                     />
                     {selectedNode.data.soundName ? <span className="field-hint">{selectedNode.data.soundName}</span> : null}
                   </label>
-                ) : selectedNode.data.nodeType !== "file-watcher" ? (
+                ) : selectedNode.data.nodeType !== "file-watcher" && advancedMode ? (
                   <label>
                     {uiText.filePath}
                     <input
@@ -8327,6 +8581,10 @@ function EngineEditor() {
         onThemeUpload={handleThemeUpload}
         draftPreviewDevice={draftPreviewDevice}
         setDraftPreviewDevice={setDraftPreviewDevice}
+        draftAdvancedMode={draftAdvancedMode}
+        setDraftAdvancedMode={setDraftAdvancedMode}
+        draftNodeHandleSize={draftNodeHandleSize}
+        setDraftNodeHandleSize={setDraftNodeHandleSize}
         draftTemplateKey={draftTemplateKey}
         setDraftTemplateKey={setDraftTemplateKey}
         draftHttpsNodesEnabled={draftHttpsNodesEnabled}
@@ -8351,6 +8609,14 @@ function EngineEditor() {
         uiText={uiText}
         language={language}
         onClose={() => setShowPrivacyPolicy(false)}
+      />
+
+      <NetworkConsentModal
+        open={showNetworkConsentModal}
+        uiText={uiText}
+        onAllow={allowNetworkNodes}
+        onDeny={denyNetworkNodes}
+        onOpenPrivacyPolicy={() => setShowPrivacyPolicy(true)}
       />
 
       <ExportModal

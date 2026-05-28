@@ -1,12 +1,13 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("ixo", {
-  version: "1.1.2",
+  version: "1.1.3",
   saveProject: (payload, options) => ipcRenderer.invoke("project:save", payload, options),
   loadProject: () => ipcRenderer.invoke("project:load"),
   chooseExportPath: (options) => ipcRenderer.invoke("project:chooseExportPath", options),
   getExportCapabilities: () => ipcRenderer.invoke("project:getExportCapabilities"),
   getEmbeddedRuntimeProject: () => ipcRenderer.invoke("project:getEmbeddedRuntimeProject"),
+  openProjectPreview: (payload) => ipcRenderer.invoke("project:openPreview", payload),
   exportProject: (payload, options) => ipcRenderer.invoke("project:export", payload, options),
   exportMobileProject: (payload, options) => ipcRenderer.invoke("project:exportMobile", payload, options),
   requestHttps: (url) => ipcRenderer.invoke("net:httpsRequest", url),

@@ -240,19 +240,29 @@ async function downloadReleaseAsset(asset) {
     throw new Error("Update asset is larger than the allowed limit.");
   }
 
-  const targetPath = path.join(app.getPath("downloads"), safeDownloadName(asset.name));
+  const updateDir = path.join(app.getPath("temp"), "ixo-engine-update");
+  fs.rmSync(updateDir, { recursive: true, force: true });
+  fs.mkdirSync(updateDir, { recursive: true });
+  const targetPath = path.join(updateDir, safeDownloadName(asset.name));
   const buffer = Buffer.from(await response.arrayBuffer());
   if (buffer.length > MAX_UPDATE_DOWNLOAD_BYTES) {
     throw new Error("Update download exceeded the maximum size limit.");
   }
   fs.writeFileSync(targetPath, buffer);
-  shell.showItemInFolder(targetPath);
+  if (process.platform !== "win32") {
+    fs.chmodSync(targetPath, 0o755);
+  }
+  const launchError = await shell.openPath(targetPath);
+  if (launchError) {
+    throw new Error(`Update apply failed: ${launchError}`);
+  }
 
   return {
     ok: true,
     path: targetPath,
     name: safeDownloadName(asset.name),
-    size: buffer.length
+    size: buffer.length,
+    action: "launched"
   };
 }
 
