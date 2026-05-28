@@ -100,8 +100,135 @@ img {
   width: 100%;
   height: 100%;
   display: grid;
-  grid-template-rows: 1fr 34px;
+  grid-template-rows: 42px 1fr 34px;
   background: var(--theme-bg, transparent);
+}
+
+.workspace-tabbar {
+  min-width: 0;
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 12px 0;
+  border-bottom: 1px solid var(--line);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.01)),
+    color-mix(in srgb, var(--panel) 94%, black 6%);
+  overflow: hidden;
+}
+
+.workspace-tabbar-scenes,
+.workspace-tabbar-actions {
+  min-width: 0;
+  display: flex;
+  align-items: end;
+  gap: 6px;
+}
+
+.workspace-tabbar-scenes {
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.workspace-tab {
+  min-width: 0;
+  max-width: 190px;
+  height: 35px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-bottom-color: transparent;
+  border-radius: 13px 13px 0 0;
+  background: color-mix(in srgb, var(--panel-alt) 82%, black 18%);
+  color: var(--muted);
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.workspace-tab[draggable="true"] {
+  cursor: grab;
+}
+
+.workspace-tab[draggable="true"]:active {
+  cursor: grabbing;
+}
+
+.workspace-tab-main {
+  min-width: 0;
+  height: 100%;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+}
+
+.workspace-tab-main span:last-child,
+.workspace-tab > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.workspace-tab-close {
+  width: 20px;
+  height: 20px;
+  display: inline-grid;
+  place-items: center;
+  margin-left: 4px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: color-mix(in srgb, var(--muted) 86%, white);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.workspace-tab-close:hover:not(:disabled) {
+  border-color: rgba(239, 107, 120, 0.32);
+  background: rgba(239, 107, 120, 0.14);
+  color: #ffd4d8;
+}
+
+.workspace-tab-close:disabled {
+  cursor: not-allowed;
+  opacity: 0.28;
+}
+
+.workspace-tab:hover,
+.workspace-tab.active {
+  color: var(--text);
+  border-color: var(--line-strong);
+  border-bottom-color: color-mix(in srgb, var(--panel) 94%, black 6%);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--panel-elevated) 92%, black), color-mix(in srgb, var(--panel) 96%, black));
+}
+
+.workspace-tab.active {
+  box-shadow: 0 -8px 24px rgba(62, 207, 142, 0.08);
+}
+
+.workspace-tab.add-tab {
+  width: 36px;
+  justify-content: center;
+  padding: 0;
+  color: var(--accent);
+}
+
+.workspace-tab-icon {
+  opacity: 0.82;
+  font-size: 12px;
+}
+
+.workspace-utility-tab {
+  border-style: dashed;
 }
 
 .workspace {
@@ -137,6 +264,20 @@ img {
 .vertical-panels,
 .split-group {
   min-height: 100%;
+}
+
+.log-panel-hidden {
+  height: 100%;
+}
+
+.canvas-tab-stage {
+  height: 100%;
+  min-height: 0;
+  padding: 14px;
+}
+
+.canvas-builder-tab-stage .preview-shell {
+  height: 100%;
 }
 
 .command-center,
@@ -1336,7 +1477,7 @@ img {
 }
 
 .viewer-screen {
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
 }
 
 .preview-mode {
@@ -1357,6 +1498,7 @@ img {
 }
 
 .device-toolbar {
+  min-height: 42px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1367,6 +1509,47 @@ img {
 .device-toolbar span {
   color: var(--muted);
   font-size: 12px;
+}
+
+.builder-scale-control {
+  min-width: 286px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--panel-alt) 82%, transparent);
+}
+
+.builder-scale-control input {
+  width: 118px;
+  accent-color: var(--accent);
+}
+
+.scale-step-btn {
+  width: 24px;
+  height: 24px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--panel) 86%, black);
+  color: var(--text);
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.scale-step-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.builder-scale-control strong {
+  min-width: 42px;
+  color: var(--text);
+  font-size: 12px;
+  text-align: right;
 }
 
 .device-tabs {
@@ -1395,6 +1578,10 @@ img {
   justify-content: center;
   overflow: auto;
   padding-bottom: 4px;
+}
+
+.viewer-stage-shell.is-editable-preview {
+  justify-content: flex-start;
 }
 
 .viewer-stage {
@@ -1900,9 +2087,12 @@ img {
 }
 
 .settings-modal {
-  width: min(560px, 92vw);
-  max-height: 86vh;
-  overflow: auto;
+  width: calc(100vw - 36px);
+  height: calc(100vh - 36px);
+  max-height: calc(100vh - 36px);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  overflow: hidden;
   border-radius: 24px;
   border: 1px solid var(--line);
   background: linear-gradient(180deg, color-mix(in srgb, var(--panel-alt) 94%, black), color-mix(in srgb, var(--panel) 96%, black));
@@ -1928,14 +2118,31 @@ img {
   display: grid;
   gap: 14px;
   padding: 18px;
+  overflow: auto;
+}
+
+.settings-embedded-shell {
+  height: 100%;
+  min-height: 0;
+  padding: 14px;
+}
+
+.settings-modal-embedded {
+  width: 100%;
+  height: 100%;
+  max-height: 100%;
 }
 
 .privacy-modal {
   width: min(720px, 94vw);
+  height: auto;
+  max-height: 92vh;
 }
 
 .network-consent-modal {
   width: min(680px, 94vw);
+  height: auto;
+  max-height: 92vh;
 }
 
 .network-consent-lead {
@@ -2064,8 +2271,16 @@ img {
   gap: 10px;
 }
 
+.settings-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .export-modal {
   width: min(620px, 94vw);
+  height: auto;
+  max-height: 92vh;
 }
 
 .export-modal-body {
@@ -2383,6 +2598,10 @@ img {
   color: var(--muted);
   font-size: 12px;
   line-height: 1.45;
+}
+
+.settings-section-heading.compact-heading {
+  padding: 0 2px;
 }
 
 .compact-grid {
@@ -2755,6 +2974,26 @@ img {
 }
 
 @media (max-width: 980px) {
+  .app-shell {
+    grid-template-rows: auto 1fr auto;
+  }
+
+  .workspace-tabbar {
+    align-items: stretch;
+    flex-direction: column;
+    padding: 8px;
+  }
+
+  .workspace-tabbar-actions {
+    align-self: stretch;
+  }
+
+  .workspace-tab {
+    height: 34px;
+    border-radius: 12px;
+    border-bottom-color: var(--line);
+  }
+
   .workspace {
     grid-template-columns: 1fr;
     grid-template-rows: auto minmax(420px, 1fr) auto;

@@ -209,6 +209,12 @@ function closeWatchers(webContentsId) {
   fileWatchersByWebContents.delete(webContentsId);
 }
 
+async function openDocsPage() {
+  const docsUrl = new URL("https://minyangtech.n-e.kr/docs/ixo/index");
+  await shell.openExternal(docsUrl.toString());
+  return { ok: true, url: docsUrl.toString() };
+}
+
 function assertTrustedSender(event) {
   if (!trustedWebContentsIds.has(event.sender.id)) {
     throw new Error("Blocked IPC call from an untrusted renderer.");
@@ -1296,6 +1302,11 @@ app.whenReady().then(() => {
   ipcMain.handle("app:openReleasePage", async (event, releaseUrl) => {
     assertTrustedSender(event);
     return openReleasePage(releaseUrl);
+  });
+
+  ipcMain.handle("app:openDocsPage", async (event) => {
+    assertTrustedSender(event);
+    return openDocsPage();
   });
 
   ipcMain.handle("security:requestApproval", async (event, scope, context) => requestSecurityApproval(event, scope, context));

@@ -101,6 +101,12 @@ function clampNodeHandleSize(value) {
   return Math.max(10, Math.min(28, Math.round(numericValue)));
 }
 
+function clampBuilderPreviewScale(value) {
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue)) return 1;
+  return Math.max(0.75, Math.min(2, Math.round(numericValue * 100) / 100));
+}
+
 const PRIVACY_POLICY_TEXT = {
   ko: {
     effectiveDate: "시행일: 2026-05-18",
@@ -686,7 +692,20 @@ const EXTRA_UI_TEXT = {
     networkConsentNoticeTitle: "안전 안내",
     networkConsentAllow: "동의하고 켜기",
     networkConsentDeny: "거부하고 끄기",
-    networkConsentSettingsHint: "거부해도 설정에서 언제든 다시 켤 수 있습니다."
+    networkConsentSettingsHint: "거부해도 설정에서 언제든 다시 켤 수 있습니다.",
+    showLogs: "로그 패널 표시",
+    showLogsHint: "기본값은 꺼짐입니다. 필요할 때만 하단 로그 콘솔을 띄웁니다.",
+    networkConsentDocument: "동의서",
+    networkConsentView: "동의서 보기",
+    networkConsentRevoke: "동의 철회",
+    workspaceTabs: "작업 탭",
+    settingsTab: "설정",
+    docsTab: "문서",
+    previewTab: "미리보기",
+    openCanvasBuilder: "캔버스 빌더 열기",
+    closeTab: "탭 닫기",
+    renameScene: "Scene 이름 변경",
+    builderPreviewScale: "미리보기 크기"
   },
   en: {
     preview: "Preview",
@@ -903,7 +922,20 @@ const EXTRA_UI_TEXT = {
     networkConsentNoticeTitle: "Safety Notice",
     networkConsentAllow: "Agree and Enable",
     networkConsentDeny: "Deny and Disable",
-    networkConsentSettingsHint: "You can turn this back on later in Settings."
+    networkConsentSettingsHint: "You can turn this back on later in Settings.",
+    showLogs: "Show log panel",
+    showLogsHint: "Off by default. Enable it only when you need the bottom log console.",
+    networkConsentDocument: "Consent document",
+    networkConsentView: "View consent",
+    networkConsentRevoke: "Revoke consent",
+    workspaceTabs: "Workspace tabs",
+    settingsTab: "Settings",
+    docsTab: "Docs",
+    previewTab: "Preview",
+    openCanvasBuilder: "Open Canvas Builder",
+    closeTab: "Close tab",
+    renameScene: "Rename Scene",
+    builderPreviewScale: "Preview size"
   },
   zh: {
     preview: "预览",
@@ -1120,7 +1152,20 @@ const EXTRA_UI_TEXT = {
     networkConsentNoticeTitle: "安全说明",
     networkConsentAllow: "同意并启用",
     networkConsentDeny: "拒绝并关闭",
-    networkConsentSettingsHint: "拒绝后也可以稍后在设置中重新开启。"
+    networkConsentSettingsHint: "拒绝后也可以稍后在设置中重新开启。",
+    showLogs: "显示日志面板",
+    showLogsHint: "默认关闭。只在需要查看底部日志控制台时开启。",
+    networkConsentDocument: "同意书",
+    networkConsentView: "查看同意书",
+    networkConsentRevoke: "撤回同意",
+    workspaceTabs: "工作区标签",
+    settingsTab: "设置",
+    docsTab: "文档",
+    previewTab: "预览",
+    openCanvasBuilder: "打开画布构建器",
+    closeTab: "关闭标签",
+    renameScene: "重命名场景",
+    builderPreviewScale: "预览大小"
   },
   ja: {
     preview: "プレビュー",
@@ -1338,7 +1383,20 @@ const EXTRA_UI_TEXT = {
     networkConsentNoticeTitle: "安全案内",
     networkConsentAllow: "同意して有効化",
     networkConsentDeny: "拒否して無効化",
-    networkConsentSettingsHint: "拒否しても後から設定で再度有効化できます。"
+    networkConsentSettingsHint: "拒否しても後から設定で再度有効化できます。",
+    showLogs: "ログパネルを表示",
+    showLogsHint: "初期値はオフです。下部ログコンソールが必要な時だけ表示します。",
+    networkConsentDocument: "同意書",
+    networkConsentView: "同意書を見る",
+    networkConsentRevoke: "同意を取り消す",
+    workspaceTabs: "ワークスペースタブ",
+    settingsTab: "設定",
+    docsTab: "ドキュメント",
+    previewTab: "プレビュー",
+    openCanvasBuilder: "キャンバスビルダーを開く",
+    closeTab: "タブを閉じる",
+    renameScene: "Scene 名を変更",
+    builderPreviewScale: "プレビューサイズ"
   }
 };
 
@@ -2409,6 +2467,10 @@ function decodeDataUrlText(dataUrl = "") {
 function applyNodeSelectionState(nodes, selectedIds) {
   const selectedSet = new Set(selectedIds);
   return nodes.map((node) => ({ ...node, selected: selectedSet.has(node.id) }));
+}
+
+function normalizeSelectionIds(ids = []) {
+  return [...new Set(ids.filter(Boolean))];
 }
 
 function hasPersistentNodeChange(changes = []) {
@@ -3618,20 +3680,31 @@ function RuntimePanel({
   uiText,
   previewDevice,
   setPreviewDevice,
+  builderPreviewScale = 1,
+  setBuilderPreviewScale,
   onUiElementSelect,
   onOpenSettings,
+  onOpenBuilderTab,
   activeScene = "main",
   setActiveScene,
   sceneNames = ["main"],
   onCreateScene,
   onDeleteScene,
   onAddComponent,
-  runtimeOnly = false
+  runtimeOnly = false,
+  standaloneBuilder = false
 }) {
   const inputNodes = runtimeOnly ? [] : nodes.filter((node) => node.data?.nodeType === "input");
   const editable = viewMode === "builder";
   const showViewerStage = runtimeOnly || viewMode === "viewer" || viewMode === "builder";
   const showDeviceToolbar = showViewerStage && !runtimeOnly;
+  const previewWidth = runtimeOnly
+    ? "100%"
+    : PREVIEW_DEVICE_OPTIONS[previewDevice]?.width || "100%";
+  const previewWidthMatch = String(previewWidth).match(/^([0-9.]+)(px|%)$/);
+  const scaledPreviewWidth = editable && previewWidthMatch
+    ? `${Math.round(Number(previewWidthMatch[1]) * clampBuilderPreviewScale(builderPreviewScale))}${previewWidthMatch[2]}`
+    : previewWidth;
   const canvasLayerRef = useRef(null);
   const visibleUiElements = useMemo(
     () => uiElements
@@ -3678,13 +3751,13 @@ function RuntimePanel({
   return (
     <div className="preview-shell">
       <div className="viewer-header">
-        {runtimeOnly ? null : (
+        {runtimeOnly || standaloneBuilder ? null : (
           <>
             <div className="viewer-tabs-row">
               <div className="viewer-tabs">
                 <button className={viewMode === "preview" ? "active" : ""} onClick={() => setViewMode("preview")}>{uiText.preview}</button>
                 <button className={viewMode === "viewer" ? "active" : ""} onClick={() => setViewMode("viewer")}>{uiText.viewer}</button>
-                <button className={viewMode === "builder" ? "active" : ""} onClick={() => setViewMode("builder")}>{uiText.builder}</button>
+                <button type="button" onClick={onOpenBuilderTab}>{uiText.openCanvasBuilder}</button>
               </div>
               <button className="settings-gear-btn" onClick={onOpenSettings} aria-label={uiText.settings}>
                 {uiText.settingsIcon}
@@ -3763,6 +3836,36 @@ function RuntimePanel({
         {showDeviceToolbar ? (
           <div className="device-toolbar">
             <span>{uiText.responsivePreview}</span>
+            {editable ? (
+              <div className="builder-scale-control">
+                <span>{uiText.builderPreviewScale}</span>
+                <button
+                  type="button"
+                  className="scale-step-btn"
+                  onClick={() => setBuilderPreviewScale?.(clampBuilderPreviewScale(builderPreviewScale - 0.1))}
+                  aria-label={`${uiText.builderPreviewScale} -`}
+                >
+                  -
+                </button>
+                <input
+                  type="range"
+                  min="0.75"
+                  max="2"
+                  step="0.05"
+                  value={clampBuilderPreviewScale(builderPreviewScale)}
+                  onChange={(event) => setBuilderPreviewScale?.(clampBuilderPreviewScale(event.target.value))}
+                />
+                <button
+                  type="button"
+                  className="scale-step-btn"
+                  onClick={() => setBuilderPreviewScale?.(clampBuilderPreviewScale(builderPreviewScale + 0.1))}
+                  aria-label={`${uiText.builderPreviewScale} +`}
+                >
+                  +
+                </button>
+                <strong>{Math.round(clampBuilderPreviewScale(builderPreviewScale) * 100)}%</strong>
+              </div>
+            ) : null}
             <div className="device-tabs">
               {Object.entries(PREVIEW_DEVICE_OPTIONS).map(([key, option]) => (
                 <button key={key} className={previewDevice === key ? "active" : ""} onClick={() => setPreviewDevice(key)}>
@@ -3774,11 +3877,11 @@ function RuntimePanel({
         ) : null}
 
         {showViewerStage ? (
-          <div className={`viewer-stage-shell device-${previewDevice}`}>
+          <div className={`viewer-stage-shell device-${previewDevice} ${editable ? "is-editable-preview" : ""}`}>
             <div
               ref={builderCanvasRef}
               className={`viewer-stage ${editable ? "is-editable" : ""} ${runtimeOnly ? "is-runtime-only" : ""}`}
-              style={{ width: runtimeOnly ? "100%" : PREVIEW_DEVICE_OPTIONS[previewDevice]?.width || "100%" }}
+              style={{ width: scaledPreviewWidth }}
               onDragOver={onBuilderDragOver}
               onDrop={onBuilderDrop}
               onClick={(event) => {
@@ -3980,6 +4083,7 @@ function LogConsole({ logs, onClear, uiText }) {
 
 function SettingsModal({
   open,
+  embedded = false,
   uiText,
   draftLanguage,
   setDraftLanguage,
@@ -3993,6 +4097,8 @@ function SettingsModal({
   setDraftAdvancedMode,
   draftNodeHandleSize,
   setDraftNodeHandleSize,
+  draftShowLogs,
+  setDraftShowLogs,
   draftTemplateKey,
   setDraftTemplateKey,
   draftHttpsNodesEnabled,
@@ -4004,6 +4110,8 @@ function SettingsModal({
   onDownloadUpdate,
   onOpenReleasePage,
   onOpenPrivacyPolicy,
+  onOpenNetworkConsent,
+  onRevokeNetworkConsent,
   onApply,
   onCancel,
   onClearAutosave,
@@ -4013,9 +4121,8 @@ function SettingsModal({
 }) {
   if (!open) return null;
 
-  return (
-    <div className="settings-modal-backdrop" onClick={onCancel}>
-      <div className="settings-modal" onClick={(event) => event.stopPropagation()}>
+  const panel = (
+      <div className={`settings-modal ${embedded ? "settings-modal-embedded" : ""}`} onClick={(event) => event.stopPropagation()}>
         <div className="settings-modal-header">
           <strong>{uiText.settingsTitle}</strong>
           <button className="ghost-btn" onClick={onCancel}>{uiText.cancel}</button>
@@ -4082,6 +4189,18 @@ function SettingsModal({
               />
               <small>{uiText.nodePortSizeHint} ({draftNodeHandleSize}px)</small>
             </label>
+
+            <label className="settings-toggle-card compact">
+              <span>
+                <strong>{uiText.showLogs}</strong>
+                <small>{uiText.showLogsHint}</small>
+              </span>
+              <input
+                type="checkbox"
+                checked={draftShowLogs}
+                onChange={(event) => setDraftShowLogs(event.target.checked)}
+              />
+            </label>
           </section>
 
           <label className="settings-field">
@@ -4094,17 +4213,27 @@ function SettingsModal({
             </select>
           </label>
 
-          <label className="settings-toggle-card">
-            <span>
-              <strong>{uiText.httpsNodes}</strong>
-              <small>{uiText.httpsNodesDescription}</small>
-            </span>
-            <input
-              type="checkbox"
-              checked={draftHttpsNodesEnabled}
-              onChange={(event) => setDraftHttpsNodesEnabled(event.target.checked)}
-            />
-          </label>
+          <section className="settings-section-card network-consent-settings-card">
+            <label className="settings-toggle-card compact">
+              <span>
+                <strong>{uiText.httpsNodes}</strong>
+                <small>{uiText.httpsNodesDescription}</small>
+              </span>
+              <input
+                type="checkbox"
+                checked={draftHttpsNodesEnabled}
+                onChange={(event) => setDraftHttpsNodesEnabled(event.target.checked)}
+              />
+            </label>
+            <div className="settings-section-heading compact-heading">
+              <strong>{uiText.networkConsentDocument}</strong>
+              <span>{uiText.networkConsentSettingsHint}</span>
+            </div>
+            <div className="settings-action-row">
+              <button type="button" className="ghost-btn" onClick={onOpenNetworkConsent}>{uiText.networkConsentView}</button>
+              <button type="button" className="ghost-btn danger-lite" onClick={onRevokeNetworkConsent}>{uiText.networkConsentRevoke}</button>
+            </div>
+          </section>
 
           <section className="settings-section-card">
             <div className="settings-section-heading">
@@ -4248,6 +4377,15 @@ function SettingsModal({
           </div>
         </div>
       </div>
+  );
+
+  if (embedded) {
+    return <div className="settings-embedded-shell">{panel}</div>;
+  }
+
+  return (
+    <div className="settings-modal-backdrop" onClick={onCancel}>
+      {panel}
     </div>
   );
 }
@@ -4971,6 +5109,9 @@ function EngineEditor() {
   const [status, setStatus] = useState("Ready");
   const [debugOverlay, setDebugOverlay] = useState(false);
   const [showFileMenu, setShowFileMenu] = useState(false);
+  const [activeWorkspaceTab, setActiveWorkspaceTab] = useState("workspace");
+  const [builderTabOpen, setBuilderTabOpen] = useState(false);
+  const [workspaceTabOrder, setWorkspaceTabOrder] = useState(["scene:main", "settings"]);
   const [nodeCounter, setNodeCounter] = useState(6);
   const [inputValues, setInputValues] = useState({});
   const [uiElements, setUiElements] = useState(normalizeUiElements(initialUiElements));
@@ -4983,6 +5124,7 @@ function EngineEditor() {
   const [flowRevision, setFlowRevision] = useState(0);
   const [viewMode, setViewMode] = useState("preview");
   const [logs, setLogs] = useState([]);
+  const [showLogs, setShowLogs] = useState(() => Boolean(readLocalEditorSettings().showLogs));
   const [dragState, setDragState] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
@@ -4991,6 +5133,7 @@ function EngineEditor() {
   const [themeKey, setThemeKey] = useState("mint");
   const [customThemes, setCustomThemes] = useState({});
   const [previewDevice, setPreviewDevice] = useState("desktop");
+  const [builderPreviewScale, setBuilderPreviewScale] = useState(() => clampBuilderPreviewScale(readLocalEditorSettings().builderPreviewScale || 1));
   const [advancedMode, setAdvancedMode] = useState(() => Boolean(readLocalEditorSettings().advancedMode));
   const [nodeHandleSize, setNodeHandleSize] = useState(() => clampNodeHandleSize(readLocalEditorSettings().nodeHandleSize || 16));
   const [activeScene, setActiveScene] = useState("main");
@@ -5000,6 +5143,7 @@ function EngineEditor() {
   const [draftPreviewDevice, setDraftPreviewDevice] = useState("desktop");
   const [draftAdvancedMode, setDraftAdvancedMode] = useState(false);
   const [draftNodeHandleSize, setDraftNodeHandleSize] = useState(16);
+  const [draftShowLogs, setDraftShowLogs] = useState(false);
   const [draftTemplateKey, setDraftTemplateKey] = useState("");
   const [httpsNodesEnabled, setHttpsNodesEnabled] = useState(false);
   const [draftHttpsNodesEnabled, setDraftHttpsNodesEnabled] = useState(false);
@@ -5074,20 +5218,21 @@ function EngineEditor() {
     setDraftPreviewDevice(previewDevice);
     setDraftAdvancedMode(advancedMode);
     setDraftNodeHandleSize(nodeHandleSize);
+    setDraftShowLogs(showLogs);
     setDraftTemplateKey("");
     setDraftHttpsNodesEnabled(httpsNodesEnabled);
-  }, [advancedMode, httpsNodesEnabled, language, nodeHandleSize, previewDevice, showSettings, themeKey]);
+  }, [advancedMode, httpsNodesEnabled, language, nodeHandleSize, previewDevice, showLogs, showSettings, themeKey]);
 
   useEffect(() => {
     try {
       window.localStorage?.setItem(
         LOCAL_EDITOR_SETTINGS_KEY,
-        JSON.stringify({ advancedMode, nodeHandleSize })
+        JSON.stringify({ advancedMode, builderPreviewScale, nodeHandleSize, showLogs })
       );
     } catch {
       // 로컬 설정 저장 실패는 편집 흐름을 막지 않습니다.
     }
-  }, [advancedMode, nodeHandleSize]);
+  }, [advancedMode, builderPreviewScale, nodeHandleSize, showLogs]);
 
   const appendLog = useCallback((entry) => {
     setLogs((current) => [...current.slice(-(DEFAULT_LOG_LIMIT - 1)), entry]);
@@ -5360,6 +5505,14 @@ function EngineEditor() {
     window.open(validation.url, "_blank", "noopener,noreferrer");
     return validation.url;
   }, [requestSecurityApproval]);
+
+  const openDocsPage = useCallback(async () => {
+    if (window.ixo?.openDocsPage) {
+      const result = await window.ixo.openDocsPage();
+      return result?.url || "https://minyangtech.n-e.kr/docs/ixo/index";
+    }
+    return openSecureExternalUrl("https://minyangtech.n-e.kr/docs/ixo/index");
+  }, [openSecureExternalUrl]);
 
   const runtimeFunctions = useMemo(() => (
     activeFunctionId
@@ -6843,17 +6996,20 @@ function EngineEditor() {
   }, [onEdgesChange]);
 
   const syncSelectedNodes = useCallback((ids, primaryId = null) => {
-    setSelectedNodeIds(ids);
-    setSelectedNodeId(primaryId ?? ids[ids.length - 1] ?? null);
+    const normalizedIds = normalizeSelectionIds(ids);
+    const normalizedPrimaryId = normalizedIds.includes(primaryId) ? primaryId : normalizedIds[normalizedIds.length - 1] ?? null;
+    setSelectedNodeIds(normalizedIds);
+    setSelectedNodeId(normalizedPrimaryId);
     setSelectedUiElementId(null);
     setSelectedEdgeIds([]);
-    setNodes((current) => applyNodeSelectionState(current, ids));
+    setNodes((current) => applyNodeSelectionState(current, normalizedIds));
     setEdges((current) => current.map((edge) => ({ ...edge, selected: false })));
   }, [setEdges, setNodes]);
 
   const syncSelectedEdges = useCallback((ids) => {
-    const selectedSet = new Set(ids);
-    setSelectedEdgeIds(ids);
+    const normalizedIds = normalizeSelectionIds(ids);
+    const selectedSet = new Set(normalizedIds);
+    setSelectedEdgeIds(normalizedIds);
     setSelectedNodeIds([]);
     setSelectedNodeId(null);
     setSelectedUiElementId(null);
@@ -7146,6 +7302,11 @@ function EngineEditor() {
     setStatus(`Scene switched: ${nextScene}`);
   }, [setEdges, setNodes]);
 
+  const activateScene = useCallback((sceneName) => {
+    switchScene(sceneName);
+    setActiveWorkspaceTab("workspace");
+  }, [switchScene]);
+
   const createScene = useCallback(() => {
     const base = "scene";
     let index = 1;
@@ -7156,10 +7317,57 @@ function EngineEditor() {
     }
     snapshot();
     setScenes((current) => normalizeScenes([...current, nextName]));
+    setWorkspaceTabOrder((current) => {
+      const nextTabId = `scene:${nextName}`;
+      const withoutDuplicate = current.filter((tabId) => tabId !== nextTabId);
+      const settingsIndex = withoutDuplicate.indexOf("settings");
+      if (settingsIndex < 0) return [...withoutDuplicate, nextTabId];
+      return [
+        ...withoutDuplicate.slice(0, settingsIndex),
+        nextTabId,
+        ...withoutDuplicate.slice(settingsIndex)
+      ];
+    });
     switchScene(nextName);
+    setActiveWorkspaceTab("workspace");
     setStatus(`Scene created: ${nextName}`);
     setIsDirty(true);
   }, [sceneNames, snapshot, switchScene]);
+
+  const renameScene = useCallback((sceneName) => {
+    if (!sceneName || sceneName === "main") {
+      setStatus("main Scene은 이름을 변경할 수 없습니다.");
+      return;
+    }
+
+    const nextRawName = window.prompt("Scene 이름을 입력하세요.", sceneName);
+    if (nextRawName === null) return;
+    const nextName = normalizeSceneName(nextRawName);
+    if (!nextName || nextName === sceneName) return;
+    if (sceneNames.includes(nextName)) {
+      window.alert("이미 같은 이름의 Scene이 있습니다.");
+      return;
+    }
+
+    snapshot();
+    setScenes((current) => normalizeScenes(current.map((scene) => (scene === sceneName ? nextName : scene))));
+    setWorkspaceTabOrder((current) => current.map((tabId) => (
+      tabId === `scene:${sceneName}` ? `scene:${nextName}` : tabId
+    )));
+    setUiElements((current) => current.map((element) => (
+      (element.scene || "main") === sceneName ? { ...element, scene: nextName } : element
+    )));
+    setNodes((current) => current.map((node) => (
+      isNodeInScene(node, sceneName)
+        ? { ...node, data: { ...node.data, scene: nextName } }
+        : node
+    )));
+    if (activeScene === sceneName) {
+      setActiveScene(nextName);
+    }
+    setStatus(`Scene renamed: ${sceneName} -> ${nextName}`);
+    setIsDirty(true);
+  }, [activeScene, sceneNames, setNodes, snapshot]);
 
   const deleteScene = useCallback((sceneName) => {
     if (!sceneName || sceneName === "main") return;
@@ -7168,6 +7376,7 @@ function EngineEditor() {
     if (!confirmed) return;
     snapshot();
     setScenes((current) => normalizeScenes(current.filter((scene) => scene !== sceneName)));
+    setWorkspaceTabOrder((current) => current.filter((tabId) => tabId !== `scene:${sceneName}`));
     setUiElements((current) => current.map((element) => (
       (element.scene || "main") === sceneName ? { ...element, scene: "main" } : element
     )));
@@ -7177,6 +7386,7 @@ function EngineEditor() {
         : node
     )));
     switchScene("main");
+    setActiveWorkspaceTab("workspace");
     setStatus(`Scene removed: ${sceneName}`);
     setIsDirty(true);
   }, [snapshot, switchScene, uiElements]);
@@ -7533,6 +7743,7 @@ function EngineEditor() {
     setPreviewDevice(draftPreviewDevice);
     setAdvancedMode(Boolean(draftAdvancedMode));
     setNodeHandleSize(clampNodeHandleSize(draftNodeHandleSize));
+    setShowLogs(Boolean(draftShowLogs));
     setHttpsNodesEnabled(draftHttpsNodesEnabled);
     await window.ixo?.setHttpsNodesEnabled?.(draftHttpsNodesEnabled);
     if (!draftHttpsNodesEnabled) {
@@ -7559,7 +7770,7 @@ function EngineEditor() {
     }
 
     setToastMessage((UI_TEXT[draftLanguage] || UI_TEXT.ko).applied);
-  }, [applyState, draftAdvancedMode, draftHttpsNodesEnabled, draftLanguage, draftNodeHandleSize, draftPreviewDevice, draftTemplateKey, draftThemeKey, resetSecurityState, snapshot]);
+  }, [applyState, draftAdvancedMode, draftHttpsNodesEnabled, draftLanguage, draftNodeHandleSize, draftPreviewDevice, draftShowLogs, draftTemplateKey, draftThemeKey, resetSecurityState, snapshot]);
 
   const cancelSettings = useCallback(() => {
     setDraftLanguage(language);
@@ -7567,10 +7778,50 @@ function EngineEditor() {
     setDraftPreviewDevice(previewDevice);
     setDraftAdvancedMode(advancedMode);
     setDraftNodeHandleSize(nodeHandleSize);
+    setDraftShowLogs(showLogs);
     setDraftTemplateKey("");
     setDraftHttpsNodesEnabled(httpsNodesEnabled);
     setShowSettings(false);
-  }, [advancedMode, httpsNodesEnabled, language, nodeHandleSize, previewDevice, themeKey]);
+    setActiveWorkspaceTab("workspace");
+  }, [advancedMode, httpsNodesEnabled, language, nodeHandleSize, previewDevice, showLogs, themeKey]);
+
+  const openSettingsTab = useCallback(() => {
+    setShowSettings(true);
+    setActiveWorkspaceTab("settings");
+  }, []);
+
+  const closeSettingsTab = useCallback((event) => {
+    event?.stopPropagation?.();
+    cancelSettings();
+  }, [cancelSettings]);
+
+  const openCanvasBuilderTab = useCallback(() => {
+    setBuilderTabOpen(true);
+    setWorkspaceTabOrder((current) => {
+      if (current.includes("builder")) return current;
+      const settingsIndex = current.indexOf("settings");
+      if (settingsIndex < 0) return [...current, "builder"];
+      return [
+        ...current.slice(0, settingsIndex),
+        "builder",
+        ...current.slice(settingsIndex)
+      ];
+    });
+    setActiveWorkspaceTab("builder");
+    setViewMode("builder");
+  }, []);
+
+  const closeCanvasBuilderTab = useCallback((event) => {
+    event?.stopPropagation?.();
+    setBuilderTabOpen(false);
+    setWorkspaceTabOrder((current) => current.filter((tabId) => tabId !== "builder"));
+    if (activeWorkspaceTab === "builder") {
+      setActiveWorkspaceTab("workspace");
+    }
+    if (viewMode === "builder") {
+      setViewMode("viewer");
+    }
+  }, [activeWorkspaceTab, viewMode]);
 
   const clearLocalAutosave = useCallback(() => {
     window.localStorage?.removeItem(LOCAL_AUTOSAVE_KEY);
@@ -7587,13 +7838,16 @@ function EngineEditor() {
       setLanguage("ko");
       setThemeKey("mint");
       setPreviewDevice("desktop");
+      setBuilderPreviewScale(1);
       setAdvancedMode(false);
       setNodeHandleSize(16);
+      setShowLogs(false);
       setDraftLanguage("ko");
       setDraftThemeKey("mint");
       setDraftPreviewDevice("desktop");
       setDraftAdvancedMode(false);
       setDraftNodeHandleSize(16);
+      setDraftShowLogs(false);
       setDraftTemplateKey("");
       setHttpsNodesEnabled(false);
       setDraftHttpsNodesEnabled(false);
@@ -7730,7 +7984,8 @@ function EngineEditor() {
         nodes={nodesWithTrace}
         edges={edgeView}
         nodeTypes={nodeTypes}
-        multiSelectionKeyCode={["Control", "Meta"]}
+        multiSelectionKeyCode={["Control", "Meta", "Shift"]}
+        selectionKeyCode={["Shift"]}
         onlyRenderVisibleElements
         onInit={(instance) => {
           reactFlowRef.current = instance;
@@ -7785,7 +8040,9 @@ function EngineEditor() {
           handleNodeDropToSidebar(event, node);
         }}
         onNodeClick={(event, node) => {
-          if (event.ctrlKey || event.metaKey) {
+          event.preventDefault();
+          event.stopPropagation();
+          if (event.ctrlKey || event.metaKey || event.shiftKey) {
             const exists = selectedNodeIds.includes(node.id);
             const nextIds = exists ? selectedNodeIds.filter((id) => id !== node.id) : [...selectedNodeIds, node.id];
             syncSelectedNodes(nextIds, node.id);
@@ -7885,6 +8142,207 @@ function EngineEditor() {
     </div>
   );
 
+  const WorkbenchPanels = (
+    <PanelGroup direction="horizontal" className="split-group">
+      <ResizablePanel defaultSize={61} minSize={34}>
+        {CanvasPane}
+      </ResizablePanel>
+      <PanelResizeHandle className="resize-handle" />
+      <ResizablePanel defaultSize={39} minSize={25}>
+        <RuntimePanel
+          viewMode={viewMode === "builder" ? "viewer" : viewMode}
+          setViewMode={setViewMode}
+          runtime={runtime}
+          nodes={nodesWithTrace}
+          inputValues={inputValues}
+          onInputChange={updateInputValue}
+          uiElements={uiElements}
+          selectedUiElementId={selectedUiElementId}
+          setSelectedUiElementId={setSelectedUiElementId}
+          onBuilderDrop={handleBuilderDrop}
+          onBuilderDragOver={handleBuilderDragOver}
+          onBuilderPointerDown={handleBuilderPointerDown}
+          onBuilderPointerUp={handleBuilderPointerUp}
+          builderCanvasRef={builderCanvasRef}
+          debugOverlay={debugOverlay}
+          flowJson={flowJson}
+          onUiAction={openUiAction}
+          onUiInteraction={handleUiInteraction}
+          appendLog={appendLog}
+          uiText={uiText}
+          previewDevice={previewDevice}
+          setPreviewDevice={setPreviewDevice}
+          builderPreviewScale={builderPreviewScale}
+          setBuilderPreviewScale={setBuilderPreviewScale}
+          onUiElementSelect={handleUiElementSelect}
+          onOpenSettings={openSettingsTab}
+          onOpenBuilderTab={openCanvasBuilderTab}
+          activeScene={activeScene}
+          setActiveScene={switchScene}
+          sceneNames={sceneNames}
+          onCreateScene={createScene}
+          onDeleteScene={deleteScene}
+          onAddComponent={createUiComponentFromPalette}
+        />
+      </ResizablePanel>
+    </PanelGroup>
+  );
+
+  const BuilderWorkspacePanel = (
+    <div className="canvas-tab-stage canvas-builder-tab-stage">
+      <RuntimePanel
+        viewMode="builder"
+        setViewMode={setViewMode}
+        runtime={runtime}
+        nodes={nodesWithTrace}
+        inputValues={inputValues}
+        onInputChange={updateInputValue}
+        uiElements={uiElements}
+        selectedUiElementId={selectedUiElementId}
+        setSelectedUiElementId={setSelectedUiElementId}
+        onBuilderDrop={handleBuilderDrop}
+        onBuilderDragOver={handleBuilderDragOver}
+        onBuilderPointerDown={handleBuilderPointerDown}
+        onBuilderPointerUp={handleBuilderPointerUp}
+        builderCanvasRef={builderCanvasRef}
+        debugOverlay={debugOverlay}
+        flowJson={flowJson}
+        onUiAction={openUiAction}
+        onUiInteraction={handleUiInteraction}
+        appendLog={appendLog}
+        uiText={uiText}
+        previewDevice={previewDevice}
+        setPreviewDevice={setPreviewDevice}
+        builderPreviewScale={builderPreviewScale}
+        setBuilderPreviewScale={setBuilderPreviewScale}
+        onUiElementSelect={handleUiElementSelect}
+        onOpenSettings={openSettingsTab}
+        onOpenBuilderTab={openCanvasBuilderTab}
+        activeScene={activeScene}
+        setActiveScene={switchScene}
+        sceneNames={sceneNames}
+        onCreateScene={createScene}
+        onDeleteScene={deleteScene}
+        onAddComponent={createUiComponentFromPalette}
+        standaloneBuilder
+      />
+    </div>
+  );
+
+  const settingsPanelProps = {
+    open: showSettings,
+    uiText: UI_TEXT[draftLanguage] || uiText,
+    draftLanguage,
+    setDraftLanguage,
+    draftThemeKey,
+    setDraftThemeKey,
+    themeOptions,
+    onThemeUpload: handleThemeUpload,
+    draftPreviewDevice,
+    setDraftPreviewDevice,
+    draftAdvancedMode,
+    setDraftAdvancedMode,
+    draftNodeHandleSize,
+    setDraftNodeHandleSize,
+    draftShowLogs,
+    setDraftShowLogs,
+    draftTemplateKey,
+    setDraftTemplateKey,
+    draftHttpsNodesEnabled,
+    setDraftHttpsNodesEnabled,
+    appInfo,
+    updateInfo,
+    updateState,
+    onCheckForUpdates: () => checkForUpdates(),
+    onDownloadUpdate: downloadUpdate,
+    onOpenReleasePage: openReleasePageFromSettings,
+    onOpenPrivacyPolicy: () => setShowPrivacyPolicy(true),
+    onOpenNetworkConsent: () => setShowNetworkConsentModal(true),
+    onRevokeNetworkConsent: denyNetworkNodes,
+    onApply: applySettings,
+    onCancel: cancelSettings,
+    onClearAutosave: clearLocalAutosave,
+    onResetData: resetScopedData,
+    exportSettings,
+    onExportSettingsChange: (patch) => setExportSettings((current) => normalizeExportSettings({ ...current, ...patch }))
+  };
+
+  const workspaceTabs = useMemo(() => {
+    const baseTabs = [
+      ...sceneNames.map((scene) => ({ id: `scene:${scene}`, kind: "scene", scene })),
+      ...(builderTabOpen ? [{ id: "builder", kind: "builder" }] : []),
+      { id: "settings", kind: "settings" }
+    ];
+    const tabById = new Map(baseTabs.map((tab) => [tab.id, tab]));
+    const orderedTabs = workspaceTabOrder
+      .filter((tabId) => tabById.has(tabId))
+      .map((tabId) => tabById.get(tabId));
+    const orderedIds = new Set(orderedTabs.map((tab) => tab.id));
+    return [
+      ...orderedTabs,
+      ...baseTabs.filter((tab) => !orderedIds.has(tab.id))
+    ];
+  }, [builderTabOpen, sceneNames, workspaceTabOrder]);
+
+  const moveWorkspaceTab = useCallback((sourceId, targetId) => {
+    if (!sourceId || !targetId || sourceId === targetId) return;
+    setWorkspaceTabOrder((current) => {
+      const visibleIds = workspaceTabs.map((tab) => tab.id);
+      const normalizedOrder = [
+        ...current.filter((tabId) => visibleIds.includes(tabId)),
+        ...visibleIds.filter((tabId) => !current.includes(tabId))
+      ];
+      const sourceIndex = normalizedOrder.indexOf(sourceId);
+      const targetIndex = normalizedOrder.indexOf(targetId);
+      if (sourceIndex < 0 || targetIndex < 0) return current;
+      const nextOrder = [...normalizedOrder];
+      const [movedTab] = nextOrder.splice(sourceIndex, 1);
+      nextOrder.splice(targetIndex, 0, movedTab);
+      return nextOrder;
+    });
+  }, [workspaceTabs]);
+
+  const handleWorkspaceTabDragStart = useCallback((event, tabId) => {
+    event.dataTransfer.setData("application/ixo-workspace-tab", tabId);
+    event.dataTransfer.effectAllowed = "move";
+  }, []);
+
+  const handleWorkspaceTabDragOver = useCallback((event) => {
+    if (Array.from(event.dataTransfer.types || []).includes("application/ixo-workspace-tab")) {
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "move";
+    }
+  }, []);
+
+  const handleWorkspaceTabDrop = useCallback((event, targetId) => {
+    if (!Array.from(event.dataTransfer.types || []).includes("application/ixo-workspace-tab")) return;
+    event.preventDefault();
+    const sourceId = event.dataTransfer.getData("application/ixo-workspace-tab");
+    moveWorkspaceTab(sourceId, targetId);
+  }, [moveWorkspaceTab]);
+
+  const WorkspacePanelContent = activeWorkspaceTab === "settings" && showSettings ? (
+    <SettingsModal embedded {...settingsPanelProps} />
+  ) : activeWorkspaceTab === "builder" && builderTabOpen ? (
+    BuilderWorkspacePanel
+  ) : showLogs ? (
+    <PanelGroup direction="vertical" className="vertical-panels">
+      <ResizablePanel defaultSize={74} minSize={45}>
+        {WorkbenchPanels}
+      </ResizablePanel>
+
+      <PanelResizeHandle className="resize-handle horizontal-handle" />
+
+      <ResizablePanel defaultSize={26} minSize={14}>
+        <LogConsole logs={logs} onClear={() => setLogs([])} uiText={uiText} />
+      </ResizablePanel>
+    </PanelGroup>
+  ) : (
+    <div className="vertical-panels log-panel-hidden">
+      {WorkbenchPanels}
+    </div>
+  );
+
   return (
     <div
       className={`app-shell lang-${language} ${advancedMode ? "mode-advanced" : "mode-simple"}`}
@@ -7908,6 +8366,113 @@ function EngineEditor() {
         "--node-link-dot-size": `${Math.max(8, Math.round(nodeHandleSize * 0.72))}px`
       }}
     >
+      <nav className="workspace-tabbar" aria-label={uiText.workspaceTabs}>
+        <div className="workspace-tabbar-scenes">
+          {workspaceTabs.map((tab) => {
+            if (tab.kind === "scene") {
+              const scene = tab.scene;
+              return (
+                <div
+                  key={tab.id}
+                  className={`workspace-tab workspace-scene-tab ${activeWorkspaceTab === "workspace" && activeScene === scene ? "active" : ""}`}
+                  draggable
+                  onDragStart={(event) => handleWorkspaceTabDragStart(event, tab.id)}
+                  onDragOver={handleWorkspaceTabDragOver}
+                  onDrop={(event) => handleWorkspaceTabDrop(event, tab.id)}
+                  onContextMenu={(event) => {
+                    event.preventDefault();
+                    renameScene(scene);
+                  }}
+                  title={`${uiText.currentScene}: ${scene}`}
+                >
+                  <button
+                    type="button"
+                    className="workspace-tab-main"
+                    onClick={() => activateScene(scene)}
+                    onContextMenu={(event) => {
+                      event.preventDefault();
+                      renameScene(scene);
+                    }}
+                  >
+                    <span className="workspace-tab-icon">▣</span>
+                    <span>{scene}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="workspace-tab-close"
+                    title={uiText.closeTab}
+                    disabled={scene === "main"}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      if (scene !== "main") deleteScene(scene);
+                    }}
+                  >
+                    ×
+                  </button>
+                </div>
+              );
+            }
+
+            if (tab.kind === "builder") {
+              return (
+                <div
+                  key={tab.id}
+                  className={`workspace-tab workspace-utility-tab ${activeWorkspaceTab === "builder" ? "active" : ""}`}
+                  draggable
+                  onDragStart={(event) => handleWorkspaceTabDragStart(event, tab.id)}
+                  onDragOver={handleWorkspaceTabDragOver}
+                  onDrop={(event) => handleWorkspaceTabDrop(event, tab.id)}
+                >
+                  <button type="button" className="workspace-tab-main" onClick={openCanvasBuilderTab}>
+                    <span className="workspace-tab-icon">▤</span>
+                    <span>{uiText.builder}</span>
+                  </button>
+                  <button type="button" className="workspace-tab-close" title={uiText.closeTab} onClick={closeCanvasBuilderTab}>×</button>
+                </div>
+              );
+            }
+
+            return (
+              <div
+                key={tab.id}
+                className={`workspace-tab workspace-utility-tab ${activeWorkspaceTab === "settings" && showSettings ? "active" : ""}`}
+                draggable
+                onDragStart={(event) => handleWorkspaceTabDragStart(event, tab.id)}
+                onDragOver={handleWorkspaceTabDragOver}
+                onDrop={(event) => handleWorkspaceTabDrop(event, tab.id)}
+              >
+                <button type="button" className="workspace-tab-main" onClick={openSettingsTab}>
+                  <span className="workspace-tab-icon">⚙</span>
+                  <span>{uiText.settingsTab}</span>
+                </button>
+                {showSettings ? <button type="button" className="workspace-tab-close" title={uiText.closeTab} onClick={closeSettingsTab}>×</button> : null}
+              </div>
+            );
+          })}
+          <button type="button" className="workspace-tab add-tab" onClick={createScene}>+</button>
+        </div>
+        <div className="workspace-tabbar-actions">
+          <button type="button" className="workspace-tab" onClick={openDetachedPreview}>
+            <span className="workspace-tab-icon">▶</span>
+            <span>{uiText.previewTab}</span>
+          </button>
+          <button
+            type="button"
+            className="workspace-tab"
+            onClick={async () => {
+              try {
+                await openDocsPage();
+              } catch (error) {
+                appendLog(makeLog("error", "Docs", "문서 열기가 차단되었습니다.", String(error.message || error)));
+              }
+            }}
+          >
+            <span className="workspace-tab-icon">?</span>
+            <span>{uiText.docsTab}</span>
+          </button>
+        </div>
+      </nav>
+
       <main className="workspace">
         <aside className="sidebar" ref={sidebarRef}>
           <div className="command-center">
@@ -7984,7 +8549,7 @@ function EngineEditor() {
                     className="menu-btn docs-btn"
                     onClick={async () => {
                       try {
-                        await openSecureExternalUrl("https://minyangtech.n-e.kr/docs/ixo/index");
+                        await openDocsPage();
                       } catch (error) {
                         appendLog(makeLog("error", "Docs", "문서 열기가 차단되었습니다.", String(error.message || error)));
                       }
@@ -8008,7 +8573,7 @@ function EngineEditor() {
                   key={scene}
                   type="button"
                   className={activeScene === scene ? "active" : ""}
-                  onClick={() => switchScene(scene)}
+                  onClick={() => activateScene(scene)}
                 >
                   <span>{scene}</span>
                   <em>
@@ -8188,56 +8753,7 @@ function EngineEditor() {
         </aside>
 
         <section className="canvas-zone">
-          <PanelGroup direction="vertical" className="vertical-panels">
-            <ResizablePanel defaultSize={74} minSize={45}>
-              <PanelGroup direction="horizontal" className="split-group">
-                <ResizablePanel defaultSize={61} minSize={34}>
-                  {CanvasPane}
-                </ResizablePanel>
-                <PanelResizeHandle className="resize-handle" />
-                <ResizablePanel defaultSize={39} minSize={25}>
-                  <RuntimePanel
-                    viewMode={viewMode}
-                    setViewMode={setViewMode}
-                    runtime={runtime}
-                    nodes={nodesWithTrace}
-                    inputValues={inputValues}
-                    onInputChange={updateInputValue}
-                    uiElements={uiElements}
-                    selectedUiElementId={selectedUiElementId}
-                    setSelectedUiElementId={setSelectedUiElementId}
-                    onBuilderDrop={handleBuilderDrop}
-                    onBuilderDragOver={handleBuilderDragOver}
-                    onBuilderPointerDown={handleBuilderPointerDown}
-                    onBuilderPointerUp={handleBuilderPointerUp}
-                    builderCanvasRef={builderCanvasRef}
-                    debugOverlay={debugOverlay}
-                    flowJson={flowJson}
-                    onUiAction={openUiAction}
-                    onUiInteraction={handleUiInteraction}
-                    appendLog={appendLog}
-                    uiText={uiText}
-                    previewDevice={previewDevice}
-                    setPreviewDevice={setPreviewDevice}
-                    onUiElementSelect={handleUiElementSelect}
-                    onOpenSettings={() => setShowSettings(true)}
-                    activeScene={activeScene}
-                    setActiveScene={switchScene}
-                    sceneNames={sceneNames}
-                    onCreateScene={createScene}
-                    onDeleteScene={deleteScene}
-                    onAddComponent={createUiComponentFromPalette}
-                  />
-                </ResizablePanel>
-              </PanelGroup>
-            </ResizablePanel>
-
-            <PanelResizeHandle className="resize-handle horizontal-handle" />
-
-            <ResizablePanel defaultSize={26} minSize={14}>
-              <LogConsole logs={logs} onClear={() => setLogs([])} uiText={uiText} />
-            </ResizablePanel>
-          </PanelGroup>
+          {WorkspacePanelContent}
         </section>
 
         <aside className="properties">
@@ -8569,40 +9085,6 @@ function EngineEditor() {
         <span>{uiText.engineStatus}: {status}{isDirty ? ` | ${uiText.unsavedChanges}` : ""}{projectFilePath ? ` | ${projectFilePath}` : ""}</span>
         <span>{uiText.nodes} {nodes.length} | {uiText.edges} {edges.length} | UI {uiElements.length} | Dirty {runtimeRevision.dirtyNodeIds.length} | Culled {uiRenderStats.culled} | {uiText.mode} {viewMode}</span>
       </footer>
-
-      <SettingsModal
-        open={showSettings}
-        uiText={UI_TEXT[draftLanguage] || uiText}
-        draftLanguage={draftLanguage}
-        setDraftLanguage={setDraftLanguage}
-        draftThemeKey={draftThemeKey}
-        setDraftThemeKey={setDraftThemeKey}
-        themeOptions={themeOptions}
-        onThemeUpload={handleThemeUpload}
-        draftPreviewDevice={draftPreviewDevice}
-        setDraftPreviewDevice={setDraftPreviewDevice}
-        draftAdvancedMode={draftAdvancedMode}
-        setDraftAdvancedMode={setDraftAdvancedMode}
-        draftNodeHandleSize={draftNodeHandleSize}
-        setDraftNodeHandleSize={setDraftNodeHandleSize}
-        draftTemplateKey={draftTemplateKey}
-        setDraftTemplateKey={setDraftTemplateKey}
-        draftHttpsNodesEnabled={draftHttpsNodesEnabled}
-        setDraftHttpsNodesEnabled={setDraftHttpsNodesEnabled}
-        appInfo={appInfo}
-        updateInfo={updateInfo}
-        updateState={updateState}
-        onCheckForUpdates={() => checkForUpdates()}
-        onDownloadUpdate={downloadUpdate}
-        onOpenReleasePage={openReleasePageFromSettings}
-        onOpenPrivacyPolicy={() => setShowPrivacyPolicy(true)}
-        onApply={applySettings}
-        onCancel={cancelSettings}
-        onClearAutosave={clearLocalAutosave}
-        onResetData={resetScopedData}
-        exportSettings={exportSettings}
-        onExportSettingsChange={(patch) => setExportSettings((current) => normalizeExportSettings({ ...current, ...patch }))}
-      />
 
       <PrivacyPolicyModal
         open={showPrivacyPolicy}

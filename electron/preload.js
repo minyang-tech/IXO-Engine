@@ -29,5 +29,6 @@ contextBridge.exposeInMainWorld("ixo", {
   getAppInfo: () => ipcRenderer.invoke("app:getInfo"),
   checkForUpdates: () => ipcRenderer.invoke("app:checkForUpdates"),
   downloadUpdate: (asset) => ipcRenderer.invoke("app:downloadUpdate", asset),
-  openReleasePage: (releaseUrl) => ipcRenderer.invoke("app:openReleasePage", releaseUrl)
+  openReleasePage: (releaseUrl) => ipcRenderer.invoke("app:openReleasePage", releaseUrl),
+  openDocsPage: () => ipcRenderer.invoke("app:openDocsPage")
 });
