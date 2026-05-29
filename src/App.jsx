@@ -107,6 +107,10 @@ function clampBuilderPreviewScale(value) {
   return Math.max(0.75, Math.min(2, Math.round(numericValue * 100) / 100));
 }
 
+function isTextEditingTarget(target) {
+  return Boolean(target?.closest?.("input, textarea, select, [contenteditable='true']"));
+}
+
 const PRIVACY_POLICY_TEXT = {
   ko: {
     effectiveDate: "시행일: 2026-05-18",
@@ -705,7 +709,17 @@ const EXTRA_UI_TEXT = {
     openCanvasBuilder: "캔버스 빌더 열기",
     closeTab: "탭 닫기",
     renameScene: "Scene 이름 변경",
-    builderPreviewScale: "미리보기 크기"
+    builderPreviewScale: "미리보기 크기",
+    builderPreviewWidth: "가로",
+    builderPreviewHeight: "세로",
+    variableManager: "변수",
+    globalVariables: "전역변수",
+    localVariables: "지역변수",
+    addGlobalVariable: "전역변수 추가",
+    addLocalVariable: "지역변수 추가",
+    variableName: "변수명",
+    variableValue: "값",
+    noVariables: "아직 변수가 없습니다."
   },
   en: {
     preview: "Preview",
@@ -935,7 +949,17 @@ const EXTRA_UI_TEXT = {
     openCanvasBuilder: "Open Canvas Builder",
     closeTab: "Close tab",
     renameScene: "Rename Scene",
-    builderPreviewScale: "Preview size"
+    builderPreviewScale: "Preview size",
+    builderPreviewWidth: "Width",
+    builderPreviewHeight: "Height",
+    variableManager: "Variables",
+    globalVariables: "Global variables",
+    localVariables: "Local variables",
+    addGlobalVariable: "Add Global",
+    addLocalVariable: "Add Local",
+    variableName: "Name",
+    variableValue: "Value",
+    noVariables: "No variables yet."
   },
   zh: {
     preview: "预览",
@@ -1165,7 +1189,17 @@ const EXTRA_UI_TEXT = {
     openCanvasBuilder: "打开画布构建器",
     closeTab: "关闭标签",
     renameScene: "重命名场景",
-    builderPreviewScale: "预览大小"
+    builderPreviewScale: "预览大小",
+    builderPreviewWidth: "宽度",
+    builderPreviewHeight: "高度",
+    variableManager: "变量",
+    globalVariables: "全局变量",
+    localVariables: "局部变量",
+    addGlobalVariable: "添加全局",
+    addLocalVariable: "添加局部",
+    variableName: "变量名",
+    variableValue: "值",
+    noVariables: "暂无变量。"
   },
   ja: {
     preview: "プレビュー",
@@ -1396,7 +1430,17 @@ const EXTRA_UI_TEXT = {
     openCanvasBuilder: "キャンバスビルダーを開く",
     closeTab: "タブを閉じる",
     renameScene: "Scene 名を変更",
-    builderPreviewScale: "プレビューサイズ"
+    builderPreviewScale: "プレビューサイズ",
+    builderPreviewWidth: "横",
+    builderPreviewHeight: "縦",
+    variableManager: "変数",
+    globalVariables: "グローバル変数",
+    localVariables: "ローカル変数",
+    addGlobalVariable: "グローバル追加",
+    addLocalVariable: "ローカル追加",
+    variableName: "変数名",
+    variableValue: "値",
+    noVariables: "変数はまだありません。"
   }
 };
 
@@ -2192,7 +2236,8 @@ const cloneState = (
   assets = [],
   exportSettings = normalizeExportSettings(),
   customThemes = {},
-  scenes = ["main"]
+  scenes = ["main"],
+  variables = []
 ) => ({
   nodes: JSON.parse(JSON.stringify(nodes)),
   edges: JSON.parse(JSON.stringify(edges)),
@@ -2205,7 +2250,8 @@ const cloneState = (
   assets: JSON.parse(JSON.stringify(assets)),
   exportSettings: normalizeExportSettings(exportSettings),
   customThemes: JSON.parse(JSON.stringify(customThemes || {})),
-  scenes: normalizeScenes(scenes)
+  scenes: normalizeScenes(scenes),
+  variables: normalizeVariables(variables)
 });
 
 // [로그] 콘솔에 쌓일 로그 엔트리를 공통 포맷으로 생성합니다.
@@ -2255,6 +2301,53 @@ function getNodeScenes(items = []) {
 
 function isNodeInScene(node, sceneName) {
   return getNodeScene(node) === normalizeSceneName(sceneName || "main");
+}
+
+function normalizeVariableName(name, fallback = "value") {
+  const normalized = String(name || fallback)
+    .replace(/[^\w가-힣]/g, "")
+    .trim();
+  return (normalized || fallback).slice(0, 40);
+}
+
+function createVariableDefinition(scope = "global", scene = "main", index = 1) {
+  const normalizedScope = scope === "local" ? "local" : "global";
+  return {
+    id: `${normalizedScope}-variable-${Date.now()}-${index}`,
+    scope: normalizedScope,
+    scene: normalizedScope === "local" ? normalizeSceneName(scene) : "",
+    name: normalizeVariableName(`${normalizedScope === "local" ? "local" : "global"}Value${index}`),
+    value: ""
+  };
+}
+
+function normalizeVariables(items = []) {
+  const source = Array.isArray(items)
+    ? items
+    : [
+        ...Object.values(items?.global || {}),
+        ...Object.values(items?.local || {})
+      ];
+
+  return source.map((item, index) => {
+    const scope = item?.scope === "local" ? "local" : "global";
+    return {
+      id: item?.id || `${scope}-variable-${index + 1}`,
+      scope,
+      scene: scope === "local" ? normalizeSceneName(item?.scene || "main") : "",
+      name: normalizeVariableName(item?.name, `${scope}Value${index + 1}`),
+      value: String(item?.value ?? "")
+    };
+  });
+}
+
+function getVariableContext(variables = [], scene = "main") {
+  return normalizeVariables(variables).reduce((context, variable) => {
+    if (variable.scope === "global" || variable.scene === normalizeSceneName(scene)) {
+      context[variable.name] = variable.value;
+    }
+    return context;
+  }, {});
 }
 
 // [UI 요소] 저장된 UI Builder 요소를 누락 없이 안전하게 보정합니다.
@@ -2328,6 +2421,7 @@ function getDefaultProjectState() {
     nodeCounter: 6,
     uiElements: normalizeUiElements(initialUiElements),
     functions: [],
+    variables: [],
     activeScene: "main",
     scenes: ["main"],
     assets: [],
@@ -2386,6 +2480,7 @@ function migrateProjectState(input = {}) {
     nodeCounter: Number(parsed.nodeCounter || 1),
     uiElements: normalizedUiElements,
     functions: normalizeFunctions(parsed.functions || []),
+    variables: normalizeVariables(parsed.variables || []),
     viewMode: parsed.viewMode,
     language: parsed.language,
     themeKey: parsed.themeKey,
@@ -2417,6 +2512,7 @@ function validateProjectState(state) {
     && Array.isArray(state.edges)
     && Array.isArray(state.uiElements)
     && Array.isArray(state.functions)
+    && Array.isArray(state.variables)
     && Array.isArray(state.scenes)
     && Number.isFinite(state.nodeCounter)
   );
@@ -3478,7 +3574,7 @@ const BuilderElement = memo(function BuilderElement({
   const textValue = resolveUiValue(element, runtime, "text");
   const imageValue = resolveUiValue(element, runtime, "src");
   const inputTargetId = element.linkedNodeId || element.id;
-  const inputValue = element.linkedNodeId ? (inputValues?.[element.linkedNodeId] ?? "") : "";
+  const inputValue = inputValues?.[inputTargetId] ?? "";
   const inputPlaceholder = textValue || element.text || "Input";
   const isActionElement = element.kind === "button" || element.kind === "custom-button";
   const vectorSubPathCount = String(element.vectorPath || "").match(/\bM/gi)?.length || 0;
@@ -3682,6 +3778,8 @@ function RuntimePanel({
   setPreviewDevice,
   builderPreviewScale = 1,
   setBuilderPreviewScale,
+  builderPreviewHeightScale = 1,
+  setBuilderPreviewHeightScale,
   onUiElementSelect,
   onOpenSettings,
   onOpenBuilderTab,
@@ -3705,6 +3803,9 @@ function RuntimePanel({
   const scaledPreviewWidth = editable && previewWidthMatch
     ? `${Math.round(Number(previewWidthMatch[1]) * clampBuilderPreviewScale(builderPreviewScale))}${previewWidthMatch[2]}`
     : previewWidth;
+  const scaledPreviewHeight = editable
+    ? `${Math.round(360 * clampBuilderPreviewScale(builderPreviewHeightScale))}px`
+    : undefined;
   const canvasLayerRef = useRef(null);
   const visibleUiElements = useMemo(
     () => uiElements
@@ -3837,33 +3938,63 @@ function RuntimePanel({
           <div className="device-toolbar">
             <span>{uiText.responsivePreview}</span>
             {editable ? (
-              <div className="builder-scale-control">
-                <span>{uiText.builderPreviewScale}</span>
-                <button
-                  type="button"
-                  className="scale-step-btn"
-                  onClick={() => setBuilderPreviewScale?.(clampBuilderPreviewScale(builderPreviewScale - 0.1))}
-                  aria-label={`${uiText.builderPreviewScale} -`}
-                >
-                  -
-                </button>
-                <input
-                  type="range"
-                  min="0.75"
-                  max="2"
-                  step="0.05"
-                  value={clampBuilderPreviewScale(builderPreviewScale)}
-                  onChange={(event) => setBuilderPreviewScale?.(clampBuilderPreviewScale(event.target.value))}
-                />
-                <button
-                  type="button"
-                  className="scale-step-btn"
-                  onClick={() => setBuilderPreviewScale?.(clampBuilderPreviewScale(builderPreviewScale + 0.1))}
-                  aria-label={`${uiText.builderPreviewScale} +`}
-                >
-                  +
-                </button>
-                <strong>{Math.round(clampBuilderPreviewScale(builderPreviewScale) * 100)}%</strong>
+              <div className="builder-scale-controls" aria-label={uiText.builderPreviewScale}>
+                <div className="builder-scale-control">
+                  <span>{uiText.builderPreviewWidth}</span>
+                  <button
+                    type="button"
+                    className="scale-step-btn"
+                    onClick={() => setBuilderPreviewScale?.(clampBuilderPreviewScale(builderPreviewScale - 0.1))}
+                    aria-label={`${uiText.builderPreviewWidth} -`}
+                  >
+                    -
+                  </button>
+                  <input
+                    type="range"
+                    min="0.75"
+                    max="2"
+                    step="0.05"
+                    value={clampBuilderPreviewScale(builderPreviewScale)}
+                    onChange={(event) => setBuilderPreviewScale?.(clampBuilderPreviewScale(event.target.value))}
+                  />
+                  <button
+                    type="button"
+                    className="scale-step-btn"
+                    onClick={() => setBuilderPreviewScale?.(clampBuilderPreviewScale(builderPreviewScale + 0.1))}
+                    aria-label={`${uiText.builderPreviewWidth} +`}
+                  >
+                    +
+                  </button>
+                  <strong>{Math.round(clampBuilderPreviewScale(builderPreviewScale) * 100)}%</strong>
+                </div>
+                <div className="builder-scale-control">
+                  <span>{uiText.builderPreviewHeight}</span>
+                  <button
+                    type="button"
+                    className="scale-step-btn"
+                    onClick={() => setBuilderPreviewHeightScale?.(clampBuilderPreviewScale(builderPreviewHeightScale - 0.1))}
+                    aria-label={`${uiText.builderPreviewHeight} -`}
+                  >
+                    -
+                  </button>
+                  <input
+                    type="range"
+                    min="0.75"
+                    max="2"
+                    step="0.05"
+                    value={clampBuilderPreviewScale(builderPreviewHeightScale)}
+                    onChange={(event) => setBuilderPreviewHeightScale?.(clampBuilderPreviewScale(event.target.value))}
+                  />
+                  <button
+                    type="button"
+                    className="scale-step-btn"
+                    onClick={() => setBuilderPreviewHeightScale?.(clampBuilderPreviewScale(builderPreviewHeightScale + 0.1))}
+                    aria-label={`${uiText.builderPreviewHeight} +`}
+                  >
+                    +
+                  </button>
+                  <strong>{Math.round(clampBuilderPreviewScale(builderPreviewHeightScale) * 100)}%</strong>
+                </div>
               </div>
             ) : null}
             <div className="device-tabs">
@@ -3881,7 +4012,7 @@ function RuntimePanel({
             <div
               ref={builderCanvasRef}
               className={`viewer-stage ${editable ? "is-editable" : ""} ${runtimeOnly ? "is-runtime-only" : ""}`}
-              style={{ width: scaledPreviewWidth }}
+              style={{ width: scaledPreviewWidth, ...(scaledPreviewHeight ? { minHeight: scaledPreviewHeight } : {}) }}
               onDragOver={onBuilderDragOver}
               onDrop={onBuilderDrop}
               onClick={(event) => {
@@ -5095,6 +5226,7 @@ function EngineEditor() {
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [libraryTab, setLibraryTab] = useState("pro");
   const [functions, setFunctions] = useState([]);
+  const [variables, setVariables] = useState([]);
   const [activeFunctionId, setActiveFunctionId] = useState(null);
   const [collapsed, setCollapsed] = useState({});
   const [selectedNodeId, setSelectedNodeId] = useState(null);
@@ -5134,6 +5266,7 @@ function EngineEditor() {
   const [customThemes, setCustomThemes] = useState({});
   const [previewDevice, setPreviewDevice] = useState("desktop");
   const [builderPreviewScale, setBuilderPreviewScale] = useState(() => clampBuilderPreviewScale(readLocalEditorSettings().builderPreviewScale || 1));
+  const [builderPreviewHeightScale, setBuilderPreviewHeightScale] = useState(() => clampBuilderPreviewScale(readLocalEditorSettings().builderPreviewHeightScale || 1));
   const [advancedMode, setAdvancedMode] = useState(() => Boolean(readLocalEditorSettings().advancedMode));
   const [nodeHandleSize, setNodeHandleSize] = useState(() => clampNodeHandleSize(readLocalEditorSettings().nodeHandleSize || 16));
   const [activeScene, setActiveScene] = useState("main");
@@ -5227,12 +5360,12 @@ function EngineEditor() {
     try {
       window.localStorage?.setItem(
         LOCAL_EDITOR_SETTINGS_KEY,
-        JSON.stringify({ advancedMode, builderPreviewScale, nodeHandleSize, showLogs })
+        JSON.stringify({ advancedMode, builderPreviewHeightScale, builderPreviewScale, nodeHandleSize, showLogs })
       );
     } catch {
       // 로컬 설정 저장 실패는 편집 흐름을 막지 않습니다.
     }
-  }, [advancedMode, builderPreviewScale, nodeHandleSize, showLogs]);
+  }, [advancedMode, builderPreviewHeightScale, builderPreviewScale, nodeHandleSize, showLogs]);
 
   const appendLog = useCallback((entry) => {
     setLogs((current) => [...current.slice(-(DEFAULT_LOG_LIMIT - 1)), entry]);
@@ -5544,10 +5677,11 @@ function EngineEditor() {
   );
   const flowNodes = activeFunctionId ? nodes : activeSceneNodes;
   const flowEdges = activeFunctionId ? edges : activeSceneEdges;
+  const variableContext = useMemo(() => getVariableContext(variables, activeScene), [activeScene, variables]);
 
   const runtime = useMemo(
-    () => runPipeline(flowNodes, flowEdges, inputValues, paused, scriptExecutionAllowed, interactionState, runtimeFunctions),
-    [flowEdges, flowNodes, inputValues, interactionState, paused, runtimeFunctions, scriptExecutionAllowed]
+    () => runPipeline(flowNodes, flowEdges, inputValues, paused, scriptExecutionAllowed, interactionState, runtimeFunctions, variableContext),
+    [flowEdges, flowNodes, inputValues, interactionState, paused, runtimeFunctions, scriptExecutionAllowed, variableContext]
   );
   const runtimeRevision = useMemo(
     () => createRuntimeRevision(flowNodes, flowEdges, inputValues, runtimeRevisionRef.current),
@@ -5579,14 +5713,18 @@ function EngineEditor() {
   );
 
   const flowJson = useMemo(
-    () => JSON.stringify({ scene: activeScene, nodes: flowNodes, edges: flowEdges, inputValues, uiElements }, null, 2),
-    [activeScene, flowEdges, flowNodes, inputValues, uiElements]
+    () => JSON.stringify({ scene: activeScene, nodes: flowNodes, edges: flowEdges, inputValues, uiElements, variables }, null, 2),
+    [activeScene, flowEdges, flowNodes, inputValues, uiElements, variables]
   );
 
   const selectedNode = useMemo(() => flowNodes.find((node) => node.id === selectedNodeId) || null, [flowNodes, selectedNodeId]);
   const selectedFunctionDefinition = useMemo(
     () => functions.find((item) => item.id === selectedNode?.data?.functionId) || null,
     [functions, selectedNode]
+  );
+  const activeFunctionDefinition = useMemo(
+    () => functions.find((item) => item.id === activeFunctionId) || null,
+    [activeFunctionId, functions]
   );
   const selectedUiElement = useMemo(
     () => uiElements.find((item) => item.id === selectedUiElementId) || null,
@@ -5606,6 +5744,11 @@ function EngineEditor() {
     return normalizeScenes([...scenes, activeScene, ...getUiElementScenes(uiElements), ...getNodeScenes(nodes)]);
   }, [activeScene, nodes, scenes, uiElements]);
   const uiText = UI_TEXT[language] || UI_TEXT.ko;
+  const globalVariables = useMemo(() => variables.filter((variable) => variable.scope === "global"), [variables]);
+  const localVariables = useMemo(
+    () => variables.filter((variable) => variable.scope === "local" && variable.scene === normalizeSceneName(activeScene)),
+    [activeScene, variables]
+  );
   const uiRenderStats = useMemo(
     () => createCanvasRenderStats(uiElements, { x: 0, y: 0, width: 1280, height: 720 }),
     [uiElements]
@@ -5678,9 +5821,16 @@ function EngineEditor() {
   const visibleLibraryNodeCount = visibleLibraryItems.length;
 
   const searchCandidates = useMemo(
-    () =>
-      [...Object.values(LIBRARY_TABS).flat(), ...functionLibraryItems]
-        .filter((item) => getNodeLabel(item.type, language, item.label).toLowerCase().includes(searchTerm.toLowerCase())),
+    () => {
+      const term = searchTerm.trim().toLowerCase();
+      if (!term) return [...Object.values(LIBRARY_TABS).flat(), ...functionLibraryItems];
+      return [...Object.values(LIBRARY_TABS).flat(), ...functionLibraryItems]
+        .filter((item) => {
+          const translatedLabel = getNodeLabel(item.type, language, item.label);
+          return [translatedLabel, item.label, item.type, item.group]
+            .some((value) => String(value || "").toLowerCase().includes(term));
+        });
+    },
     [functionLibraryItems, language, searchTerm]
   );
 
@@ -5713,6 +5863,7 @@ function EngineEditor() {
       nodeCounter: mainGraph.nodeCounter,
       uiElements,
       functions: serializedFunctions,
+      variables: normalizeVariables(variables),
       activeScene,
       scenes: sceneNames,
       assets,
@@ -5724,7 +5875,7 @@ function EngineEditor() {
       previewDevice,
       savedAt: Date.now()
     };
-  }, [activeFunctionId, activeScene, assets, customThemes, edges, exportSettings, functions, inputValues, language, nodes, previewDevice, sceneNames, themeKey, uiElements, viewMode]);
+  }, [activeFunctionId, activeScene, assets, customThemes, edges, exportSettings, functions, inputValues, language, nodes, previewDevice, sceneNames, themeKey, uiElements, variables, viewMode]);
 
   const snapshot = useCallback(({ mergeKey = "" } = {}) => {
     const now = Date.now();
@@ -5736,11 +5887,11 @@ function EngineEditor() {
     setHistory((current) => (
       canMerge
         ? current
-        : [...current.slice(-79), cloneState(nodes, edges, inputValues, nodeCounterRef.current, uiElements, functions, activeFunctionId, activeScene, assets, exportSettings, customThemes, sceneNames)]
+        : [...current.slice(-79), cloneState(nodes, edges, inputValues, nodeCounterRef.current, uiElements, functions, activeFunctionId, activeScene, assets, exportSettings, customThemes, sceneNames, variables)]
     ));
     setFuture([]);
     lastSnapshotMetaRef.current = { mergeKey, at: now };
-  }, [activeFunctionId, activeScene, assets, customThemes, edges, exportSettings, functions, inputValues, nodes, sceneNames, uiElements]);
+  }, [activeFunctionId, activeScene, assets, customThemes, edges, exportSettings, functions, inputValues, nodes, sceneNames, uiElements, variables]);
 
   // [이력 적용] 되돌리기 시 복구할 상태를 일관된 방식으로 반영합니다.
   const applyState = useCallback((state) => {
@@ -5753,6 +5904,7 @@ function EngineEditor() {
     const normalizedUiElements = normalizeUiElements(state.uiElements || []);
     setUiElements(normalizedUiElements);
     setFunctions(normalizeFunctions(state.functions || []));
+    setVariables(normalizeVariables(state.variables || []));
     const normalizedScenes = normalizeScenes([...(state.scenes || []), state.activeScene || "main", ...getUiElementScenes(normalizedUiElements)]);
     setScenes(normalizedScenes);
     setActiveScene(normalizeSceneName(state.activeScene || "main"));
@@ -6082,27 +6234,27 @@ function EngineEditor() {
     setHistory((current) => {
       if (current.length === 0) return current;
       const previous = current[current.length - 1];
-      setFuture((futureState) => [...futureState, cloneState(nodes, edges, inputValues, nodeCounterRef.current, uiElements, functions, activeFunctionId, activeScene, assets, exportSettings, customThemes, sceneNames)]);
+      setFuture((futureState) => [...futureState, cloneState(nodes, edges, inputValues, nodeCounterRef.current, uiElements, functions, activeFunctionId, activeScene, assets, exportSettings, customThemes, sceneNames, variables)]);
       applyState(previous);
       setIsDirty(true);
       setStatus("Undo applied.");
       lastSnapshotMetaRef.current = { mergeKey: "", at: 0 };
       return current.slice(0, -1);
     });
-  }, [activeFunctionId, activeScene, applyState, assets, customThemes, edges, exportSettings, functions, inputValues, nodes, sceneNames, uiElements]);
+  }, [activeFunctionId, activeScene, applyState, assets, customThemes, edges, exportSettings, functions, inputValues, nodes, sceneNames, uiElements, variables]);
 
   const redo = useCallback(() => {
     setFuture((current) => {
       if (current.length === 0) return current;
       const next = current[current.length - 1];
-      setHistory((historyState) => [...historyState, cloneState(nodes, edges, inputValues, nodeCounterRef.current, uiElements, functions, activeFunctionId, activeScene, assets, exportSettings, customThemes, sceneNames)]);
+      setHistory((historyState) => [...historyState, cloneState(nodes, edges, inputValues, nodeCounterRef.current, uiElements, functions, activeFunctionId, activeScene, assets, exportSettings, customThemes, sceneNames, variables)]);
       applyState(next);
       setIsDirty(true);
       setStatus("Redo applied.");
       lastSnapshotMetaRef.current = { mergeKey: "", at: 0 };
       return current.slice(0, -1);
     });
-  }, [activeFunctionId, activeScene, applyState, assets, customThemes, edges, exportSettings, functions, inputValues, nodes, sceneNames, uiElements]);
+  }, [activeFunctionId, activeScene, applyState, assets, customThemes, edges, exportSettings, functions, inputValues, nodes, sceneNames, uiElements, variables]);
 
   const updateInputValue = useCallback((nodeId, value) => {
     setInputValues((current) => ({ ...current, [nodeId]: value }));
@@ -6186,6 +6338,7 @@ function EngineEditor() {
     setFunctions(committedFunctions);
     loadGraphIntoEditor(target);
     setActiveFunctionId(functionId);
+    setActiveWorkspaceTab(`function:${functionId}`);
     setLibraryTab("functions");
     setStatus(`Editing function: ${target.name}`);
   }, [activeFunctionId, edges, getCommittedFunctions, inputValues, loadGraphIntoEditor, nodes, snapshot]);
@@ -6199,6 +6352,7 @@ function EngineEditor() {
     loadGraphIntoEditor(mainGraph);
     mainGraphRef.current = null;
     setActiveFunctionId(null);
+    setActiveWorkspaceTab("workspace");
     setStatus("Returned to main workspace.");
   }, [activeFunctionId, getCommittedFunctions, loadGraphIntoEditor, snapshot]);
 
@@ -6217,6 +6371,7 @@ function EngineEditor() {
     setFunctions(committedFunctions);
     loadGraphIntoEditor(definition);
     setActiveFunctionId(definition.id);
+    setActiveWorkspaceTab(`function:${definition.id}`);
     setLibraryTab("functions");
     setStatus(`Function created: ${definition.name}`);
     setIsDirty(true);
@@ -6247,6 +6402,7 @@ function EngineEditor() {
   }, [snapshot]);
 
   const addFunctionParameter = useCallback((functionId) => {
+    snapshot();
     setFunctions((current) => current.map((item) => (
       item.id === functionId
         ? {
@@ -6259,7 +6415,7 @@ function EngineEditor() {
         : item
     )));
     setIsDirty(true);
-  }, []);
+  }, [snapshot]);
 
   const updateFunctionParameter = useCallback((functionId, parameterId, field, value) => {
     snapshot({ mergeKey: `function:${functionId}:parameter:${parameterId}:${field}` });
@@ -6279,6 +6435,7 @@ function EngineEditor() {
   }, [snapshot]);
 
   const removeFunctionParameter = useCallback((functionId, parameterId) => {
+    snapshot();
     setFunctions((current) => current.map((item) => (
       item.id === functionId
         ? {
@@ -6288,7 +6445,7 @@ function EngineEditor() {
         : item
     )));
     setIsDirty(true);
-  }, []);
+  }, [snapshot]);
 
   const updateNodeFunctionArg = useCallback((parameterId, value) => {
     if (!selectedNode || selectedNode.data?.nodeType !== "function-call") return;
@@ -6325,10 +6482,41 @@ function EngineEditor() {
       loadGraphIntoEditor(mainGraph);
       mainGraphRef.current = null;
       setActiveFunctionId(null);
+      setActiveWorkspaceTab("workspace");
     }
     setStatus("Function removed.");
     setIsDirty(true);
   }, [activeFunctionId, getCommittedFunctions, loadGraphIntoEditor, nodes, setEdges, setNodes, snapshot]);
+
+  const addVariable = useCallback((scope) => {
+    snapshot();
+    setVariables((current) => normalizeVariables([
+      ...current,
+      createVariableDefinition(scope, activeScene, current.length + 1)
+    ]));
+    setStatus(scope === "local" ? "Local variable added." : "Global variable added.");
+    setIsDirty(true);
+  }, [activeScene, snapshot]);
+
+  const updateVariable = useCallback((variableId, field, value) => {
+    snapshot({ mergeKey: `variable:${variableId}:${field}` });
+    setVariables((current) => normalizeVariables(current.map((variable) => (
+      variable.id === variableId
+        ? {
+            ...variable,
+            [field]: field === "name" ? normalizeVariableName(value, variable.name) : String(value ?? "")
+          }
+        : variable
+    ))));
+    setIsDirty(true);
+  }, [snapshot]);
+
+  const deleteVariable = useCallback((variableId) => {
+    snapshot();
+    setVariables((current) => current.filter((variable) => variable.id !== variableId));
+    setStatus("Variable removed.");
+    setIsDirty(true);
+  }, [snapshot]);
 
   // [UI ↔ Node 동기화] 모든 Canvas UI가 메인 워크스페이스의 기존 표준 노드와 1:1로 연결되도록 유지합니다.
   useEffect(() => {
@@ -6869,8 +7057,7 @@ function EngineEditor() {
 
   useEffect(() => {
     const onKeyDown = (event) => {
-      const tag = (event.target?.tagName || "").toLowerCase();
-      const editing = tag === "input" || tag === "textarea";
+      const editing = isTextEditingTarget(event.target);
 
       if (event.code === "Space" && !editing) {
         event.preventDefault();
@@ -6879,8 +7066,11 @@ function EngineEditor() {
 
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "f") {
         event.preventDefault();
-        librarySearchInputRef.current?.focus();
-        librarySearchInputRef.current?.select();
+        setQuickSearchOpen(false);
+        window.setTimeout(() => {
+          librarySearchInputRef.current?.focus();
+          librarySearchInputRef.current?.select();
+        }, 0);
       }
 
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
@@ -7303,9 +7493,12 @@ function EngineEditor() {
   }, [setEdges, setNodes]);
 
   const activateScene = useCallback((sceneName) => {
+    if (activeFunctionId) {
+      exitFunctionEditor();
+    }
     switchScene(sceneName);
     setActiveWorkspaceTab("workspace");
-  }, [switchScene]);
+  }, [activeFunctionId, exitFunctionEditor, switchScene]);
 
   const createScene = useCallback(() => {
     const base = "scene";
@@ -7357,6 +7550,11 @@ function EngineEditor() {
     setUiElements((current) => current.map((element) => (
       (element.scene || "main") === sceneName ? { ...element, scene: nextName } : element
     )));
+    setVariables((current) => current.map((variable) => (
+      variable.scope === "local" && variable.scene === sceneName
+        ? { ...variable, scene: nextName }
+        : variable
+    )));
     setNodes((current) => current.map((node) => (
       isNodeInScene(node, sceneName)
         ? { ...node, data: { ...node.data, scene: nextName } }
@@ -7379,6 +7577,11 @@ function EngineEditor() {
     setWorkspaceTabOrder((current) => current.filter((tabId) => tabId !== `scene:${sceneName}`));
     setUiElements((current) => current.map((element) => (
       (element.scene || "main") === sceneName ? { ...element, scene: "main" } : element
+    )));
+    setVariables((current) => current.map((variable) => (
+      variable.scope === "local" && variable.scene === sceneName
+        ? { ...variable, scene: "main" }
+        : variable
     )));
     setNodes((current) => current.map((node) => (
       isNodeInScene(node, sceneName)
@@ -7669,6 +7872,15 @@ function EngineEditor() {
     if (element.actionType === "set-variable") {
       const parsed = parseSetVariableAction(actionValue);
       if (!parsed.key) throw new Error("Set Variable action needs key=value.");
+      const variableTarget = variables.find((variable) => variable.id === parsed.key || variable.name === parsed.key);
+      if (variableTarget) {
+        setVariables((current) => current.map((variable) => (
+          variable.id === variableTarget.id
+            ? { ...variable, value: parsed.value }
+            : variable
+        )));
+        return { ok: true, label: `Set ${parsed.key}` };
+      }
       const targetNode = nodes.find((node) => node.id === parsed.key || node.data?.refKey === parsed.key);
       if (!targetNode) throw new Error(`Variable target was not found: ${parsed.key}`);
       setInputValues((current) => ({ ...current, [targetNode.id]: parsed.value }));
@@ -7701,7 +7913,7 @@ function EngineEditor() {
     }
 
     return { ok: true, label: element.actionType };
-  }, [appendLog, functions, nodes, openSecureExternalUrl, requestSecureHttps, runtime.context, switchScene]);
+  }, [appendLog, functions, nodes, openSecureExternalUrl, requestSecureHttps, runtime.context, switchScene, variables]);
 
   const handleUiInteraction = useCallback((id, action) => {
     setInteractionState((current) => {
@@ -7839,6 +8051,7 @@ function EngineEditor() {
       setThemeKey("mint");
       setPreviewDevice("desktop");
       setBuilderPreviewScale(1);
+      setBuilderPreviewHeightScale(1);
       setAdvancedMode(false);
       setNodeHandleSize(16);
       setShowLogs(false);
@@ -8011,7 +8224,8 @@ function EngineEditor() {
             assets,
             exportSettings,
             customThemes,
-            sceneNames
+            sceneNames,
+            variables
           );
         }}
         onSelectionChange={({ nodes: selectedNodes = [], edges: selectedEdges = [] }) => {
@@ -8109,7 +8323,7 @@ function EngineEditor() {
             {searchCandidates.slice(0, 10).map((item) => (
               <button key={item.key} onClick={() => addNodeFromSearch(item)}>
                 <span style={{ background: NODE_COLOR[item.group] }} />
-                {item.label}
+                {getNodeLabel(item.type, language, item.label)}
               </button>
             ))}
           </div>
@@ -8125,8 +8339,15 @@ function EngineEditor() {
               placeholder={uiText.quickSearchNodes}
               autoFocus
               onKeyDown={(event) => {
-                if (event.key === "Enter" && searchCandidates[0]) addNodeFromSearch(searchCandidates[0], "center");
-                if (event.key === "Escape") setQuickSearchOpen(false);
+                if (event.key === "Enter" && searchCandidates[0]) {
+                  event.preventDefault();
+                  addNodeFromSearch(searchCandidates[0], "center");
+                  setQuickSearchOpen(false);
+                }
+                if (event.key === "Escape") {
+                  event.preventDefault();
+                  setQuickSearchOpen(false);
+                }
               }}
             />
             <div className="quick-search-list">
@@ -8174,6 +8395,8 @@ function EngineEditor() {
           setPreviewDevice={setPreviewDevice}
           builderPreviewScale={builderPreviewScale}
           setBuilderPreviewScale={setBuilderPreviewScale}
+          builderPreviewHeightScale={builderPreviewHeightScale}
+          setBuilderPreviewHeightScale={setBuilderPreviewHeightScale}
           onUiElementSelect={handleUiElementSelect}
           onOpenSettings={openSettingsTab}
           onOpenBuilderTab={openCanvasBuilderTab}
@@ -8215,6 +8438,8 @@ function EngineEditor() {
         setPreviewDevice={setPreviewDevice}
         builderPreviewScale={builderPreviewScale}
         setBuilderPreviewScale={setBuilderPreviewScale}
+        builderPreviewHeightScale={builderPreviewHeightScale}
+        setBuilderPreviewHeightScale={setBuilderPreviewHeightScale}
         onUiElementSelect={handleUiElementSelect}
         onOpenSettings={openSettingsTab}
         onOpenBuilderTab={openCanvasBuilderTab}
@@ -8270,6 +8495,7 @@ function EngineEditor() {
   const workspaceTabs = useMemo(() => {
     const baseTabs = [
       ...sceneNames.map((scene) => ({ id: `scene:${scene}`, kind: "scene", scene })),
+      ...(activeFunctionDefinition ? [{ id: `function:${activeFunctionDefinition.id}`, kind: "function", functionDef: activeFunctionDefinition }] : []),
       ...(builderTabOpen ? [{ id: "builder", kind: "builder" }] : []),
       { id: "settings", kind: "settings" }
     ];
@@ -8282,7 +8508,7 @@ function EngineEditor() {
       ...orderedTabs,
       ...baseTabs.filter((tab) => !orderedIds.has(tab.id))
     ];
-  }, [builderTabOpen, sceneNames, workspaceTabOrder]);
+  }, [activeFunctionDefinition, builderTabOpen, sceneNames, workspaceTabOrder]);
 
   const moveWorkspaceTab = useCallback((sourceId, targetId) => {
     if (!sourceId || !targetId || sourceId === targetId) return;
@@ -8428,6 +8654,42 @@ function EngineEditor() {
                     <span>{uiText.builder}</span>
                   </button>
                   <button type="button" className="workspace-tab-close" title={uiText.closeTab} onClick={closeCanvasBuilderTab}>×</button>
+                </div>
+              );
+            }
+
+            if (tab.kind === "function") {
+              return (
+                <div
+                  key={tab.id}
+                  className={`workspace-tab workspace-function-tab ${activeWorkspaceTab === tab.id ? "active" : ""}`}
+                  draggable
+                  onDragStart={(event) => handleWorkspaceTabDragStart(event, tab.id)}
+                  onDragOver={handleWorkspaceTabDragOver}
+                  onDrop={(event) => handleWorkspaceTabDrop(event, tab.id)}
+                >
+                  <button
+                    type="button"
+                    className="workspace-tab-main"
+                    onClick={() => {
+                      enterFunctionEditor(tab.functionDef.id);
+                      setActiveWorkspaceTab(tab.id);
+                    }}
+                  >
+                    <span className="workspace-tab-icon">ƒ</span>
+                    <span>{tab.functionDef.name}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="workspace-tab-close"
+                    title={uiText.closeTab}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      exitFunctionEditor();
+                    }}
+                  >
+                    ×
+                  </button>
                 </div>
               );
             }
@@ -8621,6 +8883,52 @@ function EngineEditor() {
               ) : null}
             </div>
           </label>
+
+          <section className="variable-manager">
+            <div className="variable-manager-head">
+              <strong>{uiText.variableManager}</strong>
+              <div>
+                <button type="button" className="ghost-btn" onClick={() => addVariable("global")}>{uiText.addGlobalVariable}</button>
+                <button type="button" className="ghost-btn" onClick={() => addVariable("local")}>{uiText.addLocalVariable}</button>
+              </div>
+            </div>
+            <div className="variable-group">
+              <span>{uiText.globalVariables}</span>
+              {globalVariables.length ? globalVariables.map((variable) => (
+                <div key={variable.id} className="variable-row">
+                  <input
+                    value={variable.name}
+                    onChange={(event) => updateVariable(variable.id, "name", event.target.value)}
+                    placeholder={uiText.variableName}
+                  />
+                  <input
+                    value={variable.value}
+                    onChange={(event) => updateVariable(variable.id, "value", event.target.value)}
+                    placeholder={uiText.variableValue}
+                  />
+                  <button type="button" className="ghost-btn danger-lite" onClick={() => deleteVariable(variable.id)}>{uiText.delete}</button>
+                </div>
+              )) : <small>{uiText.noVariables}</small>}
+            </div>
+            <div className="variable-group">
+              <span>{uiText.localVariables} · {activeScene}</span>
+              {localVariables.length ? localVariables.map((variable) => (
+                <div key={variable.id} className="variable-row">
+                  <input
+                    value={variable.name}
+                    onChange={(event) => updateVariable(variable.id, "name", event.target.value)}
+                    placeholder={uiText.variableName}
+                  />
+                  <input
+                    value={variable.value}
+                    onChange={(event) => updateVariable(variable.id, "value", event.target.value)}
+                    placeholder={uiText.variableValue}
+                  />
+                  <button type="button" className="ghost-btn danger-lite" onClick={() => deleteVariable(variable.id)}>{uiText.delete}</button>
+                </div>
+              )) : <small>{uiText.noVariables}</small>}
+            </div>
+          </section>
 
           <div className="drop-hint-card">
             <strong>{uiText.deleteZone}</strong>
@@ -9326,6 +9634,10 @@ function ExportRuntimeApp() {
     () => (project?.edges || []).filter((edge) => runtimeSceneNodeIds.has(edge.source) && runtimeSceneNodeIds.has(edge.target)),
     [project, runtimeSceneNodeIds]
   );
+  const runtimeVariableContext = useMemo(
+    () => getVariableContext(project?.variables || [], activeScene),
+    [activeScene, project?.variables]
+  );
 
   const runtime = useMemo(() => (
     project
@@ -9336,10 +9648,11 @@ function ExportRuntimeApp() {
           false,
           scriptExecutionAllowed,
           interactionState,
-          project.functions
+          project.functions,
+          runtimeVariableContext
         )
       : createRuntimeState()
-  ), [inputValues, interactionState, project, runtimeSceneEdges, runtimeSceneNodes, scriptExecutionAllowed]);
+  ), [inputValues, interactionState, project, runtimeSceneEdges, runtimeSceneNodes, runtimeVariableContext, scriptExecutionAllowed]);
 
   const nodesWithTrace = useMemo(() => (
     runtimeSceneNodes.map((node) => ({
@@ -9516,6 +9829,18 @@ function ExportRuntimeApp() {
     }
     if (element.actionType === "set-variable") {
       const parsed = parseSetVariableAction(actionValue);
+      const variableTarget = (project?.variables || []).find((variable) => variable.id === parsed.key || variable.name === parsed.key);
+      if (variableTarget) {
+        setProject((current) => current
+          ? {
+              ...current,
+              variables: normalizeVariables(current.variables || []).map((variable) => (
+                variable.id === variableTarget.id ? { ...variable, value: parsed.value } : variable
+              ))
+            }
+          : current);
+        return { ok: true, label: `Set ${parsed.key}` };
+      }
       const targetNode = project?.nodes.find((node) => node.id === parsed.key || node.data?.refKey === parsed.key);
       if (!targetNode) throw new Error(`Variable target was not found: ${parsed.key}`);
       setInputValues((current) => ({ ...current, [targetNode.id]: parsed.value }));
@@ -9547,7 +9872,7 @@ function ExportRuntimeApp() {
       return { ok: true, label: `Function ${actionValue || "queued"}` };
     }
     return { ok: true, label: element.actionType };
-  }, [openSecureExternalUrl, project?.nodes, requestSecureHttps, runtime.context, runtimeUiElements]);
+  }, [openSecureExternalUrl, project?.nodes, project?.variables, requestSecureHttps, runtime.context, runtimeUiElements]);
 
   const language = project?.language || "ko";
   const currentTheme = THEME_OPTIONS[project?.themeKey] || THEME_OPTIONS.mint;

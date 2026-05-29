@@ -231,6 +231,13 @@ img {
   border-style: dashed;
 }
 
+.workspace-function-tab {
+  border-color: rgba(240, 179, 109, 0.36);
+  background:
+    linear-gradient(180deg, rgba(240, 179, 109, 0.12), rgba(240, 179, 109, 0.03)),
+    color-mix(in srgb, var(--panel-alt) 82%, black 18%);
+}
+
 .workspace {
   min-height: 0;
   display: grid;
@@ -738,7 +745,8 @@ img {
 }
 
 .safe-mode-card,
-.function-hub {
+.function-hub,
+.variable-manager {
   display: grid;
   gap: 10px;
   margin-bottom: 14px;
@@ -759,6 +767,7 @@ img {
 
 .safe-mode-card > div,
 .function-hub-head,
+.variable-manager-head,
 .function-list-item,
 .function-editor-state {
   display: flex;
@@ -773,6 +782,50 @@ img {
 
 .function-hub-head {
   justify-content: space-between;
+}
+
+.variable-manager-head {
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.variable-manager-head > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.variable-group {
+  display: grid;
+  gap: 8px;
+  padding: 9px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.014);
+}
+
+.variable-group > span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.variable-group small {
+  color: var(--muted);
+}
+
+.variable-row {
+  display: grid;
+  grid-template-columns: minmax(80px, 0.9fr) minmax(90px, 1fr) auto;
+  gap: 6px;
+}
+
+.variable-row input {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--text);
+  padding: 8px 10px;
 }
 
 .function-editor-state {
@@ -1511,8 +1564,14 @@ img {
   font-size: 12px;
 }
 
+.builder-scale-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .builder-scale-control {
-  min-width: 286px;
+  min-width: 248px;
   display: inline-flex;
   align-items: center;
   gap: 8px;
