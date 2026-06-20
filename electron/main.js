@@ -3,6 +3,7 @@ const path = require("path");
 const fs = require("fs");
 const originalFs = require("original-fs");
 const os = require("os");
+const crypto = require("crypto");
 const dns = require("dns").promises;
 const nodeNet = require("net");
 const { spawn } = require("child_process");
@@ -643,6 +644,130 @@ async function renameExportExecutable(runtimeTarget, platformInfo, exportOptions
   return runtimeTarget;
 }
 
+function formatSignalMinute(value = Date.now()) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const pad = (part) => String(part).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function sanitizeSignalText(value = "", fallback = "") {
+  return String(value || fallback)
+    .replace(/[\u0000-\u001f<>]/g, "")
+    .trim()
+    .slice(0, 80);
+}
+
+function collectNodeBuildSignals(project = {}) {
+  const collect = (nodes = [], scope = "workspace") => nodes.map((node) => ({
+    id: sanitizeSignalText(node?.id, "node"),
+    scope,
+    type: sanitizeSignalText(node?.data?.nodeType || node?.data?.kind || node?.type, "unknown"),
+    label: sanitizeSignalText(node?.data?.label, "Unknown Node"),
+    group: sanitizeSignalText(node?.data?.kind || node?.data?.category, "unknown"),
+    insertedAt: formatSignalMinute(node?.data?.insertedAt || node?.data?.insertedAtMinute || node?.data?.createdAt || "")
+  }));
+
+  const workspaceNodes = collect(project?.nodes || [], "workspace");
+  const functionNodes = (project?.functions || []).flatMap((definition) => (
+    collect(definition?.nodes || [], `function:${sanitizeSignalText(definition?.name || definition?.id, "anonymous")}`)
+  ));
+  return [...workspaceNodes, ...functionNodes].slice(0, 1000);
+}
+
+function getCreatorNetworkConsentSignal(project = {}) {
+  const consent = project?.securityConsent?.networkNodes || project?.securityConsent?.networkNodeCreatorConsent || {};
+  return {
+    consented: Boolean(consent.creatorConsented || consent.consented),
+    consentedAt: formatSignalMinute(consent.consentedAt || ""),
+    consentVersion: Number(consent.consentVersion || 1),
+    scope: "creator-only"
+  };
+}
+
+function createIxoBuildSignal(project, options = {}, targetPlatform = "desktop") {
+  const generatedAt = new Date();
+  const stableSummary = {
+    schemaVersion: project?.schemaVersion || 1,
+    scenes: Array.isArray(project?.scenes) ? project.scenes : [],
+    nodeCount: Array.isArray(project?.nodes) ? project.nodes.length : 0,
+    uiCount: Array.isArray(project?.uiElements) ? project.uiElements.length : 0,
+    assetCount: Array.isArray(project?.assets) ? project.assets.length : 0,
+    appName: sanitizeExportAppStem(options?.appName)
+  };
+  const projectHash = crypto
+    .createHash("sha256")
+    .update(JSON.stringify(stableSummary))
+    .digest("hex");
+
+  return {
+    product: "IXO Engine",
+    signalVersion: 2,
+    engineVersion: app.getVersion(),
+    targetPlatform,
+    appName: stableSummary.appName,
+    generatedAt: generatedAt.toISOString(),
+    releasedAt: formatSignalMinute(generatedAt),
+    projectHash,
+    networkNodeCreatorConsent: getCreatorNetworkConsentSignal(project),
+    nodeSignals: collectNodeBuildSignals(project),
+    signalTypes: [
+      "creator-network-consent",
+      "node-inventory",
+      "node-inserted-minute",
+      "release-minute",
+      "metadata-only"
+    ],
+    privacyMode: "metadata-only-no-node-values",
+    purpose: "IXO Engine 산출물의 악용 추적과 정당한 제작 출처 확인을 위한 비가시 제작 신호"
+  };
+}
+
+function collectReferencedAssetValues(project = {}) {
+  const used = new Set();
+  const remember = (value) => {
+    const text = String(value || "").trim();
+    if (text) used.add(text);
+  };
+
+  (project.uiElements || []).forEach((element) => {
+    remember(element.src);
+    remember(element.actionValue);
+    remember(element.vectorFill);
+  });
+  (project.nodes || []).forEach((node) => {
+    remember(node?.data?.value);
+    remember(node?.data?.soundName);
+  });
+  return used;
+}
+
+function trimUnusedAssetsForExport(project = {}) {
+  if (!Array.isArray(project.assets) || project.assets.length === 0) return project;
+  const used = collectReferencedAssetValues(project);
+  return {
+    ...project,
+    assets: project.assets.filter((asset) => (
+      used.has(asset.id)
+      || used.has(asset.name)
+      || used.has(asset.dataUrl)
+      || [...used].some((value) => value.includes(asset.name) || value.includes(asset.dataUrl))
+    ))
+  };
+}
+
+function attachIxoBuildSignal(project, options = {}, targetPlatform = "desktop") {
+  const exportProject = trimUnusedAssetsForExport(project);
+  const signal = createIxoBuildSignal(exportProject, options, targetPlatform);
+  return {
+    project: {
+      ...exportProject,
+      _ixoBuildSignal: signal
+    },
+    signal
+  };
+}
+
 async function ensureRuntimeExport(project, options = {}) {
   const tempRoot = ensureTempExport();
   const platformInfo = getRuntimePlatformInfo(options?.targetPlatform);
@@ -663,8 +788,10 @@ async function ensureRuntimeExport(project, options = {}) {
       resourcesDir,
       "export"
     );
+    const { project: exportProject, signal } = attachIxoBuildSignal(project, exportOptions, platformInfo.platform || platformInfo.key);
     fs.mkdirSync(exportDir, { recursive: true });
-    fs.writeFileSync(path.join(exportDir, "project.json"), JSON.stringify(project, null, 2), "utf-8");
+    fs.writeFileSync(path.join(exportDir, "project.json"), JSON.stringify(exportProject, null, 2), "utf-8");
+    fs.writeFileSync(path.join(exportDir, ".ixo-origin.json"), JSON.stringify(signal, null, 2), "utf-8");
 
     return tempRoot;
   } catch (error) {
@@ -1059,8 +1186,10 @@ function exportMobileWorkspace(project, options, targetKey, outputDir) {
   originalFs.mkdirSync(destination, { recursive: true });
 
   const webDir = copyRendererIntoMobileWorkspace(destination);
-  fs.writeFileSync(path.join(destination, "project.json"), JSON.stringify(project, null, 2), "utf-8");
-  fs.writeFileSync(path.join(webDir, "project.json"), JSON.stringify(project, null, 2), "utf-8");
+  const { project: exportProject, signal } = attachIxoBuildSignal(project, options, target.platform);
+  fs.writeFileSync(path.join(destination, "project.json"), JSON.stringify(exportProject, null, 2), "utf-8");
+  fs.writeFileSync(path.join(webDir, "project.json"), JSON.stringify(exportProject, null, 2), "utf-8");
+  fs.writeFileSync(path.join(webDir, ".ixo-origin.json"), JSON.stringify(signal, null, 2), "utf-8");
   fs.writeFileSync(
     path.join(webDir, "runtime.html"),
     "<!doctype html><meta charset=\"utf-8\"><script>location.replace('./index.html?runtime=1')</script>",
@@ -1078,6 +1207,7 @@ function exportMobileWorkspace(project, options, targetKey, outputDir) {
     sourceProject: "project.json",
     webRoot: "web",
     launchPath: "runtime.html",
+    ixoBuildSignal: signal,
     wrapper: "capacitor",
     iconBackgroundColor: normalizeMobileIconBackgroundColor(options?.iconBackgroundColor),
     commands: {
@@ -1318,9 +1448,11 @@ app.whenReady().then(() => {
 
   ipcMain.handle("security:setHttpsNodesEnabled", (event, enabled) => {
     assertTrustedSender(event);
+    const allow = Boolean(enabled);
     const next = {
       ...readSecurityPreferences(),
-      httpsNodesEnabled: Boolean(enabled)
+      httpsNodesEnabled: allow,
+      networkConsentAcceptedAt: allow ? new Date().toISOString() : ""
     };
     writeSecurityPreferences(next);
     return next;

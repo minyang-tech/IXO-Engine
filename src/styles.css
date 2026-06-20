@@ -157,6 +157,11 @@ img {
   cursor: grabbing;
 }
 
+.workspace-tab:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+
 .workspace-tab-main {
   min-width: 0;
   height: 100%;
@@ -1136,6 +1141,11 @@ img {
   z-index: 24;
 }
 
+.node-action-menu {
+  width: 232px;
+  padding: 6px;
+}
+
 .context-menu input,
 .quick-search-card input,
 .property-form input,
@@ -1201,6 +1211,52 @@ img {
   width: 10px;
   height: 10px;
   border-radius: 999px;
+}
+
+.node-action-list {
+  display: grid;
+  gap: 4px;
+}
+
+.node-action-list button {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  color: var(--text);
+  text-align: left;
+}
+
+.node-action-list button:hover:not(:disabled) {
+  background: rgba(62, 207, 142, 0.10);
+}
+
+.node-action-list button:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
+.node-action-list button span {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 8px;
+  background: rgba(62, 207, 142, 0.10);
+  color: var(--accent);
+  font-weight: 900;
+}
+
+.node-action-list .danger-action {
+  color: #ffd6d6;
+}
+
+.node-action-list .danger-action span {
+  background: rgba(255, 91, 91, 0.12);
+  color: var(--danger);
 }
 
 /* [Nodes] React Flow 노드의 시각적 단순화와 실행 하이라이트를 담당합니다. */
@@ -1370,6 +1426,20 @@ img {
 
 .false-handle {
   background: var(--danger);
+}
+
+.node-handle-extra {
+  width: calc(var(--node-handle-size, 12px) * 0.86);
+  height: calc(var(--node-handle-size, 12px) * 0.86);
+  border-style: dashed;
+}
+
+.node-handle-extra-target {
+  background: #bff3d9;
+}
+
+.node-handle-extra-source {
+  background: #7de8c4;
 }
 
 .ixo-group-node {
@@ -1654,6 +1724,18 @@ img {
   overflow: hidden;
   flex: 0 0 auto;
   transition: width 0.25s ease;
+  animation: scene-enter 180ms ease-out;
+}
+
+@keyframes scene-enter {
+  from {
+    opacity: 0.72;
+    transform: translateY(6px) scale(0.995);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .viewer-canvas-layer {
@@ -2145,6 +2227,14 @@ img {
   padding: 24px;
 }
 
+.privacy-modal-backdrop {
+  z-index: 180;
+}
+
+.network-consent-backdrop {
+  z-index: 160;
+}
+
 .settings-modal {
   width: calc(100vw - 36px);
   height: calc(100vh - 36px);
@@ -2509,6 +2599,20 @@ img {
   background: rgba(255, 255, 255, 0.02);
 }
 
+.asset-manager-front {
+  margin: 14px 0;
+  background:
+    radial-gradient(circle at top left, rgba(62, 207, 142, 0.16), transparent 42%),
+    rgba(255, 255, 255, 0.025);
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.16);
+}
+
+.asset-manager-front .asset-list {
+  max-height: 260px;
+  overflow: auto;
+  padding-right: 2px;
+}
+
 .asset-manager-head {
   display: flex;
   align-items: center;
@@ -2547,13 +2651,36 @@ img {
 
 .asset-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px;
   padding: 8px;
   border-radius: 14px;
   border: 1px solid transparent;
   background: rgba(255, 255, 255, 0.018);
+}
+
+.asset-thumb {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  object-fit: cover;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.asset-thumb-placeholder {
+  display: grid;
+  place-items: center;
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.asset-row-actions {
+  display: inline-flex;
+  gap: 6px;
 }
 
 .asset-row.is-draggable {

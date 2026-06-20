@@ -1,4 +1,4 @@
-﻿import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Panel as ResizablePanel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import ReactFlow, {
   addEdge,
@@ -31,18 +31,18 @@ const LOGO_FALLBACKS = [
   "./IXO Logo.PNG",
   "https://github.com/minyang-tech/IXO-Engine/blob/main/IXO%20Logo.png?raw=true"
 ];
-const FALLBACK_APP_VERSION = typeof window !== "undefined" && window.ixo?.version ? window.ixo.version : "1.1.3";
+const FALLBACK_APP_VERSION = typeof window !== "undefined" && window.ixo?.version ? window.ixo.version : "1.2.0";
 
 // [노드 UI] 카테고리별 아이콘과 컬러를 최대한 차분한 톤으로 정리했습니다.
 const GROUP_ICON = {
-  control: "⌁",
-  visual: "◫",
-  system: "⚙",
+  control: "?",
+  visual: "?",
+  system: "?",
   logic: "∑",
-  utility: "⊕",
+  utility: "?",
   data: "◈",
-  network: "⇄",
-  function: "ƒ",
+  network: "?",
+  function: "?",
   start: "◆"
 };
 
@@ -71,7 +71,7 @@ const LOCAL_AUTOSAVE_KEY = "ixo-engine-local-autosave-v1";
 const LOCAL_BACKUPS_KEY = "ixo-engine-local-backups-v1";
 const LOCAL_SAFE_MODE_KEY = "ixo-engine-safe-mode-v1";
 const LOCAL_EDITOR_SETTINGS_KEY = "ixo-engine-editor-settings-v1";
-const PROJECT_SCHEMA_VERSION = 2;
+const PROJECT_SCHEMA_VERSION = 3;
 const MAX_LOCAL_BACKUPS = 5;
 const NETWORK_SAFETY_NOTICE = [
   "## 네트워크 사용 안내",
@@ -674,7 +674,7 @@ const EXTRA_UI_TEXT = {
     scenes: "Scene",
     currentScene: "현재 Scene",
     sceneHint: "Canvas Builder와 노드는 선택한 Scene에 추가됩니다.",
-    moveSceneToMain: "이 Scene을 main으로 이동",
+    moveSceneToMain: "이 Scene 삭제",
     vectorFill: "Vector 색상",
     vectorAdvancedPath: "고급 SVG path",
     customTheme: "사용자 테마",
@@ -719,7 +719,16 @@ const EXTRA_UI_TEXT = {
     addLocalVariable: "지역변수 추가",
     variableName: "변수명",
     variableValue: "값",
-    noVariables: "아직 변수가 없습니다."
+    noVariables: "아직 변수가 없습니다.",
+    undo: "되돌리기",
+    redo: "다시 실행",
+    duplicateScene: "Scene 복제",
+    deleteScene: "Scene 삭제",
+    deleteSceneConfirm: "이 Scene의 노드, UI, 지역변수가 함께 삭제됩니다. 계속할까요?",
+    renameAsset: "이름 변경",
+    stylePreset: "스타일 프리셋",
+    hoverCss: "Hover CSS",
+    pressedCss: "Click CSS"
   },
   en: {
     preview: "Preview",
@@ -914,7 +923,7 @@ const EXTRA_UI_TEXT = {
     scenes: "Scenes",
     currentScene: "Current Scene",
     sceneHint: "Canvas Builder and nodes are added to the selected Scene.",
-    moveSceneToMain: "Move this Scene to main",
+    moveSceneToMain: "Delete this Scene",
     vectorFill: "Vector Fill",
     vectorAdvancedPath: "Advanced SVG path",
     customTheme: "Custom Theme",
@@ -959,322 +968,340 @@ const EXTRA_UI_TEXT = {
     addLocalVariable: "Add Local",
     variableName: "Name",
     variableValue: "Value",
-    noVariables: "No variables yet."
+    noVariables: "No variables yet.",
+    undo: "Undo",
+    redo: "Redo",
+    duplicateScene: "Duplicate Scene",
+    deleteScene: "Delete Scene",
+    deleteSceneConfirm: "Nodes, UI, and local variables in this Scene will be removed. Continue?",
+    renameAsset: "Rename",
+    stylePreset: "Style preset",
+    hoverCss: "Hover CSS",
+    pressedCss: "Click CSS"
   },
   zh: {
-    preview: "预览",
-    viewer: "界面查看器",
-    builder: "画布构建器",
-    settingsTitle: "引擎设置",
-    docs: "文档",
+    preview: "??",
+    viewer: "界面?看器",
+    builder: "?布?建器",
+    settingsTitle: "引擎?置",
+    docs: "文?",
     file: "文件",
-    builderToolbarTitle: "画布构建器",
-    workspaceSubtitle: "可视化逻辑 + UI 构建工作区",
+    builderToolbarTitle: "?布?建器",
+    workspaceSubtitle: "可?化?? + UI ?建工作?",
     save: "保存",
-    load: "加载",
-    export: "导出",
-    magicAlign: "自动对齐",
+    load: "加?",
+    export: "?出",
+    magicAlign: "自???",
     speed: "速度",
-    resume: "继续",
-    pause: "暂停",
+    resume: "??",
+    pause: "?停",
     trace: "追踪",
-    nodeLibrary: "节点库",
-    groupSelected: "组合所选项",
+    nodeLibrary: "?点?",
+    groupSelected: "?合所??",
     safeMode: "安全模式",
-    restoreBackup: "恢复备份",
-    autoReset: "自动重置",
-    close: "关闭",
-    findNode: "查找节点",
-    searchAllNodes: "搜索全部节点...",
-    searchNodes: "搜索节点...",
-    quickSearchNodes: "输入节点名称并按 Enter...",
-    librarySearchPlaceholder: "Ctrl+F 或输入节点名称...",
-    clear: "清除",
-    result: "项结果",
-    results: "项结果",
-    coreTab: "基础",
-    proTab: "高级",
-    functionsTab: "函数",
-    functions: "函数",
-    createFunction: "创建函数",
-    editingFunction: "正在编辑函数",
+    restoreBackup: "恢???",
+    autoReset: "自?重置",
+    close: "??",
+    findNode: "???点",
+    searchAllNodes: "搜索全部?点...",
+    searchNodes: "搜索?点...",
+    quickSearchNodes: "?入?点名??按 Enter...",
+    librarySearchPlaceholder: "Ctrl+F 或?入?点名?...",
+    clear: "?除",
+    result: "??果",
+    results: "??果",
+    coreTab: "基?",
+    proTab: "高?",
+    functionsTab: "函?",
+    functions: "函?",
+    createFunction: "?建函?",
+    editingFunction: "正在??函?",
     returnToMain: "返回主界面",
-    functionDescription: "函数说明",
-    functionDescriptionPlaceholder: "请描述这个函数的作用。",
+    functionDescription: "函??明",
+    functionDescriptionPlaceholder: "?描述??函?的作用。",
     returnRefKey: "返回 Ref Key",
-    parameters: "参数",
-    addParameter: "添加参数",
-    defaultValue: "默认值",
-    description: "说明",
-    delete: "删除",
-    noParametersHint: "需要时再添加参数。",
-    functionNameAria: "函数名称",
-    noParams: "无参数",
-    edit: "编辑",
-    noFunctions: "还没有函数",
-    noFunctionsHint: "自定义函数也可以递归调用。",
-    noMatchingNodes: "没有匹配的节点",
-    tryAnotherKeyword: "请尝试其他关键词或清空搜索。",
-    nodeOutputFeed: "节点输出流",
-    execution: "执行顺序",
-    errorLogConsole: "错误日志控制台",
-    errorLogHint: "脚本结果、分支结果和外部动作日志会累计显示在下方。",
-    noLogs: "还没有日志。",
-    uiInspector: "UI 检查器",
-    proInspector: "高级检查器",
-    properties: "属性",
-    nodes: "节点",
-    edges: "连线",
-    uiLayers: "UI 图层",
+    parameters: "??",
+    addParameter: "添加??",
+    defaultValue: "默??",
+    description: "?明",
+    delete: "?除",
+    noParametersHint: "需要?再添加??。",
+    functionNameAria: "函?名?",
+    noParams: "无??",
+    edit: "??",
+    noFunctions: "??有函?",
+    noFunctionsHint: "自定?函?也可以???用。",
+    noMatchingNodes: "?有匹配的?点",
+    tryAnotherKeyword: "???其他???或?空搜索。",
+    nodeOutputFeed: "?点?出流",
+    execution: "?行?序",
+    errorLogConsole: "??日志控制台",
+    errorLogHint: "脚本?果、分支?果和外部?作日志?累??示在下方。",
+    noLogs: "??有日志。",
+    uiInspector: "UI ??器",
+    proInspector: "高???器",
+    properties: "?性",
+    nodes: "?点",
+    edges: "??",
+    uiLayers: "UI ??",
     logs: "日志",
-    viewerMode: "查看模式",
-    viewerModeBuilder: "Canvas Builder 已启用。",
-    viewerModeViewer: "当前只查看 UI Viewer。",
-    viewerModePreview: "同时查看 Preview 与 JSON 状态。",
-    elementKind: "元素类型",
-    textLabel: "文本 / 标签",
-    imageSrc: "图片地址",
-    bindingRefKey: "绑定 Ref Key",
-    width: "宽度",
+    viewerMode: "?看模式",
+    viewerModeBuilder: "Canvas Builder 已?用。",
+    viewerModeViewer: "?前只?看 UI Viewer。",
+    viewerModePreview: "同??看 Preview ? JSON ??。",
+    elementKind: "元素?型",
+    textLabel: "文本 / ??",
+    imageSrc: "?片地址",
+    bindingRefKey: "?定 Ref Key",
+    width: "?度",
     height: "高度",
-    fontSize: "字号",
-    radius: "圆角",
-    textColor: "文字颜色",
+    fontSize: "字?",
+    radius: "?角",
+    textColor: "文字?色",
     background: "背景",
-    actionType: "动作类型",
-    actionValue: "动作值",
-    deleteUiElement: "删除 UI 元素",
-    nodeLabel: "节点标签",
-    conditionChain: "条件表达式 (AND/OR)",
-    mathExpression: "数学表达式",
-    javascriptCode: "JavaScript 代码",
-    valueSetting: "值 / 设置",
+    actionType: "?作?型",
+    actionValue: "?作?",
+    deleteUiElement: "?除 UI 元素",
+    nodeLabel: "?点??",
+    conditionChain: "?件表?式 (AND/OR)",
+    mathExpression: "??表?式",
+    javascriptCode: "JavaScript 代?",
+    valueSetting: "? / ?置",
     refKey: "Ref Key",
-    groupLabel: "分组标签",
-    nodeType: "节点类型",
-    functionArguments: "函数参数",
-    functionNoParams: "此函数没有参数。",
-    functionReturnPrefix: "返回值将从",
-    functionReturnSuffix: "传出。",
-    lastExecutedNode: "最后执行的节点",
-    numericSlider: "数字滑块",
-    colorPicker: "颜色选择",
-    soundUpload: "上传声音",
-    filePath: "文件路径",
-    selectedId: "已选 ID",
-    createLinkedUiText: "创建关联 UI 文本",
-    emptyInspectorHint: "双击节点可打开高级检查器；在 UI Viewer 或 Canvas Builder 中选择 UI 元素可编辑设计属性。",
+    groupLabel: "分???",
+    nodeType: "?点?型",
+    functionArguments: "函???",
+    functionNoParams: "此函??有??。",
+    functionReturnPrefix: "返回???",
+    functionReturnSuffix: "?出。",
+    lastExecutedNode: "最后?行的?点",
+    numericSlider: "?字滑?",
+    colorPicker: "?色??",
+    soundUpload: "上??音",
+    filePath: "文件路?",
+    selectedId: "已? ID",
+    createLinkedUiText: "?建?? UI 文本",
+    emptyInspectorHint: "???点可打?高???器；在 UI Viewer 或 Canvas Builder 中?? UI 元素可?????性。",
     addUiText: "添加 UI 文本",
-    addUiButton: "添加 UI 按钮",
-    engineStatus: "引擎状态",
+    addUiButton: "添加 UI 按?",
+    engineStatus: "引擎??",
     unsavedChanges: "有未保存更改",
     mode: "模式",
     paletteText: "文本",
-    paletteImage: "图片",
-    paletteButton: "按钮",
-    paletteInput: "输入",
+    paletteImage: "?片",
+    paletteButton: "按?",
+    paletteInput: "?入",
     paletteContainer: "容器",
-    deviceDesktop: "桌面",
+    deviceDesktop: "?面",
     deviceTablet: "平板",
-    deviceMobile: "移动端",
-    exportTitle: "最终产物",
+    deviceMobile: "移?端",
+    exportTitle: "最??物",
     cancelExport: "取消",
-    exportDestinationPrefix: "该应用将保存到",
-    exportDestinationEmpty: "请选择保存位置。",
+    exportDestinationPrefix: "??用?保存到",
+    exportDestinationEmpty: "???保存位置。",
     exportDestinationSuffix: "",
-    pickPath: "选择路径",
-    chooseArtifactTypes: "请选择产物格式。",
-    exportRequirementHint: "必须同时指定路径和格式后才能导出。",
-    desktopPipeline: "桌面",
-    mobilePipeline: "移动端",
-    mobilePipelineTitle: "移动端使用独立打包流程。",
-    mobilePipelineCopy: "网页运行时和项目数据会先导出到移动端工作区，再由 Android/iOS 工具链构建最终 `.apk` 或 `.ipa`。",
-    mobileIconPreview: "移动端图标预览",
-    mobileIconPreviewHint: "预览默认图标或已选图标在各平台上的效果。",
-    mobileIconPreviewAlt: "移动端图标预览",
-    androidAdaptiveIcon: "Android 自适应图标",
-    iosAppIcon: "iOS 应用图标",
-    androidIconBackground: "Android 图标背景色",
-    selectedAppIconAlt: "已选择的应用图标",
-    dragAppIcon: "将应用图标拖到这里",
-    appNamePrompt: "请设置应用名称。",
+    pickPath: "??路?",
+    chooseArtifactTypes: "????物格式。",
+    exportRequirementHint: "必?同?指定路?和格式后才能?出。",
+    desktopPipeline: "?面",
+    mobilePipeline: "移?端",
+    mobilePipelineTitle: "移?端使用?立打包流程。",
+    mobilePipelineCopy: "???行?和?目?据?先?出到移?端工作?，再由 Android/iOS 工具??建最? `.apk` 或 `.ipa`。",
+    mobileIconPreview: "移?端????",
+    mobileIconPreviewHint: "??默???或已???在各平台上的效果。",
+    mobileIconPreviewAlt: "移?端????",
+    androidAdaptiveIcon: "Android 自适???",
+    iosAppIcon: "iOS ?用??",
+    androidIconBackground: "Android ??背景色",
+    selectedAppIconAlt: "已??的?用??",
+    dragAppIcon: "??用??拖到?里",
+    appNamePrompt: "??置?用名?。",
     version: "版本",
-    defaultExportHint: "如果未指定图标或名称，将使用默认图标和默认名称。",
-    iconFormatsHint: "支持 PNG 或 ICO 图标。",
-    exporting: "正在导出...",
-    exportAction: "导出",
-    invalidIcon: "只能使用 PNG 或 ICO 文件作为图标。",
-    projectTrust: "项目可信度",
-    trustRestricted: "受限执行",
-    trustReview: "需要审查",
-    trustTrusted: "本次会话已信任",
+    defaultExportHint: "如果未指定??或名?，?使用默???和默?名?。",
+    iconFormatsHint: "支持 PNG 或 ICO ??。",
+    exporting: "正在?出...",
+    exportAction: "?出",
+    invalidIcon: "只能使用 PNG 或 ICO 文件作???。",
+    projectTrust: "?目可信度",
+    trustRestricted: "受限?行",
+    trustReview: "需要??",
+    trustTrusted: "本次??已信任",
     trustBlocked: "已阻止",
-    trustRestrictedHint: "当前仅使用受限执行模式。",
-    trustReviewHint: "项目中存在需要完整 JavaScript 的脚本。",
-    trustTrustedHint: "本次会话已允许完整 JavaScript。",
-    trustBlockedHint: "完整 JavaScript 执行已被拒绝。",
+    trustRestrictedHint: "?前?使用受限?行模式。",
+    trustReviewHint: "?目中存在需要完整 JavaScript 的脚本。",
+    trustTrustedHint: "本次??已允?完整 JavaScript。",
+    trustBlockedHint: "完整 JavaScript ?行已被拒?。",
     fullJavascriptWarningTitle: "完整 JavaScript 警告",
-    fullJavascriptWarningCopy: "此脚本无法在受限模式下运行，可能执行任意 JavaScript。仅允许你信任的项目。",
-    fullJavascriptWhyTitle: "为什么有风险",
+    fullJavascriptWarningCopy: "此脚本无法在受限模式下?行，可能?行任意 JavaScript。?允??信任的?目。",
+    fullJavascriptWhyTitle: "?什?有??",
     fullJavascriptWhyItems: [
-      "它可以读取或修改项目状态和输入值。",
-      "它可能通过循环或高负载计算使应用卡住。",
-      "与网络节点结合时，可能把令牌或个人信息发送到外部。"
+      "?可以?取或修改?目??和?入?。",
+      "?可能通?循?或高???算使?用?住。",
+      "????点?合?，可能把令牌或?人信息?送到外部。"
     ],
-    fullJavascriptRecommendedTitle: "推荐做法",
+    fullJavascriptRecommendedTitle: "推?做法",
     fullJavascriptRecommendedItems: [
-      "能用数学、条件、文字节点解决时，优先使用节点。",
-      "脚本尽量保持简短、纯计算，并避免放入敏感信息。",
-      "对外部来源项目，先审查代码再授予信任。"
+      "能用??、?件、文字?点解??，?先使用?点。",
+      "脚本?量保持?短、??算，?避免放入敏感信息。",
+      "?外部?源?目，先??代?再授予信任。"
     ],
-    fullJavascriptTrustHint: "建议：只信任自己编写或已充分审查的项目。",
-    requestFullJavascript: "请求完整 JavaScript",
-    fileWatcherPath: "监视路径",
-    chooseWatchPath: "选择监视路径",
-    chooseWatchPathHint: "请选择文件或文件夹。",
-    privacyPolicy: "隐私政策",
-    openPrivacyPolicy: "查看隐私政策",
-    privacyPolicyIntro: "查看更新检查和网络节点使用期间可能交换的信息。",
-    settingsAppearance: "外观与主题",
-    settingsExportDefaults: "导出默认值",
-    settingsSafetyReset: "重置与恢复",
-    settingsSafetyResetCopy: "按范围重置项目、保存数据、设置或全部本地应用数据。",
+    fullJavascriptTrustHint: "建?：只信任自己??或已充分??的?目。",
+    requestFullJavascript: "?求完整 JavaScript",
+    fileWatcherPath: "??路?",
+    chooseWatchPath: "????路?",
+    chooseWatchPathHint: "???文件或文件?。",
+    privacyPolicy: "?私政策",
+    openPrivacyPolicy: "?看?私政策",
+    privacyPolicyIntro: "?看更新??和???点使用期?可能交?的信息。",
+    settingsAppearance: "外??主?",
+    settingsExportDefaults: "?出默??",
+    settingsSafetyReset: "重置?恢?",
+    settingsSafetyResetCopy: "按范?重置?目、保存?据、?置或全部本地?用?据。",
     resetAll: "全部重置",
-    resetSavedData: "重置保存数据",
-    resetSettings: "重置设置",
-    resetApp: "完整应用重置",
-    resetAllHint: "将当前项目和设置恢复为默认值。",
-    resetSavedDataHint: "仅删除自动保存和备份数据。",
-    resetSettingsHint: "恢复语言、主题、预览和安全设置。",
-    resetAppHint: "同时清除 localStorage 和安全授权。",
-    confirmReset: "确定要继续重置吗？",
-    assetManager: "资源管理器",
-    cleanUnused: "清理未使用",
-    dragUploadAsset: "上传资源或 .ixo",
-    scenes: "场景",
-    currentScene: "当前场景",
-    sceneHint: "Canvas Builder 和节点会添加到选中的场景。",
-    moveSceneToMain: "将此场景移动到 main",
-    vectorFill: "Vector 颜色",
-    vectorAdvancedPath: "高级 SVG path",
-    customTheme: "自定义主题",
-    customThemeHint: "上传 JSON 主题文件即可应用到整个 IXO Engine 编辑器。",
-    exportWindowTitle: "窗口标题",
-    exportWindowWidth: "默认宽度",
-    exportWindowHeight: "默认高度",
+    resetSavedData: "重置保存?据",
+    resetSettings: "重置?置",
+    resetApp: "完整?用重置",
+    resetAllHint: "??前?目和?置恢??默??。",
+    resetSavedDataHint: "??除自?保存和???据。",
+    resetSettingsHint: "恢??言、主?、??和安全?置。",
+    resetAppHint: "同??除 localStorage 和安全授?。",
+    confirmReset: "?定要??重置?？",
+    assetManager: "?源管理器",
+    cleanUnused: "?理未使用",
+    dragUploadAsset: "上??源或 .ixo",
+    scenes: "?景",
+    currentScene: "?前?景",
+    sceneHint: "Canvas Builder 和?点?添加到?中的?景。",
+    moveSceneToMain: "?除此?景",
+    vectorFill: "Vector ?色",
+    vectorAdvancedPath: "高? SVG path",
+    customTheme: "自定?主?",
+    customThemeHint: "上? JSON 主?文件?可?用到整? IXO Engine ??器。",
+    exportWindowTitle: "?口??",
+    exportWindowWidth: "默??度",
+    exportWindowHeight: "默?高度",
     exportBackground: "背景色",
-    exportResizable: "允许调整窗口大小",
-    exportSplash: "启动画面",
-    appPreview: "应用预览",
-    advancedMode: "启用高级模式",
-    advancedModeHint: "显示所有属性、资源和高级编辑工具，恢复旧版完整界面。",
-    nodePortSize: "节点连接点大小",
-    nodePortSizeHint: "调整节点连线连接点的可点击区域。",
-    simpleInspectorHint: "基础模式只显示常用项目。可在设置中开启高级模式显示全部字段。",
-    networkConsentTitle: "网络节点使用同意",
-    networkConsentIntro: "更新检查、HTTPS 请求和外部浏览器动作只有在你同意后才会执行。",
-    networkConsentNoticeTitle: "安全说明",
-    networkConsentAllow: "同意并启用",
-    networkConsentDeny: "拒绝并关闭",
-    networkConsentSettingsHint: "拒绝后也可以稍后在设置中重新开启。",
-    showLogs: "显示日志面板",
-    showLogsHint: "默认关闭。只在需要查看底部日志控制台时开启。",
-    networkConsentDocument: "同意书",
-    networkConsentView: "查看同意书",
+    exportResizable: "允??整?口大小",
+    exportSplash: "???面",
+    appPreview: "?用??",
+    advancedMode: "?用高?模式",
+    advancedModeHint: "?示所有?性、?源和高???工具，恢??版完整界面。",
+    nodePortSize: "?点?接点大小",
+    nodePortSizeHint: "?整?点???接点的可点??域。",
+    simpleInspectorHint: "基?模式只?示常用?目。可在?置中??高?模式?示全部字段。",
+    networkConsentTitle: "???点使用同意",
+    networkConsentIntro: "更新??、HTTPS ?求和外部??器?作只有在?同意后才??行。",
+    networkConsentNoticeTitle: "安全?明",
+    networkConsentAllow: "同意??用",
+    networkConsentDeny: "拒????",
+    networkConsentSettingsHint: "拒?后也可以稍后在?置中重新??。",
+    showLogs: "?示日志面板",
+    showLogsHint: "默???。只在需要?看底部日志控制台???。",
+    networkConsentDocument: "同意?",
+    networkConsentView: "?看同意?",
     networkConsentRevoke: "撤回同意",
-    workspaceTabs: "工作区标签",
-    settingsTab: "设置",
-    docsTab: "文档",
-    previewTab: "预览",
-    openCanvasBuilder: "打开画布构建器",
-    closeTab: "关闭标签",
-    renameScene: "重命名场景",
-    builderPreviewScale: "预览大小",
-    builderPreviewWidth: "宽度",
+    workspaceTabs: "工作???",
+    settingsTab: "?置",
+    docsTab: "文?",
+    previewTab: "??",
+    openCanvasBuilder: "打??布?建器",
+    closeTab: "????",
+    renameScene: "重命名?景",
+    builderPreviewScale: "??大小",
+    builderPreviewWidth: "?度",
     builderPreviewHeight: "高度",
-    variableManager: "变量",
-    globalVariables: "全局变量",
-    localVariables: "局部变量",
+    variableManager: "?量",
+    globalVariables: "全局?量",
+    localVariables: "局部?量",
     addGlobalVariable: "添加全局",
     addLocalVariable: "添加局部",
-    variableName: "变量名",
-    variableValue: "值",
-    noVariables: "暂无变量。"
+    variableName: "?量名",
+    variableValue: "?",
+    noVariables: "?无?量。",
+    undo: "撤?",
+    redo: "重做",
+    duplicateScene: "?制?景",
+    deleteScene: "?除?景",
+    deleteSceneConfirm: "此?景中的?点、UI 和局部?量?被?除。是否??？",
+    renameAsset: "重命名",
+    stylePreset: "?式??",
+    hoverCss: "Hover CSS",
+    pressedCss: "Click CSS"
   },
   ja: {
-    preview: "プレビュー",
-    viewer: "UI ビューアー",
-    builder: "キャンバスビルダー",
+    preview: "プレビュ?",
+    viewer: "UI ビュ?ア?",
+    builder: "キャンバスビルダ?",
     settingsTitle: "エンジン設定",
     docs: "ドキュメント",
     file: "ファイル",
     deleteZone: "削除エリア",
-    builderToolbarTitle: "キャンバスビルダー",
-    workspaceSubtitle: "ビジュアルロジック + UI ビルダー ワークスペース",
+    builderToolbarTitle: "キャンバスビルダ?",
+    workspaceSubtitle: "ビジュアルロジック + UI ビルダ? ワ?クスペ?ス",
     save: "保存",
-    load: "読み込み",
+    load: "?み?み",
     export: "書き出し",
     magicAlign: "自動整列",
     speed: "速度",
     resume: "再開",
     pause: "一時停止",
-    trace: "トレース",
-    nodeLibrary: "ノードライブラリ",
-    groupSelected: "選択項目をグループ化",
-    safeMode: "セーフモード",
+    trace: "トレ?ス",
+    nodeLibrary: "ノ?ドライブラリ",
+    groupSelected: "選?項目をグル?プ化",
+    safeMode: "セ?フモ?ド",
     restoreBackup: "バックアップを復元",
     autoReset: "自動初期化",
     close: "閉じる",
-    findNode: "ノードを検索",
-    searchAllNodes: "すべてのノードを検索...",
-    searchNodes: "ノードを検索...",
-    quickSearchNodes: "ノード名を入力して Enter...",
-    librarySearchPlaceholder: "Ctrl+F またはノード名を入力...",
+    findNode: "ノ?ドを?索",
+    searchAllNodes: "すべてのノ?ドを?索...",
+    searchNodes: "ノ?ドを?索...",
+    quickSearchNodes: "ノ?ド名を入力して Enter...",
+    librarySearchPlaceholder: "Ctrl+F またはノ?ド名を入力...",
     clear: "クリア",
     result: "件",
     results: "件",
     coreTab: "基本",
     proTab: "高度",
-    functionsTab: "関数",
-    functions: "関数",
-    createFunction: "関数を作成",
-    editingFunction: "編集中の関数",
-    returnToMain: "メインへ戻る",
-    functionDescription: "関数の説明",
-    functionDescriptionPlaceholder: "この関数の役割を入力してください。",
-    returnRefKey: "戻り値 Ref Key",
-    parameters: "引数",
-    addParameter: "引数を追加",
-    defaultValue: "既定値",
-    description: "説明",
+    functionsTab: "??",
+    functions: "??",
+    createFunction: "??を作成",
+    editingFunction: "編集中の??",
+    returnToMain: "メインへ?る",
+    functionDescription: "??の?明",
+    functionDescriptionPlaceholder: "この??の役割を入力してください。",
+    returnRefKey: "?り値 Ref Key",
+    parameters: "引?",
+    addParameter: "引?を追加",
+    defaultValue: "?定値",
+    description: "?明",
     delete: "削除",
-    noParametersHint: "必要になったら引数を追加してください。",
-    functionNameAria: "関数名",
-    noParams: "引数なし",
+    noParametersHint: "必要になったら引?を追加してください。",
+    functionNameAria: "??名",
+    noParams: "引?なし",
     edit: "編集",
-    noFunctions: "関数はまだありません",
-    noFunctionsHint: "自作関数は再帰呼び出しにも対応します。",
-    noMatchingNodes: "一致するノードがありません",
-    tryAnotherKeyword: "別のキーワードを試すか検索をクリアしてください。",
-    nodeOutputFeed: "ノード出力フィード",
-    execution: "実行順",
-    errorLogConsole: "エラーログコンソール",
+    noFunctions: "??はまだありません",
+    noFunctionsHint: "自作??は再?呼び出しにも??します。",
+    noMatchingNodes: "一致するノ?ドがありません",
+    tryAnotherKeyword: "別のキ?ワ?ドを試すか?索をクリアしてください。",
+    nodeOutputFeed: "ノ?ド出力フィ?ド",
+    execution: "?行順",
+    errorLogConsole: "エラ?ログコンソ?ル",
     errorLogHint: "スクリプト結果、分岐結果、外部アクションログを下に蓄積します。",
     noLogs: "ログはまだありません。",
-    uiInspector: "UI インスペクター",
-    proInspector: "高度インスペクター",
+    uiInspector: "UI インスペクタ?",
+    proInspector: "高度インスペクタ?",
     properties: "プロパティ",
-    nodes: "ノード",
-    edges: "接続",
-    uiLayers: "UI レイヤー",
+    nodes: "ノ?ド",
+    edges: "接?",
+    uiLayers: "UI レイヤ?",
     logs: "ログ",
-    viewerMode: "表示モード",
-    viewerModeBuilder: "Canvas Builder が有効です。",
+    viewerMode: "表示モ?ド",
+    viewerModeBuilder: "Canvas Builder が有?です。",
     viewerModeViewer: "UI Viewer のみを表示しています。",
-    viewerModePreview: "Preview と JSON 状態を同時に表示しています。",
+    viewerModePreview: "Preview と JSON ?態を同時に表示しています。",
     elementKind: "要素の種類",
     textLabel: "テキスト / ラベル",
-    imageSrc: "画像ソース",
+    imageSrc: "?像ソ?ス",
     bindingRefKey: "連携 Ref Key",
     width: "幅",
     height: "高さ",
@@ -1285,33 +1312,33 @@ const EXTRA_UI_TEXT = {
     actionType: "アクション種類",
     actionValue: "アクション値",
     deleteUiElement: "UI 要素を削除",
-    nodeLabel: "ノードラベル",
-    conditionChain: "条件式 (AND/OR)",
-    mathExpression: "数式",
-    javascriptCode: "JavaScript コード",
+    nodeLabel: "ノ?ドラベル",
+    conditionChain: "?件式 (AND/OR)",
+    mathExpression: "?式",
+    javascriptCode: "JavaScript コ?ド",
     valueSetting: "値 / 設定",
     refKey: "Ref Key",
-    groupLabel: "グループラベル",
-    nodeType: "ノード種類",
-    functionArguments: "関数引数",
-    functionNoParams: "この関数には引数がありません。",
-    functionReturnPrefix: "戻り値は",
+    groupLabel: "グル?プラベル",
+    nodeType: "ノ?ド種類",
+    functionArguments: "??引?",
+    functionNoParams: "この??には引?がありません。",
+    functionReturnPrefix: "?り値は",
     functionReturnSuffix: "を基準に渡されます。",
-    lastExecutedNode: "最後に実行したノード",
-    numericSlider: "数値スライダー",
-    colorPicker: "色を選択",
-    soundUpload: "サウンドをアップロード",
+    lastExecutedNode: "最後に?行したノ?ド",
+    numericSlider: "?値スライダ?",
+    colorPicker: "色を選?",
+    soundUpload: "サウンドをアップロ?ド",
     filePath: "ファイルパス",
-    selectedId: "選択 ID",
+    selectedId: "選? ID",
     createLinkedUiText: "連携 UI テキストを作成",
-    emptyInspectorHint: "ノードをダブルクリックすると高度インスペクターが開き、UI Viewer または Canvas Builder で UI 要素を選択してデザイン属性を編集できます。",
+    emptyInspectorHint: "ノ?ドをダブルクリックすると高度インスペクタ?が開き、UI Viewer または Canvas Builder で UI 要素を選?してデザイン?性を編集できます。",
     addUiText: "UI テキストを追加",
     addUiButton: "UI ボタンを追加",
-    engineStatus: "エンジン状態",
-    unsavedChanges: "未保存の変更",
-    mode: "モード",
+    engineStatus: "エンジン?態",
+    unsavedChanges: "未保存の?更",
+    mode: "モ?ド",
     paletteText: "テキスト",
-    paletteImage: "画像",
+    paletteImage: "?像",
     paletteButton: "ボタン",
     paletteInput: "入力",
     paletteContainer: "コンテナ",
@@ -1321,126 +1348,135 @@ const EXTRA_UI_TEXT = {
     exportTitle: "最終成果物",
     cancelExport: "キャンセル",
     exportDestinationPrefix: "このアプリは",
-    exportDestinationEmpty: "保存先を選択してください。",
+    exportDestinationEmpty: "保存先を選?してください。",
     exportDestinationSuffix: "に保存されます。",
-    pickPath: "保存先を選択",
-    chooseArtifactTypes: "成果物形式を選択してください。",
-    exportRequirementHint: "保存先と形式の両方を指定すると書き出せます。",
+    pickPath: "保存先を選?",
+    chooseArtifactTypes: "成果物形式を選?してください。",
+    exportRequirementHint: "保存先と形式の?方を指定すると書き出せます。",
     desktopPipeline: "デスクトップ",
     mobilePipeline: "モバイル",
-    mobilePipelineTitle: "モバイルは別のパッケージング工程で処理されます。",
-    mobilePipelineCopy: "Web ランタイムとプロジェクトデータをモバイルワークスペースへ書き出し、Android/iOS 専用ツールチェーンで最終 `.apk` または `.ipa` をビルドします。",
-    mobileIconPreview: "モバイルアイコンのプレビュー",
-    mobileIconPreviewHint: "既定または選択したアイコンの各プラットフォーム表示を確認します。",
-    mobileIconPreviewAlt: "モバイルアイコンのプレビュー",
+    mobilePipelineTitle: "モバイルは別のパッケ?ジング工程で?理されます。",
+    mobilePipelineCopy: "Web ランタイムとプロジェクトデ?タをモバイルワ?クスペ?スへ書き出し、Android/iOS ?用ツ?ルチェ?ンで最終 `.apk` または `.ipa` をビルドします。",
+    mobileIconPreview: "モバイルアイコンのプレビュ?",
+    mobileIconPreviewHint: "?定または選?したアイコンの各プラットフォ?ム表示を確認します。",
+    mobileIconPreviewAlt: "モバイルアイコンのプレビュ?",
     androidAdaptiveIcon: "Android adaptive icon",
     iosAppIcon: "iOS app icon",
     androidIconBackground: "Android アイコン背景色",
-    selectedAppIconAlt: "選択したアプリアイコン",
+    selectedAppIconAlt: "選?したアプリアイコン",
     dragAppIcon: "ここにアプリアイコンをドロップ",
     appNamePrompt: "アプリ名を決めてください。",
-    version: "バージョン",
-    defaultExportHint: "アイコンまたは名前を指定しない場合は既定のものを使用します。",
-    iconFormatsHint: "PNG または ICO アイコンに対応しています。",
+    version: "バ?ジョン",
+    defaultExportHint: "アイコンまたは名前を指定しない場合は?定のものを使用します。",
+    iconFormatsHint: "PNG または ICO アイコンに??しています。",
     exporting: "書き出し中...",
     exportAction: "書き出し",
     invalidIcon: "アイコンには PNG または ICO ファイルのみ使用できます。",
-    projectTrust: "プロジェクト信頼",
-    trustRestricted: "制限実行",
+    projectTrust: "プロジェクト信?",
+    trustRestricted: "制限?行",
     trustReview: "要確認",
-    trustTrusted: "このセッションで信頼済み",
-    trustBlocked: "ブロック済み",
-    trustRestrictedHint: "現在は制限実行のみを使用しています。",
+    trustTrusted: "このセッションで信??み",
+    trustBlocked: "ブロック?み",
+    trustRestrictedHint: "現在は制限?行のみを使用しています。",
     trustReviewHint: "完全な JavaScript を必要とするスクリプトがあります。",
     trustTrustedHint: "このセッションでは完全な JavaScript を許可しました。",
-    trustBlockedHint: "完全な JavaScript 実行を拒否しました。",
-    fullJavascriptWarningTitle: "完全 JavaScript モードの警告",
-    fullJavascriptWarningCopy: "このスクリプトは制限実行では処理できず、任意の JavaScript を実行する可能性があります。信頼できるプロジェクトだけ許可してください。",
-    fullJavascriptWhyTitle: "なぜ危険か",
+    trustBlockedHint: "完全な JavaScript ?行を拒否しました。",
+    fullJavascriptWarningTitle: "完全 JavaScript モ?ドの警告",
+    fullJavascriptWarningCopy: "このスクリプトは制限?行では?理できず、任意の JavaScript を?行する可能性があります。信?できるプロジェクトだけ許可してください。",
+    fullJavascriptWhyTitle: "なぜ危?か",
     fullJavascriptWhyItems: [
-      "プロジェクト状態や入力値を読み取り、変更できます。",
-      "無限ループや重い処理でアプリを停止させる可能性があります。",
-      "ネットワークノードと組み合わせると、トークンや個人情報を外部送信できます。"
+      "プロジェクト?態や入力値を?み取り、?更できます。",
+      "無限ル?プや重い?理でアプリを停止させる可能性があります。",
+      "ネットワ?クノ?ドと組み合わせると、ト?クンや個人情報を外部送信できます。"
     ],
-    fullJavascriptRecommendedTitle: "推奨パターン",
+    fullJavascriptRecommendedTitle: "推?パタ?ン",
     fullJavascriptRecommendedItems: [
-      "数式、条件、文字列ノードで足りる場合は先にそちらを使ってください。",
-      "スクリプトは短く純粋な計算に絞り、機密情報を入れないでください。",
-      "外部由来のプロジェクトは信頼する前にコードを確認してください。"
+      "?式、?件、文字列ノ?ドで足りる場合は先にそちらを使ってください。",
+      "スクリプトは短く純?な計算に絞り、機密情報を入れないでください。",
+      "外部由?のプロジェクトは信?する前にコ?ドを確認してください。"
     ],
-    fullJavascriptTrustHint: "推奨: 自作または十分に確認したプロジェクトだけを信頼してください。",
+    fullJavascriptTrustHint: "推?: 自作または十分に確認したプロジェクトだけを信?してください。",
     requestFullJavascript: "完全 JavaScript を許可",
     fileWatcherPath: "監視パス",
-    chooseWatchPath: "監視パスを選択",
-    chooseWatchPathHint: "ファイルまたはフォルダーを選択してください。",
-    privacyPolicy: "プライバシーポリシー",
-    openPrivacyPolicy: "プライバシーポリシーを開く",
-    privacyPolicyIntro: "更新確認とネットワークノード利用時にやり取りされる情報を確認します。",
-    settingsAppearance: "外観とテーマ",
-    settingsExportDefaults: "書き出し既定値",
-    settingsSafetyReset: "初期化と復旧",
-    settingsSafetyResetCopy: "プロジェクト、保存データ、設定、アプリ全体のローカルデータを範囲別に初期化します。",
-    resetAll: "全体初期化",
-    resetSavedData: "保存データ初期化",
+    chooseWatchPath: "監視パスを選?",
+    chooseWatchPathHint: "ファイルまたはフォルダ?を選?してください。",
+    privacyPolicy: "プライバシ?ポリシ?",
+    openPrivacyPolicy: "プライバシ?ポリシ?を開く",
+    privacyPolicyIntro: "更新確認とネットワ?クノ?ド利用時にやり取りされる情報を確認します。",
+    settingsAppearance: "外?とテ?マ",
+    settingsExportDefaults: "書き出し?定値",
+    settingsSafetyReset: "初期化と復?",
+    settingsSafetyResetCopy: "プロジェクト、保存デ?タ、設定、アプリ全?のロ?カルデ?タを範?別に初期化します。",
+    resetAll: "全?初期化",
+    resetSavedData: "保存デ?タ初期化",
     resetSettings: "設定初期化",
     resetApp: "アプリ完全初期化",
-    resetAllHint: "現在のプロジェクトと設定を既定値に戻します。",
+    resetAllHint: "現在のプロジェクトと設定を?定値に?します。",
     resetSavedDataHint: "自動保存とバックアップのみ削除します。",
-    resetSettingsHint: "言語、テーマ、プレビュー、セキュリティ設定を戻します。",
+    resetSettingsHint: "言語、テ?マ、プレビュ?、セキュリティ設定を?します。",
     resetAppHint: "localStorage とセキュリティ承認もすべて削除します。",
-    confirmReset: "この初期化を続行しますか？",
-    assetManager: "アセットマネージャー",
+    confirmReset: "この初期化を?行しますか？",
+    assetManager: "アセットマネ?ジャ?",
     cleanUnused: "未使用を整理",
-    dragUploadAsset: "アセットまたは .ixo をアップロード",
+    dragUploadAsset: "アセットまたは .ixo をアップロ?ド",
     scenes: "Scene",
     currentScene: "現在の Scene",
-    sceneHint: "Canvas Builder とノードは選択中の Scene に追加されます。",
-    moveSceneToMain: "この Scene を main へ移動",
+    sceneHint: "Canvas Builder とノ?ドは選?中の Scene に追加されます。",
+    moveSceneToMain: "この Scene を削除",
     vectorFill: "Vector 色",
     vectorAdvancedPath: "高度な SVG path",
-    customTheme: "ユーザーテーマ",
-    customThemeHint: "JSON テーマファイルをアップロードすると IXO Engine 全体に適用できます。",
+    customTheme: "ユ?ザ?テ?マ",
+    customThemeHint: "JSON テ?マファイルをアップロ?ドすると IXO Engine 全?に適用できます。",
     exportWindowTitle: "ウィンドウタイトル",
-    exportWindowWidth: "既定の幅",
-    exportWindowHeight: "既定の高さ",
+    exportWindowWidth: "?定の幅",
+    exportWindowHeight: "?定の高さ",
     exportBackground: "背景色",
-    exportResizable: "ウィンドウサイズ変更を許可",
-    exportSplash: "起動画面",
-    appPreview: "アプリプレビュー",
-    advancedMode: "高度モードを有効化",
-    advancedModeHint: "以前の UI と同じように、全プロパティ、アセット、高度な編集ツールを表示します。",
-    nodePortSize: "ノード接続点サイズ",
-    nodePortSizeHint: "ノード同士を接続する点のクリック領域を調整します。",
-    simpleInspectorHint: "基本モードではよく使う項目だけを表示します。すべて表示するには設定で高度モードを有効にしてください。",
-    networkConsentTitle: "ネットワーク系ノード利用同意",
-    networkConsentIntro: "更新確認、HTTPS リクエスト、外部ブラウザー起動は、同意後にのみ実行されます。",
-    networkConsentNoticeTitle: "安全案内",
-    networkConsentAllow: "同意して有効化",
-    networkConsentDeny: "拒否して無効化",
-    networkConsentSettingsHint: "拒否しても後から設定で再度有効化できます。",
+    exportResizable: "ウィンドウサイズ?更を許可",
+    exportSplash: "起動?面",
+    appPreview: "アプリプレビュ?",
+    advancedMode: "高度モ?ドを有?化",
+    advancedModeHint: "以前の UI と同じように、全プロパティ、アセット、高度な編集ツ?ルを表示します。",
+    nodePortSize: "ノ?ド接?点サイズ",
+    nodePortSizeHint: "ノ?ド同士を接?する点のクリック領域を調整します。",
+    simpleInspectorHint: "基本モ?ドではよく使う項目だけを表示します。すべて表示するには設定で高度モ?ドを有?にしてください。",
+    networkConsentTitle: "ネットワ?ク系ノ?ド利用同意",
+    networkConsentIntro: "更新確認、HTTPS リクエスト、外部ブラウザ?起動は、同意後にのみ?行されます。",
+    networkConsentNoticeTitle: "安全案?",
+    networkConsentAllow: "同意して有?化",
+    networkConsentDeny: "拒否して無?化",
+    networkConsentSettingsHint: "拒否しても後から設定で再度有?化できます。",
     showLogs: "ログパネルを表示",
-    showLogsHint: "初期値はオフです。下部ログコンソールが必要な時だけ表示します。",
+    showLogsHint: "初期値はオフです。下部ログコンソ?ルが必要な時だけ表示します。",
     networkConsentDocument: "同意書",
     networkConsentView: "同意書を見る",
     networkConsentRevoke: "同意を取り消す",
-    workspaceTabs: "ワークスペースタブ",
+    workspaceTabs: "ワ?クスペ?スタブ",
     settingsTab: "設定",
     docsTab: "ドキュメント",
-    previewTab: "プレビュー",
-    openCanvasBuilder: "キャンバスビルダーを開く",
+    previewTab: "プレビュ?",
+    openCanvasBuilder: "キャンバスビルダ?を開く",
     closeTab: "タブを閉じる",
-    renameScene: "Scene 名を変更",
-    builderPreviewScale: "プレビューサイズ",
-    builderPreviewWidth: "横",
-    builderPreviewHeight: "縦",
-    variableManager: "変数",
-    globalVariables: "グローバル変数",
-    localVariables: "ローカル変数",
-    addGlobalVariable: "グローバル追加",
-    addLocalVariable: "ローカル追加",
-    variableName: "変数名",
+    renameScene: "Scene 名を?更",
+    builderPreviewScale: "プレビュ?サイズ",
+    builderPreviewWidth: "?",
+    builderPreviewHeight: "?",
+    variableManager: "??",
+    globalVariables: "グロ?バル??",
+    localVariables: "ロ?カル??",
+    addGlobalVariable: "グロ?バル追加",
+    addLocalVariable: "ロ?カル追加",
+    variableName: "??名",
     variableValue: "値",
-    noVariables: "変数はまだありません。"
+    noVariables: "??はまだありません。",
+    undo: "元に?す",
+    redo: "やり直し",
+    duplicateScene: "Scene を複製",
+    deleteScene: "Scene を削除",
+    deleteSceneConfirm: "この Scene のノ?ド、UI、ロ?カル??も削除されます。?行しますか？",
+    renameAsset: "名前?更",
+    stylePreset: "スタイルプリセット",
+    hoverCss: "Hover CSS",
+    pressedCss: "Click CSS"
   }
 };
 
@@ -1472,15 +1508,15 @@ const GROUP_TEXT = {
     function: "Function"
   },
   zh: {
-    start: "开始",
+    start: "?始",
     control: "控制",
-    visual: "视觉",
-    system: "系统",
-    logic: "逻辑",
+    visual: "??",
+    system: "系?",
+    logic: "??",
     utility: "工具",
-    data: "数据",
-    network: "网络",
-    function: "函数"
+    data: "?据",
+    network: "??",
+    function: "函?"
   },
   ja: {
     start: "開始",
@@ -1488,10 +1524,10 @@ const GROUP_TEXT = {
     visual: "表示",
     system: "システム",
     logic: "論理",
-    utility: "ユーティリティ",
-    data: "データ",
-    network: "ネットワーク",
-    function: "関数"
+    utility: "ユ?ティリティ",
+    data: "デ?タ",
+    network: "ネットワ?ク",
+    function: "??"
   }
 };
 
@@ -1694,196 +1730,196 @@ const NODE_TEXT = {
 
 NODE_TEXT.zh = {
   start: "起点",
-  condition: "条件分支",
-  compare: "比较值",
-  "merge-data": "合并数据",
+  condition: "?件分支",
+  compare: "比??",
+  "merge-data": "合??据",
   script: "脚本",
-  loop: "重复执行",
-  wait: "延迟等待",
+  loop: "重??行",
+  wait: "延?等待",
   switch: "分流",
-  text: "文本输出",
-  image: "图片输出",
-  input: "输入框",
-  trigger: "点击动作",
+  text: "文本?出",
+  image: "?片?出",
+  input: "?入?",
+  trigger: "点??作",
   layout: "布局容器",
   "ui-text": "UI 文本",
-  "ui-image": "UI 图片",
-  "ui-button": "UI 按钮",
+  "ui-image": "UI ?片",
+  "ui-button": "UI 按?",
   "ui-container": "UI 容器",
-  variable: "全局值",
-  storage: "本地存储",
+  variable: "全局?",
+  storage: "本地存?",
   constant: "常量",
-  http: "HTTPS 请求",
-  browser: "打开浏览器",
-  "system-info": "系统信息",
-  "audio-player": "音频播放",
-  "file-watcher": "文件监听",
-  math: "公式计算",
-  string: "字符串组合",
-  random: "随机值",
-  "signal-send": "发送消息",
+  http: "HTTPS ?求",
+  browser: "打???器",
+  "system-info": "系?信息",
+  "audio-player": "音?播放",
+  "file-watcher": "文件??",
+  math: "公式?算",
+  string: "字符串?合",
+  random: "?机?",
+  "signal-send": "?送消息",
   "signal-listen": "接收消息",
-  "scene-start": "场景开始",
-  "repeat-times": "按次数重复",
-  forever: "持续重复",
-  "break-loop": "结束循环",
-  "skip-cycle": "跳过本次循环",
-  "wait-until": "等待条件",
+  "scene-start": "?景?始",
+  "repeat-times": "按次?重?",
+  forever: "持?重?",
+  "break-loop": "?束循?",
+  "skip-cycle": "跳?本次循?",
+  "wait-until": "等待?件",
   "stop-flow": "停止流程",
-  "restart-flow": "重新开始",
-  "clone-spawn": "创建副本",
-  "clone-remove": "删除副本",
-  "move-steps": "向前移动",
-  "edge-bounce": "边缘反弹",
+  "restart-flow": "重新?始",
+  "clone-spawn": "?建副本",
+  "clone-remove": "?除副本",
+  "move-steps": "向前移?",
+  "edge-bounce": "??反?",
   "change-x": "修改 X",
   "change-y": "修改 Y",
-  "set-x": "设置 X",
-  "set-y": "设置 Y",
-  "go-to-point": "移动到坐标",
-  "glide-point": "平滑移动",
-  "turn-angle": "旋转角度",
-  "set-heading": "设置方向",
-  "face-target": "面向目标",
-  "show-actor": "显示",
-  "hide-actor": "隐藏",
-  "speech-bubble": "气泡文字",
-  "clear-speech": "清除气泡",
-  "costume-switch": "切换外观",
-  "visual-effect": "视觉效果",
+  "set-x": "?置 X",
+  "set-y": "?置 Y",
+  "go-to-point": "移?到坐?",
+  "glide-point": "平滑移?",
+  "turn-angle": "旋?角度",
+  "set-heading": "?置方向",
+  "face-target": "面向目?",
+  "show-actor": "?示",
+  "hide-actor": "?藏",
+  "speech-bubble": "?泡文字",
+  "clear-speech": "?除?泡",
+  "costume-switch": "切?外?",
+  "visual-effect": "??效果",
   "size-change": "修改大小",
-  "layer-shift": "调整图层",
-  "flip-horizontal": "水平翻转",
-  "pen-down": "开始绘制",
-  "pen-up": "停止绘制",
-  "pen-color": "画笔颜色",
-  "pen-size": "画笔粗细",
-  "fill-start": "开始填充",
-  "fill-stop": "停止填充",
-  "clear-drawing": "清除绘图",
-  "sound-play": "播放声音",
-  "sound-play-wait": "播放到结束",
-  "sound-stop": "停止全部声音",
-  "volume-change": "调整音量",
-  "volume-set": "设置音量",
-  "tempo-change": "调整速度",
-  "tempo-set": "设置速度",
-  "bgm-play": "播放背景音乐",
-  "pointer-down": "鼠标按下？",
-  "object-clicked": "对象被点击？",
-  "key-held": "按键按下？",
-  "pointer-over": "指针接触？",
-  "number-check": "是否为数字",
-  "logic-and": "并且",
+  "layer-shift": "?整??",
+  "flip-horizontal": "水平??",
+  "pen-down": "?始?制",
+  "pen-up": "停止?制",
+  "pen-color": "???色",
+  "pen-size": "??粗?",
+  "fill-start": "?始?充",
+  "fill-stop": "停止?充",
+  "clear-drawing": "?除??",
+  "sound-play": "播放?音",
+  "sound-play-wait": "播放到?束",
+  "sound-stop": "停止全部?音",
+  "volume-change": "?整音量",
+  "volume-set": "?置音量",
+  "tempo-change": "?整速度",
+  "tempo-set": "?置速度",
+  "bgm-play": "播放背景音?",
+  "pointer-down": "鼠?按下？",
+  "object-clicked": "?象被点?？",
+  "key-held": "按?按下？",
+  "pointer-over": "指?接?？",
+  "number-check": "是否??字",
+  "logic-and": "?且",
   "logic-or": "或者",
   "logic-not": "非",
-  "touch-screen": "支持触摸？",
-  "random-range": "范围随机",
-  timer: "计时器",
-  "date-part": "日期值",
-  "text-length": "文本长度",
+  "touch-screen": "支持?摸？",
+  "random-range": "范??机",
+  timer: "??器",
+  "date-part": "日期?",
+  "text-length": "文本?度",
   "text-letter": "文本位置",
-  "text-replace": "替换文本",
-  "text-case": "大小写转换",
-  "rgb-hex": "RGB 转 HEX",
+  "text-replace": "替?文本",
+  "text-case": "大小???",
+  "rgb-hex": "RGB ? HEX",
   "hex-channel": "HEX 通道",
-  "function-call": "函数调用"
+  "function-call": "函??用"
 };
 
 NODE_TEXT.ja = {
   start: "開始点",
-  condition: "条件分岐",
+  condition: "?件分岐",
   compare: "値を比較",
-  "merge-data": "データ結合",
+  "merge-data": "デ?タ結合",
   script: "スクリプト",
-  loop: "繰り返し実行",
+  loop: "繰り返し?行",
   wait: "待機",
   switch: "分岐",
   text: "テキスト出力",
-  image: "画像出力",
+  image: "?像出力",
   input: "入力欄",
   trigger: "押下動作",
   layout: "レイアウトボックス",
   "ui-text": "UI テキスト",
-  "ui-image": "UI 画像",
+  "ui-image": "UI ?像",
   "ui-button": "UI ボタン",
   "ui-container": "UI コンテナ",
-  variable: "グローバル値",
-  storage: "ローカル保存",
+  variable: "グロ?バル値",
+  storage: "ロ?カル保存",
   constant: "固定値",
   http: "HTTPS リクエスト",
   browser: "ブラウザを開く",
   "system-info": "システム情報",
-  "audio-player": "音声再生",
+  "audio-player": "音?再生",
   "file-watcher": "ファイル監視",
-  math: "数式計算",
+  math: "?式計算",
   string: "文字列結合",
   random: "ランダム値",
-  "signal-send": "メッセージ送信",
-  "signal-listen": "メッセージ受信",
-  "scene-start": "画面開始",
-  "repeat-times": "回数繰り返し",
+  "signal-send": "メッセ?ジ送信",
+  "signal-listen": "メッセ?ジ受信",
+  "scene-start": "?面開始",
+  "repeat-times": "回?繰り返し",
   forever: "ずっと繰り返す",
   "break-loop": "繰り返し終了",
   "skip-cycle": "今回をスキップ",
-  "wait-until": "条件まで待機",
+  "wait-until": "?件まで待機",
   "stop-flow": "流れを停止",
-  "restart-flow": "最初から再実行",
+  "restart-flow": "最初から再?行",
   "clone-spawn": "複製を作成",
   "clone-remove": "複製を削除",
   "move-steps": "前へ移動",
   "edge-bounce": "端で跳ね返る",
-  "change-x": "X を変更",
-  "change-y": "Y を変更",
+  "change-x": "X を?更",
+  "change-y": "Y を?更",
   "set-x": "X を指定",
   "set-y": "Y を指定",
   "go-to-point": "座標へ移動",
   "glide-point": "なめらかに移動",
-  "turn-angle": "角度回転",
+  "turn-angle": "角度回?",
   "set-heading": "方向を指定",
-  "face-target": "対象を見る",
+  "face-target": "?象を見る",
   "show-actor": "表示",
   "hide-actor": "非表示",
   "speech-bubble": "吹き出し",
   "clear-speech": "吹き出しを消す",
-  "costume-switch": "見た目を変更",
-  "visual-effect": "効果を調整",
-  "size-change": "大きさ変更",
-  "layer-shift": "レイヤー移動",
-  "flip-horizontal": "左右反転",
-  "pen-down": "描画開始",
-  "pen-up": "描画停止",
+  "costume-switch": "見た目を?更",
+  "visual-effect": "?果を調整",
+  "size-change": "大きさ?更",
+  "layer-shift": "レイヤ?移動",
+  "flip-horizontal": "左右反?",
+  "pen-down": "描?開始",
+  "pen-up": "描?停止",
   "pen-color": "線の色",
   "pen-size": "線の太さ",
   "fill-start": "塗りつぶし開始",
   "fill-stop": "塗りつぶし停止",
-  "clear-drawing": "描画を消す",
+  "clear-drawing": "描?を消す",
   "sound-play": "音を再生",
   "sound-play-wait": "最後まで再生",
   "sound-stop": "すべて停止",
-  "volume-change": "音量変更",
+  "volume-change": "音量?更",
   "volume-set": "音量指定",
-  "tempo-change": "速さ変更",
+  "tempo-change": "速さ?更",
   "tempo-set": "速さ指定",
   "bgm-play": "BGM 再生",
   "pointer-down": "マウス押下？",
   "object-clicked": "オブジェクト押下？",
-  "key-held": "キー押下？",
-  "pointer-over": "ポインター接触？",
-  "number-check": "数値か？",
+  "key-held": "キ?押下？",
+  "pointer-over": "ポインタ?接?？",
+  "number-check": "?値か？",
   "logic-and": "かつ",
   "logic-or": "または",
   "logic-not": "ではない",
   "touch-screen": "タッチ可能？",
-  "random-range": "範囲ランダム",
-  timer: "タイマー",
+  "random-range": "範?ランダム",
+  timer: "タイマ?",
   "date-part": "日付値",
   "text-length": "文字列長",
   "text-letter": "文字位置",
   "text-replace": "文字置換",
-  "text-case": "大文字小文字変換",
+  "text-case": "大文字小文字?換",
   "rgb-hex": "RGB から HEX",
   "hex-channel": "HEX チャンネル",
-  "function-call": "関数呼び出し"
+  "function-call": "??呼び出し"
 };
 
 function getNodeLabel(nodeType, language, fallback) {
@@ -1898,6 +1934,47 @@ function getPreviewDeviceLabel(device, uiText) {
   if (device === "tablet") return uiText.deviceTablet;
   if (device === "mobile") return uiText.deviceMobile;
   return uiText.deviceDesktop;
+}
+
+function createTemplateNode(id, label, group, type, refKey, value, position, groupLabel = "Template") {
+  return {
+    id,
+    type: "ixoNode",
+    data: {
+      label,
+      kind: group,
+      category: group === "start" ? "Core" : group[0].toUpperCase() + group.slice(1),
+      value,
+      nodeType: type,
+      refKey,
+      groupLabel
+    },
+    position
+  };
+}
+
+function createTemplateEdge(id, source, target, sourceHandle = "") {
+  return {
+    id,
+    source,
+    target,
+    ...(sourceHandle ? { sourceHandle } : {}),
+    markerEnd: { type: MarkerType.ArrowClosed, color: sourceHandle === "true" ? ACCENT : "#d2f8e3" },
+    style: { stroke: sourceHandle === "true" ? ACCENT : "#8aa29a", strokeWidth: sourceHandle ? 1.8 : 1.4 }
+  };
+}
+
+function createTemplateState({ nodes, edges = [], uiElements = [], nodeCounter = 10, variables = [] }) {
+  return {
+    nodes: applyNodeSelectionState(nodes, []),
+    edges,
+    inputValues: {},
+    uiElements: normalizeUiElements(uiElements),
+    nodeCounter,
+    viewMode: "viewer",
+    scenes: ["main"],
+    variables
+  };
 }
 
 const STARTER_TEMPLATES = {
@@ -1948,6 +2025,149 @@ const STARTER_TEMPLATES = {
       ]),
       nodeCounter: 12,
       viewMode: "viewer"
+    })
+  },
+  blank: {
+    label: "빈 프로젝트",
+    build: () => createTemplateState({
+      nodes: [
+        createTemplateNode("start", "Start", "start", "start", "boot", "", { x: 80, y: 180 }, "Entry")
+      ],
+      nodeCounter: 2
+    })
+  },
+  calculator: {
+    label: "계산기",
+    build: () => createTemplateState({
+      nodes: [
+        createTemplateNode("start", "Start", "start", "start", "boot", "", { x: 60, y: 180 }, "Calculator"),
+        createTemplateNode("inputLeft", "Input Field", "visual", "input", "leftValue", "첫 번째 숫자", { x: 300, y: 120 }, "Calculator"),
+        createTemplateNode("inputRight", "Input Field", "visual", "input", "rightValue", "두 번째 숫자", { x: 300, y: 260 }, "Calculator"),
+        createTemplateNode("calculate", "Math Operator", "logic", "math", "calcResult", "{{leftValue}} + {{rightValue}}", { x: 620, y: 190 }, "Calculator"),
+        createTemplateNode("output", "Add Text", "visual", "text", "resultText", "결과: {{calcResult}}", { x: 930, y: 190 }, "Calculator")
+      ],
+      edges: [
+        createTemplateEdge("e-calc-1", "start", "inputLeft"),
+        createTemplateEdge("e-calc-2", "start", "inputRight"),
+        createTemplateEdge("e-calc-3", "inputLeft", "calculate"),
+        createTemplateEdge("e-calc-4", "inputRight", "calculate"),
+        createTemplateEdge("e-calc-5", "calculate", "output")
+      ],
+      uiElements: [
+        { id: "ui-calc-title", kind: "text", x: 40, y: 32, width: 360, height: 48, text: "Calculator", color: "#eefaf4", fontSize: 28, background: "transparent", radius: 0, align: "left" },
+        { id: "ui-calc-card", kind: "container", x: 40, y: 100, width: 340, height: 140, text: "결과\\n{{calcResult}}", bindingKey: "calcResult", color: "#dcf7e8", background: "rgba(62, 207, 142, 0.10)", fontSize: 24, radius: 22, align: "left", stylePreset: "glass" }
+      ],
+      nodeCounter: 14
+    })
+  },
+  quiz: {
+    label: "퀴즈 앱",
+    build: () => createTemplateState({
+      nodes: [
+        createTemplateNode("start", "Start", "start", "start", "boot", "", { x: 60, y: 180 }, "Quiz"),
+        createTemplateNode("answer", "Input Field", "visual", "input", "answer", "정답을 입력하세요", { x: 310, y: 170 }, "Quiz"),
+        createTemplateNode("check", "If / Else", "logic", "condition", "isCorrect", "{{answer}} == IXO", { x: 600, y: 170 }, "Quiz"),
+        createTemplateNode("correct", "Add Text", "visual", "text", "quizResult", "정답입니다!", { x: 900, y: 110 }, "Quiz"),
+        createTemplateNode("wrong", "Add Text", "visual", "text", "quizResultWrong", "다시 도전해보세요.", { x: 900, y: 260 }, "Quiz")
+      ],
+      edges: [
+        createTemplateEdge("e-quiz-1", "start", "answer"),
+        createTemplateEdge("e-quiz-2", "answer", "check"),
+        createTemplateEdge("e-quiz-3", "check", "correct", "true"),
+        createTemplateEdge("e-quiz-4", "check", "wrong", "false")
+      ],
+      uiElements: [
+        { id: "ui-quiz-title", kind: "text", x: 42, y: 34, width: 420, height: 44, text: "Quiz: IXO Engine의 이름은?", color: "#eefaf4", fontSize: 22, background: "transparent", radius: 0, align: "left" },
+        { id: "ui-quiz-result", kind: "container", x: 42, y: 110, width: 360, height: 120, text: "{{quizResult}}{{quizResultWrong}}", bindingKey: "quizResult", color: "#dcf7e8", background: "rgba(62, 207, 142, 0.10)", fontSize: 20, radius: 20, align: "left", stylePreset: "soft" }
+      ],
+      nodeCounter: 12
+    })
+  },
+  miniChat: {
+    label: "미니 채팅 UI",
+    build: () => createTemplateState({
+      nodes: [
+        createTemplateNode("start", "Start", "start", "start", "boot", "", { x: 60, y: 180 }, "Mini Chat"),
+        createTemplateNode("inputMessage", "Input Field", "visual", "input", "message", "메시지 입력", { x: 320, y: 150 }, "Mini Chat"),
+        createTemplateNode("reply", "String Join", "utility", "string", "replyText", "Bot reply: {{message}}", { x: 620, y: 150 }, "Mini Chat"),
+        createTemplateNode("output", "Add Text", "visual", "text", "viewerText", "{{replyText}}", { x: 900, y: 150 }, "Mini Chat")
+      ],
+      edges: [
+        createTemplateEdge("e-mini-1", "start", "inputMessage"),
+        createTemplateEdge("e-mini-2", "inputMessage", "reply"),
+        createTemplateEdge("e-mini-3", "reply", "output")
+      ],
+      uiElements: [
+        { id: "ui-mini-title", kind: "text", x: 36, y: 32, width: 260, height: 40, text: "Mini Chat", color: "#eefaf4", fontSize: 24, background: "transparent", radius: 0, align: "left" },
+        { id: "ui-mini-bubble", kind: "container", x: 36, y: 90, width: 380, height: 150, text: "{{replyText}}", bindingKey: "replyText", color: "#dcf7e8", background: "rgba(62, 207, 142, 0.10)", fontSize: 16, radius: 18, align: "left", stylePreset: "glass" }
+      ],
+      nodeCounter: 10
+    })
+  },
+  landing: {
+    label: "랜딩 페이지",
+    build: () => createTemplateState({
+      nodes: [
+        createTemplateNode("start", "Start", "start", "start", "boot", "", { x: 60, y: 180 }, "Landing"),
+        createTemplateNode("headline", "String Join", "utility", "string", "headline", "Build apps with IXO.", { x: 320, y: 150 }, "Landing"),
+        createTemplateNode("output", "Add Text", "visual", "text", "headlineText", "{{headline}}", { x: 620, y: 150 }, "Landing")
+      ],
+      edges: [
+        createTemplateEdge("e-land-1", "start", "headline"),
+        createTemplateEdge("e-land-2", "headline", "output")
+      ],
+      uiElements: [
+        { id: "ui-land-hero", kind: "container", x: 38, y: 42, width: 560, height: 260, text: "", color: "#dcf7e8", background: "rgba(62, 207, 142, 0.09)", fontSize: 16, radius: 28, align: "left", stylePreset: "glass" },
+        { id: "ui-land-title", kind: "text", x: 76, y: 82, width: 440, height: 74, text: "{{headline}}", bindingKey: "headline", color: "#f3fff8", background: "transparent", fontSize: 34, radius: 0, align: "left" },
+        { id: "ui-land-button", kind: "button", x: 76, y: 200, width: 170, height: 50, text: "Open Docs", color: "#06130d", background: ACCENT, fontSize: 15, radius: 999, align: "center", actionType: "open-url", actionValue: "https://minyangtech.n-e.kr/docs/ixo/index", stylePreset: "soft" }
+      ],
+      nodeCounter: 8
+    })
+  },
+  gameHud: {
+    label: "게임 HUD",
+    build: () => createTemplateState({
+      nodes: [
+        createTemplateNode("start", "Start", "start", "start", "boot", "", { x: 60, y: 180 }, "Game HUD"),
+        createTemplateNode("score", "Constant", "data", "constant", "score", "1200", { x: 320, y: 130 }, "Game HUD"),
+        createTemplateNode("hp", "Constant", "data", "constant", "hp", "85", { x: 320, y: 260 }, "Game HUD"),
+        createTemplateNode("hudText", "String Join", "utility", "string", "hudText", "SCORE {{score}} / HP {{hp}}", { x: 620, y: 190 }, "Game HUD"),
+        createTemplateNode("output", "Add Text", "visual", "text", "hudOutput", "{{hudText}}", { x: 930, y: 190 }, "Game HUD")
+      ],
+      edges: [
+        createTemplateEdge("e-hud-1", "start", "score"),
+        createTemplateEdge("e-hud-2", "start", "hp"),
+        createTemplateEdge("e-hud-3", "score", "hudText"),
+        createTemplateEdge("e-hud-4", "hp", "hudText"),
+        createTemplateEdge("e-hud-5", "hudText", "output")
+      ],
+      uiElements: [
+        { id: "ui-hud-score", kind: "container", x: 36, y: 30, width: 280, height: 72, text: "{{hudText}}", bindingKey: "hudText", color: "#fff1b8", background: "rgba(255, 214, 102, 0.10)", fontSize: 20, radius: 16, align: "left", stylePreset: "hud" },
+        { id: "ui-hud-bar", kind: "container", x: 36, y: 116, width: 220, height: 24, text: "", color: "#08140e", background: ACCENT, fontSize: 12, radius: 999, align: "left" }
+      ],
+      nodeCounter: 14
+    })
+  },
+  loginProfile: {
+    label: "로그인/프로필 화면",
+    build: () => createTemplateState({
+      nodes: [
+        createTemplateNode("start", "Start", "start", "start", "boot", "", { x: 60, y: 180 }, "Profile"),
+        createTemplateNode("inputName", "Input Field", "visual", "input", "username", "사용자 이름", { x: 320, y: 170 }, "Profile"),
+        createTemplateNode("profileText", "String Join", "utility", "string", "profileText", "환영합니다, {{username}}님", { x: 620, y: 170 }, "Profile"),
+        createTemplateNode("output", "Add Text", "visual", "text", "viewerText", "{{profileText}}", { x: 930, y: 170 }, "Profile")
+      ],
+      edges: [
+        createTemplateEdge("e-profile-1", "start", "inputName"),
+        createTemplateEdge("e-profile-2", "inputName", "profileText"),
+        createTemplateEdge("e-profile-3", "profileText", "output")
+      ],
+      uiElements: [
+        { id: "ui-profile-card", kind: "container", x: 44, y: 36, width: 420, height: 260, text: "", color: "#dcf7e8", background: "rgba(62, 207, 142, 0.10)", fontSize: 16, radius: 26, align: "left", stylePreset: "glass" },
+        { id: "ui-profile-title", kind: "text", x: 78, y: 72, width: 320, height: 44, text: "Profile", color: "#f3fff8", background: "transparent", fontSize: 30, radius: 0, align: "left" },
+        { id: "ui-profile-name", kind: "text", x: 78, y: 140, width: 320, height: 44, text: "{{profileText}}", bindingKey: "profileText", color: "#d9f4e4", background: "transparent", fontSize: 18, radius: 0, align: "left" }
+      ],
+      nodeCounter: 10
     })
   }
 };
@@ -2061,6 +2281,35 @@ const UI_PALETTE = [
   { kind: "input", label: "Input" },
   { kind: "container", label: "Container" }
 ];
+
+const UI_STYLE_PRESETS = Object.freeze({
+  none: { label: "기본", style: {} },
+  glass: {
+    label: "Glass Panel",
+    style: {
+      border: "1px solid rgba(255, 255, 255, 0.18)",
+      boxShadow: "0 18px 48px rgba(0, 0, 0, 0.28)",
+      backdropFilter: "blur(14px)"
+    }
+  },
+  soft: {
+    label: "Soft Card",
+    style: {
+      border: "1px solid rgba(62, 207, 142, 0.18)",
+      boxShadow: "0 14px 34px rgba(62, 207, 142, 0.14)",
+      fontWeight: "700"
+    }
+  },
+  hud: {
+    label: "Game HUD",
+    style: {
+      border: "1px solid rgba(255, 214, 102, 0.44)",
+      boxShadow: "0 0 26px rgba(255, 214, 102, 0.18)",
+      textTransform: "uppercase",
+      letterSpacing: "0.08em"
+    }
+  }
+});
 
 // [초기 노드] 처음 실행 시 보여줄 샘플 플로우입니다.
 const initialNodes = [
@@ -2266,6 +2515,43 @@ function makeLog(level, source, message, details = "") {
   };
 }
 
+// [제작 신호] 노드 생성 시각은 개인정보가 아닌 분 단위 메타데이터만 남깁니다.
+function formatSignalMinute(value = Date.now()) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const pad = (part) => String(part).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function createNodeSignalTimestamp() {
+  const now = new Date();
+  return {
+    insertedAt: now.toISOString(),
+    insertedAtMinute: formatSignalMinute(now)
+  };
+}
+
+function normalizeNodeSignalMetadata(node = {}) {
+  const data = node.data || {};
+  const insertedAt = data.insertedAt || data.createdAt || "";
+  return {
+    ...node,
+    data: {
+      ...data,
+      insertedAt,
+      insertedAtMinute: data.insertedAtMinute || formatSignalMinute(insertedAt)
+    }
+  };
+}
+
+function hasCreatorNetworkConsent(project = {}) {
+  return Boolean(
+    project?._ixoBuildSignal?.networkNodeCreatorConsent?.consented
+    || project?.securityConsent?.networkNodes?.creatorConsented
+    || project?.securityConsent?.networkNodeCreatorConsent?.consented
+  );
+}
+
 function normalizeSceneName(name) {
   const normalized = String(name || "main")
     .replace(/[\u0000-\u001f<>:"\\|?*]/g, "")
@@ -2284,7 +2570,7 @@ function normalizeScenes(items = []) {
 
   addScene("main");
   items.forEach(addScene);
-  return ordered.sort((a, b) => (a === "main" ? -1 : b === "main" ? 1 : a.localeCompare(b)));
+  return ["main", ...ordered.filter((scene) => scene !== "main")];
 }
 
 function getUiElementScenes(items = []) {
@@ -2374,6 +2660,7 @@ function normalizeUiElements(items = []) {
     cssText: String(item.cssText || ""),
     hoverCssText: String(item.hoverCssText || ""),
     pressedCssText: String(item.pressedCssText || ""),
+    stylePreset: UI_STYLE_PRESETS[item.stylePreset] ? item.stylePreset : "none",
     vectorPath: String(item.vectorPath || ""),
     vectorFill: String(item.vectorFill || ACCENT),
     linkedNodeId: item.linkedNodeId ?? ""
@@ -2405,7 +2692,7 @@ function normalizeFunctions(items = []) {
           .filter((parameter) => parameter.name)
       : [],
     returnRef: String(item.returnRef || ""),
-    nodes: applyNodeSelectionState(item.nodes || [], []),
+    nodes: applyNodeSelectionState((item.nodes || []).map(normalizeNodeSignalMetadata), []),
     edges: (item.edges || []).map((edge) => ({ ...edge, selected: false })),
     inputValues: item.inputValues || {},
     nodeCounter: Number(item.nodeCounter || 1)
@@ -2415,7 +2702,7 @@ function normalizeFunctions(items = []) {
 function getDefaultProjectState() {
   return {
     schemaVersion: PROJECT_SCHEMA_VERSION,
-    nodes: applyNodeSelectionState(initialNodes, []),
+    nodes: applyNodeSelectionState(initialNodes.map(normalizeNodeSignalMetadata), []),
     edges: initialEdges.map((edge) => ({ ...edge, selected: false })),
     inputValues: {},
     nodeCounter: 6,
@@ -2448,6 +2735,7 @@ function createFunctionDefinition(index = 1) {
           category: "CORE",
           value: "",
           nodeType: "start",
+          ...createNodeSignalTimestamp(),
           refKey: `${id.replace(/[^a-z0-9]/gi, "").toLowerCase()}Start`,
           groupLabel: "Function"
         },
@@ -2474,7 +2762,7 @@ function migrateProjectState(input = {}) {
   const normalizedUiElements = normalizeUiElements(parsed.uiElements || []);
   const migrated = {
     schemaVersion: Number(parsed.schemaVersion || 1),
-    nodes: Array.isArray(parsed.nodes) ? parsed.nodes : [],
+    nodes: Array.isArray(parsed.nodes) ? parsed.nodes.map(normalizeNodeSignalMetadata) : [],
     edges: Array.isArray(parsed.edges) ? parsed.edges : [],
     inputValues: parsed.inputValues && typeof parsed.inputValues === "object" ? parsed.inputValues : {},
     nodeCounter: Number(parsed.nodeCounter || 1),
@@ -2495,11 +2783,12 @@ function migrateProjectState(input = {}) {
     assets: Array.isArray(parsed.assets) ? parsed.assets : [],
     exportSettings: normalizeExportSettings(parsed.exportSettings || {}),
     customThemes: parsed.customThemes && typeof parsed.customThemes === "object" ? parsed.customThemes : {},
+    securityConsent: parsed.securityConsent && typeof parsed.securityConsent === "object" ? parsed.securityConsent : {},
     savedAt: parsed.savedAt
   };
 
-  if (migrated.schemaVersion < 2) {
-    migrated.schemaVersion = 2;
+  if (migrated.schemaVersion < PROJECT_SCHEMA_VERSION) {
+    migrated.schemaVersion = PROJECT_SCHEMA_VERSION;
   }
 
   return migrated;
@@ -2570,7 +2859,7 @@ function normalizeSelectionIds(ids = []) {
 }
 
 function hasPersistentNodeChange(changes = []) {
-  return changes.some((change) => ["position", "remove", "add", "reset"].includes(change.type));
+  return changes.some((change) => ["remove", "add", "reset"].includes(change.type));
 }
 
 function hasPersistentEdgeChange(changes = []) {
@@ -2586,6 +2875,7 @@ function createUiElement(kind, bindingKey = "", accentColor = ACCENT) {
     cssText: "",
     hoverCssText: "",
     pressedCssText: "",
+    stylePreset: "none",
     vectorPath: "",
     vectorFill: accentColor
   };
@@ -3121,6 +3411,7 @@ function runPipeline(
   const liveValues = {};
   const events = [];
   const runtimeState = createRuntimeState();
+  runtimeState.scene.currentScene = normalizeSceneName(seedContext.__scene || "main");
 
   nodes.forEach((node) => {
     outgoing[node.id] = [];
@@ -3571,6 +3862,7 @@ const BuilderElement = memo(function BuilderElement({
   inputValues,
   onInputChange
 }) {
+  const [visualState, setVisualState] = useState("idle");
   const textValue = resolveUiValue(element, runtime, "text");
   const imageValue = resolveUiValue(element, runtime, "src");
   const inputTargetId = element.linkedNodeId || element.id;
@@ -3579,6 +3871,12 @@ const BuilderElement = memo(function BuilderElement({
   const isActionElement = element.kind === "button" || element.kind === "custom-button";
   const vectorSubPathCount = String(element.vectorPath || "").match(/\bM/gi)?.length || 0;
   const vectorIsSingleClosedShape = vectorSubPathCount <= 1 && /z\s*$/i.test(element.vectorPath || "");
+  const presetStyle = UI_STYLE_PRESETS[element.stylePreset]?.style || {};
+  const interactionStyle = visualState === "pressed"
+    ? parseSafeCssText(element.pressedCssText)
+    : visualState === "hover"
+      ? parseSafeCssText(element.hoverCssText)
+      : {};
 
   const baseStyle = {
     left: `${element.x}px`,
@@ -3591,7 +3889,9 @@ const BuilderElement = memo(function BuilderElement({
     fontSize: `${element.fontSize}px`,
     textAlign: element.align,
     cursor: editable ? "grab" : allowAction && isActionElement && element.actionType !== "none" ? "pointer" : "default",
-    ...parseSafeCssText(element.cssText)
+    ...presetStyle,
+    ...parseSafeCssText(element.cssText),
+    ...interactionStyle
   };
 
   const handleClick = async (event) => {
@@ -3610,19 +3910,28 @@ const BuilderElement = memo(function BuilderElement({
       onClick={handleClick}
       onPointerDown={(event) => {
         event.stopPropagation();
+        setVisualState("pressed");
         onSelect?.(element.id);
         onPointerDown?.(event, element.id, "move");
       }}
       onPointerUp={(event) => {
         event.stopPropagation();
+        setVisualState("hover");
         onPointerUp?.();
       }}
       onPointerCancel={(event) => {
         event.stopPropagation();
+        setVisualState("idle");
         onPointerUp?.();
       }}
-      onPointerEnter={() => onInteraction?.(element.id, "enter")}
-      onPointerLeave={() => onInteraction?.(element.id, "leave")}
+      onPointerEnter={() => {
+        setVisualState("hover");
+        onInteraction?.(element.id, "enter");
+      }}
+      onPointerLeave={() => {
+        setVisualState("idle");
+        onInteraction?.(element.id, "leave");
+      }}
     >
       {element.kind === "custom-button" || element.kind === "vector" ? (
         <>
@@ -3698,15 +4007,23 @@ const BuilderElement = memo(function BuilderElement({
 });
 
 // [노드 렌더링] 실행 상태와 그룹 라벨, 연결 점을 한 번에 보여주는 기본 노드입니다.
-const IXONode = memo(function IXONode({ data, selected }) {
+const IXONode = memo(function IXONode({ id, data, selected }) {
   const color = NODE_COLOR[data.kind] || ACCENT;
   const isCondition = data.nodeType === "condition";
   const isSwitch = data.nodeType === "switch";
+  const extraHandles = Array.isArray(data.extraHandles) ? data.extraHandles.slice(0, 8) : [];
 
   return (
     <div
       className={`ixo-node ${selected ? "selected" : ""} ${data.isActive ? "is-active" : ""} ${data.isFocused ? "is-focused" : ""}`}
-      style={{ "--node-color": color }}
+      style={{ "--node-color": color, minHeight: extraHandles.length ? `${98 + extraHandles.length * 18}px` : undefined }}
+      onContextMenu={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        window.dispatchEvent(new CustomEvent("ixo-node-context-menu", {
+          detail: { nodeId: id, x: event.clientX, y: event.clientY }
+        }));
+      }}
     >
       <Handle className="node-handle node-handle-target" type="target" position={Position.Left} />
       <div className="ixo-node-header">
@@ -3738,6 +4055,27 @@ const IXONode = memo(function IXONode({ data, selected }) {
       ) : (
         <Handle className="node-handle node-handle-source" type="source" position={Position.Right} />
       )}
+      {extraHandles.map((handle, index) => {
+        const top = 68 + index * 18;
+        return (
+          <Fragment key={handle.id || `extra-${index}`}>
+            <Handle
+              id={`${handle.id || `extra-${index}`}-target`}
+              className="node-handle node-handle-extra node-handle-extra-target"
+              type="target"
+              position={Position.Left}
+              style={{ top }}
+            />
+            <Handle
+              id={`${handle.id || `extra-${index}`}-source`}
+              className="node-handle node-handle-extra node-handle-extra-source"
+              type="source"
+              position={Position.Right}
+              style={{ top }}
+            />
+          </Fragment>
+        );
+      })}
     </div>
   );
 });
@@ -3788,11 +4126,12 @@ function RuntimePanel({
   sceneNames = ["main"],
   onCreateScene,
   onDeleteScene,
+  onDuplicateScene,
   onAddComponent,
   runtimeOnly = false,
   standaloneBuilder = false
 }) {
-  const inputNodes = runtimeOnly ? [] : nodes.filter((node) => node.data?.nodeType === "input");
+  const inputNodes = runtimeOnly ? [] : nodes.filter((node) => node.data?.nodeType === "input" && isNodeInScene(node, activeScene));
   const editable = viewMode === "builder";
   const showViewerStage = runtimeOnly || viewMode === "viewer" || viewMode === "builder";
   const showDeviceToolbar = showViewerStage && !runtimeOnly;
@@ -3888,7 +4227,8 @@ function RuntimePanel({
                 </button>
               ))}
               <button type="button" className="ghost-btn" onClick={onCreateScene}>+ Scene</button>
-              {activeScene !== "main" ? <button type="button" className="ghost-btn danger-lite" onClick={() => onDeleteScene?.(activeScene)}>Delete</button> : null}
+              <button type="button" className="ghost-btn" onClick={() => onDuplicateScene?.(activeScene)}>{uiText.duplicateScene}</button>
+              {activeScene !== "main" ? <button type="button" className="ghost-btn danger-lite" onClick={() => onDeleteScene?.(activeScene)}>{uiText.deleteScene}</button> : null}
             </div>
           </div>
           <div className="builder-palette">
@@ -4010,6 +4350,7 @@ function RuntimePanel({
         {showViewerStage ? (
           <div className={`viewer-stage-shell device-${previewDevice} ${editable ? "is-editable-preview" : ""}`}>
             <div
+              key={activeScene}
               ref={builderCanvasRef}
               className={`viewer-stage ${editable ? "is-editable" : ""} ${runtimeOnly ? "is-runtime-only" : ""}`}
               style={{ width: scaledPreviewWidth, ...(scaledPreviewHeight ? { minHeight: scaledPreviewHeight } : {}) }}
@@ -5222,7 +5563,7 @@ function ExportModal({
 // [메인 에디터] 노드 편집기, Viewer, Builder, 로그, 저장 기능을 총괄합니다.
 function EngineEditor() {
   const reactFlowRef = useRef(null);
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
+  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes.map(normalizeNodeSignalMetadata));
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [libraryTab, setLibraryTab] = useState("pro");
   const [functions, setFunctions] = useState([]);
@@ -5280,6 +5621,7 @@ function EngineEditor() {
   const [draftTemplateKey, setDraftTemplateKey] = useState("");
   const [httpsNodesEnabled, setHttpsNodesEnabled] = useState(false);
   const [draftHttpsNodesEnabled, setDraftHttpsNodesEnabled] = useState(false);
+  const [networkConsentAcceptedAt, setNetworkConsentAcceptedAt] = useState(() => readLocalEditorSettings().networkConsentAcceptedAt || "");
   const [toastMessage, setToastMessage] = useState("");
   const [appInfo, setAppInfo] = useState({ version: FALLBACK_APP_VERSION, platform: "browser" });
   const [updateInfo, setUpdateInfo] = useState(null);
@@ -5320,6 +5662,7 @@ function EngineEditor() {
   const autoSaveTimerRef = useRef(null);
   const mainGraphRef = useRef(null);
   const uiLinkBootstrapRef = useRef(false);
+  const nodeClipboardRef = useRef({ nodes: [], edges: [] });
   const nodeDragStartSnapshotRef = useRef(null);
   const historyRestoreGuardRef = useRef(false);
   const pendingRestoredNodesRef = useRef(null);
@@ -5360,12 +5703,12 @@ function EngineEditor() {
     try {
       window.localStorage?.setItem(
         LOCAL_EDITOR_SETTINGS_KEY,
-        JSON.stringify({ advancedMode, builderPreviewHeightScale, builderPreviewScale, nodeHandleSize, showLogs })
+        JSON.stringify({ advancedMode, builderPreviewHeightScale, builderPreviewScale, networkConsentAcceptedAt, nodeHandleSize, showLogs })
       );
     } catch {
       // 로컬 설정 저장 실패는 편집 흐름을 막지 않습니다.
     }
-  }, [advancedMode, builderPreviewHeightScale, builderPreviewScale, nodeHandleSize, showLogs]);
+  }, [advancedMode, builderPreviewHeightScale, builderPreviewScale, networkConsentAcceptedAt, nodeHandleSize, showLogs]);
 
   const appendLog = useCallback((entry) => {
     setLogs((current) => [...current.slice(-(DEFAULT_LOG_LIMIT - 1)), entry]);
@@ -5381,8 +5724,10 @@ function EngineEditor() {
   }, []);
 
   const allowNetworkNodes = useCallback(async () => {
+    const consentedAt = new Date().toISOString();
     setHttpsNodesEnabled(true);
     setDraftHttpsNodesEnabled(true);
+    setNetworkConsentAcceptedAt(consentedAt);
     securityDecisionRef.current.httpsNode = "approved";
     securityDecisionRef.current.external = "approved";
     await window.ixo?.setHttpsNodesEnabled?.(true);
@@ -5393,6 +5738,7 @@ function EngineEditor() {
   const denyNetworkNodes = useCallback(async () => {
     setHttpsNodesEnabled(false);
     setDraftHttpsNodesEnabled(false);
+    setNetworkConsentAcceptedAt("");
     await window.ixo?.setHttpsNodesEnabled?.(false);
     await resetSecurityState();
     securityDecisionRef.current.httpsNode = "denied";
@@ -5466,6 +5812,7 @@ function EngineEditor() {
         if (mounted) {
           setHttpsNodesEnabled(enabled);
           setDraftHttpsNodesEnabled(enabled);
+          setNetworkConsentAcceptedAt(enabled ? (preferences?.networkConsentAcceptedAt || readLocalEditorSettings().networkConsentAcceptedAt || "") : "");
           securityDecisionRef.current.httpsNode = enabled ? "approved" : "denied";
           securityDecisionRef.current.external = enabled ? "approved" : "denied";
         }
@@ -5677,7 +6024,10 @@ function EngineEditor() {
   );
   const flowNodes = activeFunctionId ? nodes : activeSceneNodes;
   const flowEdges = activeFunctionId ? edges : activeSceneEdges;
-  const variableContext = useMemo(() => getVariableContext(variables, activeScene), [activeScene, variables]);
+  const variableContext = useMemo(
+    () => ({ ...getVariableContext(variables, activeScene), __scene: normalizeSceneName(activeScene) }),
+    [activeScene, variables]
+  );
 
   const runtime = useMemo(
     () => runPipeline(flowNodes, flowEdges, inputValues, paused, scriptExecutionAllowed, interactionState, runtimeFunctions, variableContext),
@@ -5869,13 +6219,21 @@ function EngineEditor() {
       assets,
       exportSettings: normalizeExportSettings(exportSettings),
       customThemes,
+      securityConsent: {
+        networkNodes: {
+          creatorConsented: Boolean(httpsNodesEnabled),
+          consentedAt: networkConsentAcceptedAt || "",
+          consentVersion: 1,
+          scope: "creator-only"
+        }
+      },
       viewMode,
       language,
       themeKey,
       previewDevice,
       savedAt: Date.now()
     };
-  }, [activeFunctionId, activeScene, assets, customThemes, edges, exportSettings, functions, inputValues, language, nodes, previewDevice, sceneNames, themeKey, uiElements, variables, viewMode]);
+  }, [activeFunctionId, activeScene, assets, customThemes, edges, exportSettings, functions, httpsNodesEnabled, inputValues, language, networkConsentAcceptedAt, nodes, previewDevice, sceneNames, themeKey, uiElements, variables, viewMode]);
 
   const snapshot = useCallback(({ mergeKey = "" } = {}) => {
     const now = Date.now();
@@ -6273,6 +6631,7 @@ function EngineEditor() {
   const makeNode = useCallback((nodeDef, position) => {
     const nodeType = nodeDef.type || nodeDef.key;
     const id = createNodeId();
+    const signalTimestamp = createNodeSignalTimestamp();
     return {
       id,
       type: nodeType === "group" ? "ixoGroup" : "ixoNode",
@@ -6285,6 +6644,7 @@ function EngineEditor() {
         nodeType,
         scene: normalizeSceneName(activeScene),
         permissionScope: getNodePermissionScope(nodeType),
+        ...signalTimestamp,
         refKey: `${nodeType.replace(/[^a-z0-9]/gi, "").toLowerCase()}${id.replace("node-", "")}`,
         groupLabel: "",
         ...(nodeDef.functionId ? { functionId: nodeDef.functionId, functionArgs: {} } : {})
@@ -6785,6 +7145,7 @@ function EngineEditor() {
     const targets = nodes.filter((node) => selectedNodeIds.includes(node.id));
     const clones = targets.map((node) => {
       const nextId = createNodeId();
+      const signalTimestamp = createNodeSignalTimestamp();
       return {
         ...node,
         id: nextId,
@@ -6792,6 +7153,7 @@ function EngineEditor() {
         data: {
           ...node.data,
           label: `${node.data.label} Copy`,
+          ...signalTimestamp,
           refKey: node.data.refKey ? `${node.data.refKey}_copy` : ""
         }
       };
@@ -6801,6 +7163,102 @@ function EngineEditor() {
     setStatus("Selected nodes duplicated.");
     setIsDirty(true);
   }, [createNodeId, makeNode, nodes, selectedNodeIds, selectedUiElement, selectedUiElementId, setNodes, snapshot, uiElements.length]);
+
+  const getNodeContextTargets = useCallback((nodeId) => {
+    const activeIds = selectedNodeIds.includes(nodeId) ? selectedNodeIds : [nodeId];
+    const activeSet = new Set(activeIds);
+    return {
+      ids: activeIds,
+      nodes: nodes.filter((node) => activeSet.has(node.id)),
+      edges: edges.filter((edge) => activeSet.has(edge.source) && activeSet.has(edge.target))
+    };
+  }, [edges, nodes, selectedNodeIds]);
+
+  const copyNodesToClipboard = useCallback((nodeId) => {
+    const targets = getNodeContextTargets(nodeId);
+    if (!targets.nodes.length) return;
+    nodeClipboardRef.current = JSON.parse(JSON.stringify(targets));
+    setStatus(`${targets.nodes.length} node(s) copied.`);
+  }, [getNodeContextTargets]);
+
+  const pasteNodesFromClipboard = useCallback((point = contextMenu?.flowPosition) => {
+    const clipboard = nodeClipboardRef.current;
+    if (!clipboard?.nodes?.length || !point) {
+      setStatus("붙여넣을 노드가 없습니다.");
+      setContextMenu(null);
+      return;
+    }
+
+    snapshot();
+    const nodeIdMap = {};
+    const minX = Math.min(...clipboard.nodes.map((node) => Number(node.position?.x || 0)), 0);
+    const minY = Math.min(...clipboard.nodes.map((node) => Number(node.position?.y || 0)), 0);
+
+    const pastedNodes = clipboard.nodes.map((node, index) => {
+      const nextId = createNodeId();
+      const signalTimestamp = createNodeSignalTimestamp();
+      nodeIdMap[node.id] = nextId;
+      return {
+        ...node,
+        id: nextId,
+        selected: false,
+        position: {
+          x: point.x + Number(node.position?.x || 0) - minX + index * 8,
+          y: point.y + Number(node.position?.y || 0) - minY + index * 8
+        },
+        data: {
+          ...(node.data || {}),
+          ...signalTimestamp,
+          label: `${node.data?.label || "Node"} Copy`,
+          refKey: node.data?.refKey ? `${node.data.refKey}_copy` : ""
+        }
+      };
+    });
+
+    const pastedEdges = (clipboard.edges || [])
+      .filter((edge) => nodeIdMap[edge.source] && nodeIdMap[edge.target])
+      .map((edge, index) => ({
+        ...edge,
+        id: `edge-paste-${Date.now()}-${index}`,
+        source: nodeIdMap[edge.source],
+        target: nodeIdMap[edge.target],
+        selected: false
+      }));
+
+    const pastedIds = pastedNodes.map((node) => node.id);
+    setNodes((current) => applyNodeSelectionState([...current, ...pastedNodes], pastedIds));
+    setEdges((current) => [...current.map((edge) => ({ ...edge, selected: false })), ...pastedEdges]);
+    setSelectedNodeIds(pastedIds);
+    setSelectedNodeId(pastedIds[pastedIds.length - 1] || null);
+    setSelectedEdgeIds([]);
+    setSelectedUiElementId(null);
+    setContextMenu(null);
+    setStatus(`${pastedNodes.length} node(s) pasted.`);
+    setIsDirty(true);
+  }, [contextMenu?.flowPosition, createNodeId, setEdges, setNodes, snapshot]);
+
+  const addNodeConnectionPoint = useCallback((nodeId) => {
+    if (!nodeId) return;
+    snapshot();
+    setNodes((current) => current.map((node) => {
+      if (node.id !== nodeId) return node;
+      const extraHandles = Array.isArray(node.data?.extraHandles) ? node.data.extraHandles : [];
+      const nextIndex = extraHandles.length + 1;
+      return {
+        ...node,
+        data: {
+          ...node.data,
+          extraHandles: [
+            ...extraHandles,
+            { id: `extra-${nextIndex}`, label: `연결점 ${nextIndex}` }
+          ].slice(0, 8)
+        }
+      };
+    }));
+    setContextMenu(null);
+    setStatus("연결점이 추가되었습니다.");
+    setIsDirty(true);
+  }, [setNodes, snapshot]);
 
   const saveProject = useCallback(async ({ saveAs = false } = {}) => {
     if (!window.ixo?.saveProject) {
@@ -7176,14 +7634,20 @@ function EngineEditor() {
       }
       return;
     }
+    if (hasPersistentNodeChange(changes)) {
+      snapshot({ mergeKey: "nodes-change" });
+    }
     onNodesChange(changes);
-    if (hasPersistentNodeChange(changes)) setIsDirty(true);
-  }, [onNodesChange]);
+    if (hasPersistentNodeChange(changes) || changes.some((change) => change.type === "position")) setIsDirty(true);
+  }, [onNodesChange, snapshot]);
 
   const handleEdgesChange = useCallback((changes) => {
+    if (hasPersistentEdgeChange(changes)) {
+      snapshot({ mergeKey: "edges-change" });
+    }
     onEdgesChange(changes);
     if (hasPersistentEdgeChange(changes)) setIsDirty(true);
-  }, [onEdgesChange]);
+  }, [onEdgesChange, snapshot]);
 
   const syncSelectedNodes = useCallback((ids, primaryId = null) => {
     const normalizedIds = normalizeSelectionIds(ids);
@@ -7312,20 +7776,24 @@ function EngineEditor() {
       scene: activeScene,
       linkedNodeId: nodeIdMap[element.linkedNodeId] || ""
     }));
-    const importedNodes = importedNodesSource.map((node, index) => ({
-      ...node,
-      id: nodeIdMap[node.id],
-      selected: false,
-      position: {
-        x: (point?.x ? point.x + 120 : 160) + Number(node.position?.x || 0) - minNodeX + index * 8,
-        y: (point?.y ? point.y + 80 : 120) + Number(node.position?.y || 0) - minNodeY + index * 8
-      },
-      data: {
-        ...(node.data || {}),
-        scene: normalizeSceneName(activeScene),
-        linkedUiElementId: uiIdMap[node.data?.linkedUiElementId] || ""
-      }
-    }));
+    const importedNodes = importedNodesSource.map((node, index) => {
+      const signalTimestamp = createNodeSignalTimestamp();
+      return {
+        ...node,
+        id: nodeIdMap[node.id],
+        selected: false,
+        position: {
+          x: (point?.x ? point.x + 120 : 160) + Number(node.position?.x || 0) - minNodeX + index * 8,
+          y: (point?.y ? point.y + 80 : 120) + Number(node.position?.y || 0) - minNodeY + index * 8
+        },
+        data: {
+          ...(node.data || {}),
+          ...signalTimestamp,
+          scene: normalizeSceneName(activeScene),
+          linkedUiElementId: uiIdMap[node.data?.linkedUiElementId] || ""
+        }
+      };
+    });
     const importedEdges = (project.edges || [])
       .filter((edge) => nodeIdMap[edge.source] && nodeIdMap[edge.target])
       .map((edge, index) => ({
@@ -7378,12 +7846,46 @@ function EngineEditor() {
   const onPaneContextMenu = useCallback((event) => {
     event.preventDefault();
     setContextMenu({
+      type: "pane",
       x: event.clientX,
       y: event.clientY,
       flowPosition: screenToFlowPosition({ x: event.clientX, y: event.clientY })
     });
     setSearchTerm("");
   }, [screenToFlowPosition]);
+
+  const onNodeContextMenu = useCallback((event, node) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const nextIds = selectedNodeIds.includes(node.id) ? selectedNodeIds : [node.id];
+    syncSelectedNodes(nextIds, node.id);
+    setContextMenu({
+      type: "node",
+      nodeId: node.id,
+      x: event.clientX,
+      y: event.clientY,
+      flowPosition: screenToFlowPosition({ x: event.clientX, y: event.clientY })
+    });
+  }, [screenToFlowPosition, selectedNodeIds, syncSelectedNodes]);
+
+  useEffect(() => {
+    const handleNodeContextMenu = (event) => {
+      const detail = event.detail || {};
+      if (!detail.nodeId) return;
+      const nextIds = selectedNodeIds.includes(detail.nodeId) ? selectedNodeIds : [detail.nodeId];
+      syncSelectedNodes(nextIds, detail.nodeId);
+      setContextMenu({
+        type: "node",
+        nodeId: detail.nodeId,
+        x: detail.x,
+        y: detail.y,
+        flowPosition: screenToFlowPosition({ x: detail.x, y: detail.y })
+      });
+    };
+
+    window.addEventListener("ixo-node-context-menu", handleNodeContextMenu);
+    return () => window.removeEventListener("ixo-node-context-menu", handleNodeContextMenu);
+  }, [screenToFlowPosition, selectedNodeIds, syncSelectedNodes]);
 
   const addNodeFromSearch = (nodeDef, source = "context") => {
     const point = source === "center"
@@ -7445,6 +7947,21 @@ function EngineEditor() {
     setAssets((current) => current.filter((asset) => asset.id !== assetId));
     setIsDirty(true);
   }, [snapshot]);
+
+  const renameAsset = useCallback((assetId) => {
+    const asset = assets.find((item) => item.id === assetId);
+    if (!asset) return;
+    const nextName = window.prompt("에셋 이름을 입력하세요.", asset.name);
+    if (nextName === null) return;
+    const normalizedName = nextName.trim().slice(0, 96);
+    if (!normalizedName || normalizedName === asset.name) return;
+    snapshot();
+    setAssets((current) => current.map((item) => (
+      item.id === assetId ? { ...item, name: normalizedName } : item
+    )));
+    setStatus(`Asset renamed: ${asset.name} -> ${normalizedName}`);
+    setIsDirty(true);
+  }, [assets, snapshot]);
 
   const cleanupUnusedAssets = useCallback(() => {
     const used = new Set();
@@ -7567,32 +8084,130 @@ function EngineEditor() {
     setIsDirty(true);
   }, [activeScene, sceneNames, setNodes, snapshot]);
 
+  const duplicateScene = useCallback((sceneName) => {
+    const sourceScene = normalizeSceneName(sceneName || activeScene);
+    if (!sceneNames.includes(sourceScene)) return;
+
+    let index = 1;
+    let defaultName = `${sourceScene}-copy`;
+    while (sceneNames.includes(defaultName)) {
+      index += 1;
+      defaultName = `${sourceScene}-copy-${index}`;
+    }
+
+    const nextRawName = window.prompt("복제할 Scene 이름을 입력하세요.", defaultName);
+    if (nextRawName === null) return;
+    const nextName = normalizeSceneName(nextRawName);
+    if (!nextName || sceneNames.includes(nextName)) {
+      window.alert("사용 가능한 새 Scene 이름이 필요합니다.");
+      return;
+    }
+
+    const stamp = `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    const nodeIdMap = {};
+    const uiIdMap = {};
+    const sourceNodes = nodes.filter((node) => isNodeInScene(node, sourceScene));
+    const sourceUiElements = uiElements.filter((element) => (element.scene || "main") === sourceScene);
+
+    const clonedUiElements = sourceUiElements.map((element, elementIndex) => {
+      const nextId = `${element.id}-copy-${stamp}-${elementIndex}`;
+      uiIdMap[element.id] = nextId;
+      return {
+        ...element,
+        id: nextId,
+        scene: nextName,
+        linkedNodeId: ""
+      };
+    });
+
+    const clonedNodes = sourceNodes.map((node, nodeIndex) => {
+      const nextId = `${node.id}-copy-${stamp}-${nodeIndex}`;
+      const signalTimestamp = createNodeSignalTimestamp();
+      nodeIdMap[node.id] = nextId;
+      return {
+        ...node,
+        id: nextId,
+        selected: false,
+        position: {
+          x: Number(node.position?.x || 0) + 48,
+          y: Number(node.position?.y || 0) + 48
+        },
+        data: {
+          ...node.data,
+          ...signalTimestamp,
+          scene: nextName,
+          linkedUiElementId: uiIdMap[node.data?.linkedUiElementId] || ""
+        }
+      };
+    });
+
+    const relinkedUiElements = clonedUiElements.map((element) => ({
+      ...element,
+      linkedNodeId: nodeIdMap[sourceUiElements.find((source) => uiIdMap[source.id] === element.id)?.linkedNodeId] || ""
+    }));
+
+    const clonedEdges = edges
+      .filter((edge) => nodeIdMap[edge.source] && nodeIdMap[edge.target])
+      .map((edge, edgeIndex) => ({
+        ...edge,
+        id: `${edge.id}-copy-${stamp}-${edgeIndex}`,
+        source: nodeIdMap[edge.source],
+        target: nodeIdMap[edge.target],
+        selected: false
+      }));
+
+    const clonedVariables = variables
+      .filter((variable) => variable.scope === "local" && variable.scene === sourceScene)
+      .map((variable, variableIndex) => ({
+        ...variable,
+        id: `var-${stamp}-${variableIndex}`,
+        scene: nextName
+      }));
+
+    snapshot();
+    setScenes((current) => normalizeScenes([...current, nextName]));
+    setWorkspaceTabOrder((current) => {
+      const nextTabId = `scene:${nextName}`;
+      const sourceIndex = current.indexOf(`scene:${sourceScene}`);
+      const withoutDuplicate = current.filter((tabId) => tabId !== nextTabId);
+      if (sourceIndex < 0) return [...withoutDuplicate, nextTabId];
+      return [
+        ...withoutDuplicate.slice(0, sourceIndex + 1),
+        nextTabId,
+        ...withoutDuplicate.slice(sourceIndex + 1)
+      ];
+    });
+    setNodes((current) => [...current, ...clonedNodes]);
+    setEdges((current) => [...current, ...clonedEdges]);
+    setUiElements((current) => [...current, ...relinkedUiElements]);
+    setVariables((current) => [...current, ...clonedVariables]);
+    switchScene(nextName);
+    setActiveWorkspaceTab("workspace");
+    setStatus(`Scene duplicated: ${sourceScene} -> ${nextName}`);
+    setIsDirty(true);
+  }, [activeScene, edges, nodes, sceneNames, setEdges, setNodes, snapshot, switchScene, uiElements, variables]);
+
   const deleteScene = useCallback((sceneName) => {
     if (!sceneName || sceneName === "main") return;
-    const count = uiElements.filter((element) => (element.scene || "main") === sceneName).length;
-    const confirmed = window.confirm(`${sceneName} Scene을 삭제할까요?\n이 Scene의 UI ${count}개가 main으로 이동됩니다.`);
+    const removedNodeIds = new Set(nodes.filter((node) => isNodeInScene(node, sceneName)).map((node) => node.id));
+    const uiCount = uiElements.filter((element) => (element.scene || "main") === sceneName).length;
+    const variableCount = variables.filter((variable) => variable.scope === "local" && variable.scene === sceneName).length;
+    const confirmed = window.confirm(`${sceneName} Scene을 삭제할까요?\n${uiText.deleteSceneConfirm}\n노드 ${removedNodeIds.size}개 / UI ${uiCount}개 / 지역변수 ${variableCount}개`);
     if (!confirmed) return;
     snapshot();
     setScenes((current) => normalizeScenes(current.filter((scene) => scene !== sceneName)));
     setWorkspaceTabOrder((current) => current.filter((tabId) => tabId !== `scene:${sceneName}`));
-    setUiElements((current) => current.map((element) => (
-      (element.scene || "main") === sceneName ? { ...element, scene: "main" } : element
-    )));
-    setVariables((current) => current.map((variable) => (
-      variable.scope === "local" && variable.scene === sceneName
-        ? { ...variable, scene: "main" }
-        : variable
-    )));
-    setNodes((current) => current.map((node) => (
-      isNodeInScene(node, sceneName)
-        ? { ...node, data: { ...node.data, scene: "main" } }
-        : node
-    )));
-    switchScene("main");
+    setUiElements((current) => current.filter((element) => (element.scene || "main") !== sceneName));
+    setVariables((current) => current.filter((variable) => !(variable.scope === "local" && variable.scene === sceneName)));
+    setNodes((current) => current.filter((node) => !isNodeInScene(node, sceneName)));
+    setEdges((current) => current.filter((edge) => !removedNodeIds.has(edge.source) && !removedNodeIds.has(edge.target)));
+    if (activeScene === sceneName) {
+      switchScene("main");
+    }
     setActiveWorkspaceTab("workspace");
     setStatus(`Scene removed: ${sceneName}`);
     setIsDirty(true);
-  }, [snapshot, switchScene, uiElements]);
+  }, [activeScene, nodes, setEdges, setNodes, snapshot, switchScene, uiElements, uiText.deleteSceneConfirm, variables]);
 
   const updateNodeField = (field, value) => {
     if (!selectedNode) return;
@@ -7959,10 +8574,12 @@ function EngineEditor() {
     setHttpsNodesEnabled(draftHttpsNodesEnabled);
     await window.ixo?.setHttpsNodesEnabled?.(draftHttpsNodesEnabled);
     if (!draftHttpsNodesEnabled) {
+      setNetworkConsentAcceptedAt("");
       await resetSecurityState();
       securityDecisionRef.current.httpsNode = "denied";
       securityDecisionRef.current.external = "denied";
     } else {
+      setNetworkConsentAcceptedAt((current) => current || new Date().toISOString());
       securityDecisionRef.current.httpsNode = "approved";
       securityDecisionRef.current.external = "approved";
     }
@@ -8064,6 +8681,7 @@ function EngineEditor() {
       setDraftTemplateKey("");
       setHttpsNodesEnabled(false);
       setDraftHttpsNodesEnabled(false);
+      setNetworkConsentAcceptedAt("");
       setCustomThemes({});
       setExportSettings(normalizeExportSettings());
       await window.ixo?.setHttpsNodesEnabled?.(false);
@@ -8190,6 +8808,48 @@ function EngineEditor() {
     setIsDirty(true);
   }, [selectedNodeIds, setEdges, setNodes, snapshot]);
 
+  const AssetManagerPanel = (
+    <section className="asset-manager-card asset-manager-front">
+      <div className="asset-manager-head">
+        <strong>{uiText.assetManager}</strong>
+        <span>{assets.length} assets</span>
+      </div>
+      <label className="asset-upload-btn">
+        <input type="file" accept="image/*,audio/*,.svg,.json,.ixo,.ixo-theme" onChange={(event) => addAssetFile(event.target.files?.[0])} />
+        {uiText.dragUploadAsset}
+      </label>
+      {assets.length ? (
+        <div className="asset-list">
+          {assets.slice(-6).map((asset) => (
+            <div
+              key={asset.id}
+              className={`asset-row ${isImageAsset(asset) || isIxoProjectAsset(asset) ? "is-draggable" : ""}`}
+              draggable={isImageAsset(asset) || isIxoProjectAsset(asset)}
+              onDragStart={(event) => {
+                event.dataTransfer.setData("application/ixo-asset-id", asset.id);
+                event.dataTransfer.setData("application/ixo-asset", JSON.stringify({ id: asset.id, name: asset.name, type: asset.type }));
+                event.dataTransfer.setData("text/ixo-asset-id", asset.id);
+                event.dataTransfer.setData("text/plain", asset.name);
+                event.dataTransfer.effectAllowed = "copy";
+              }}
+              title={isImageAsset(asset) ? "Canvas Builder로 끌어 이미지 UI를 만들 수 있습니다." : isIxoProjectAsset(asset) ? "노드 workspace로 끌어 IXO 프로젝트 조각을 붙여넣을 수 있습니다." : asset.name}
+            >
+              {isImageAsset(asset) ? <img className="asset-thumb" src={asset.dataUrl} alt={asset.name} /> : <span className="asset-thumb asset-thumb-placeholder">{getAssetKindLabel(asset).slice(0, 3)}</span>}
+              <span>{asset.name}<em>{getAssetKindLabel(asset)}</em></span>
+              <div className="asset-row-actions">
+                <button className="ghost-btn" onClick={() => renameAsset(asset.id)}>{uiText.renameAsset}</button>
+                <button className="ghost-btn danger-lite" onClick={() => removeAsset(asset.id)}>{uiText.delete}</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <span className="field-hint">이미지, 사운드, .ixo 조각을 여기에 올린 뒤 Canvas/노드로 끌어 넣을 수 있습니다.</span>
+      )}
+      <button className="ghost-btn" onClick={cleanupUnusedAssets}>{uiText.cleanUnused}</button>
+    </section>
+  );
+
   const CanvasPane = (
     <div className="editor-area" onDrop={onDrop} onDragOver={onDragOver} style={{ "--trace-duration": `${TRACE_SPEED[speed]}s` }}>
       <ReactFlowProvider key={flowRevision}>
@@ -8207,6 +8867,7 @@ function EngineEditor() {
         onEdgesChange={handleEdgesChange}
         onConnect={onConnect}
         onPaneContextMenu={onPaneContextMenu}
+        onNodeContextMenu={onNodeContextMenu}
         onNodeDragStart={(event, node) => {
           nodeDragStartSnapshotRef.current = cloneState(
             nodes.map((item) => (
@@ -8250,6 +8911,7 @@ function EngineEditor() {
             setFuture([]);
             lastSnapshotMetaRef.current = { mergeKey: "", at: Date.now() };
             nodeDragStartSnapshotRef.current = null;
+            setIsDirty(true);
           }
           handleNodeDropToSidebar(event, node);
         }}
@@ -8311,22 +8973,58 @@ function EngineEditor() {
       </ReactFlowProvider>
 
       {contextMenu ? (
-        <div className="context-menu" style={{ left: contextMenu.x, top: contextMenu.y }}>
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(event) => setSearchTerm(event.target.value)}
-            placeholder={uiText.searchNodes}
-            autoFocus
-          />
-          <div className="context-list">
-            {searchCandidates.slice(0, 10).map((item) => (
-              <button key={item.key} onClick={() => addNodeFromSearch(item)}>
-                <span style={{ background: NODE_COLOR[item.group] }} />
-                {getNodeLabel(item.type, language, item.label)}
+        <div className={`context-menu ${contextMenu.type === "node" ? "node-action-menu" : ""}`} style={{ left: contextMenu.x, top: contextMenu.y }} onMouseDown={(event) => event.stopPropagation()}>
+          {contextMenu.type === "node" ? (
+            <div className="node-action-list">
+              <button onClick={() => addNodeConnectionPoint(contextMenu.nodeId)}>
+                <span>＋</span>
+                연결점 추가
               </button>
-            ))}
-          </div>
+              <button onClick={() => {
+                copyNodesToClipboard(contextMenu.nodeId);
+                setContextMenu(null);
+              }}>
+                <span>⧉</span>
+                노드 복사
+              </button>
+              <button disabled={!nodeClipboardRef.current.nodes.length} onClick={() => pasteNodesFromClipboard(contextMenu.flowPosition)}>
+                <span>▣</span>
+                노드 붙여넣기
+              </button>
+              <button onClick={() => {
+                duplicateSelection();
+                setContextMenu(null);
+              }}>
+                <span>◇</span>
+                노드 복제
+              </button>
+              <button className="danger-action" onClick={() => {
+                deleteSelection();
+                setContextMenu(null);
+              }}>
+                <span>×</span>
+                노드 삭제
+              </button>
+            </div>
+          ) : (
+            <>
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                placeholder={uiText.searchNodes}
+                autoFocus
+              />
+              <div className="context-list">
+                {searchCandidates.slice(0, 10).map((item) => (
+                  <button key={item.key} onClick={() => addNodeFromSearch(item)}>
+                    <span style={{ background: NODE_COLOR[item.group] }} />
+                    {getNodeLabel(item.type, language, item.label)}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       ) : null}
 
@@ -8405,6 +9103,7 @@ function EngineEditor() {
           sceneNames={sceneNames}
           onCreateScene={createScene}
           onDeleteScene={deleteScene}
+          onDuplicateScene={duplicateScene}
           onAddComponent={createUiComponentFromPalette}
         />
       </ResizablePanel>
@@ -8448,6 +9147,7 @@ function EngineEditor() {
         sceneNames={sceneNames}
         onCreateScene={createScene}
         onDeleteScene={deleteScene}
+        onDuplicateScene={duplicateScene}
         onAddComponent={createUiComponentFromPalette}
         standaloneBuilder
       />
@@ -8676,7 +9376,7 @@ function EngineEditor() {
                       setActiveWorkspaceTab(tab.id);
                     }}
                   >
-                    <span className="workspace-tab-icon">ƒ</span>
+                    <span className="workspace-tab-icon">?</span>
                     <span>{tab.functionDef.name}</span>
                   </button>
                   <button
@@ -8704,7 +9404,7 @@ function EngineEditor() {
                 onDrop={(event) => handleWorkspaceTabDrop(event, tab.id)}
               >
                 <button type="button" className="workspace-tab-main" onClick={openSettingsTab}>
-                  <span className="workspace-tab-icon">⚙</span>
+                  <span className="workspace-tab-icon">?</span>
                   <span>{uiText.settingsTab}</span>
                 </button>
                 {showSettings ? <button type="button" className="workspace-tab-close" title={uiText.closeTab} onClick={closeSettingsTab}>×</button> : null}
@@ -8714,6 +9414,14 @@ function EngineEditor() {
           <button type="button" className="workspace-tab add-tab" onClick={createScene}>+</button>
         </div>
         <div className="workspace-tabbar-actions">
+          <button type="button" className="workspace-tab workspace-history-tab" onClick={undo} disabled={!history.length}>
+            <span className="workspace-tab-icon">?</span>
+            <span>{uiText.undo}</span>
+          </button>
+          <button type="button" className="workspace-tab workspace-history-tab" onClick={redo} disabled={!future.length}>
+            <span className="workspace-tab-icon">?</span>
+            <span>{uiText.redo}</span>
+          </button>
           <button type="button" className="workspace-tab" onClick={openDetachedPreview}>
             <span className="workspace-tab-icon">▶</span>
             <span>{uiText.previewTab}</span>
@@ -8847,10 +9555,13 @@ function EngineEditor() {
               ))}
             </div>
             <small>{uiText.currentScene}: {activeScene}. {uiText.sceneHint}</small>
+            <button className="ghost-btn" onClick={() => duplicateScene(activeScene)}>{uiText.duplicateScene}</button>
             {activeScene !== "main" ? (
               <button className="ghost-btn danger-lite" onClick={() => deleteScene(activeScene)}>{uiText.moveSceneToMain}</button>
             ) : null}
           </section>
+
+          {AssetManagerPanel}
 
           <div className="sidebar-header">
             <div className="panel-title">{uiText.nodeLibrary}</div>
@@ -9031,7 +9742,7 @@ function EngineEditor() {
             Object.entries(sidebarGroups).map(([group, items]) => (
               <section key={group} className="library-section">
                 <button className="section-toggle" onClick={() => toggleSection(group)}>
-                  <span className="section-label">{GROUP_ICON[group] || "•"} {getGroupLabel(group, language)}</span>
+                  <span className="section-label">{GROUP_ICON[group] || "?"} {getGroupLabel(group, language)}</span>
                   <span>{normalizedLibrarySearchTerm ? "-" : collapsed[group] ? "+" : "-"}</span>
                 </button>
 
@@ -9092,44 +9803,6 @@ function EngineEditor() {
                 <span>{viewMode === "builder" ? uiText.viewerModeBuilder : viewMode === "viewer" ? uiText.viewerModeViewer : uiText.viewerModePreview}</span>
               </div>
             </div>
-
-            {advancedMode ? (
-            <section className="asset-manager-card">
-              <div className="asset-manager-head">
-                <strong>{uiText.assetManager}</strong>
-                <span>{assets.length} assets</span>
-              </div>
-              <label className="asset-upload-btn">
-                <input type="file" accept="image/*,audio/*,.svg,.json,.ixo,.ixo-theme" onChange={(event) => addAssetFile(event.target.files?.[0])} />
-                {uiText.dragUploadAsset}
-              </label>
-              {assets.length ? (
-                <div className="asset-list">
-                  {assets.slice(-5).map((asset) => (
-                    <div
-                      key={asset.id}
-                      className={`asset-row ${isImageAsset(asset) || isIxoProjectAsset(asset) ? "is-draggable" : ""}`}
-                      draggable={isImageAsset(asset) || isIxoProjectAsset(asset)}
-                      onDragStart={(event) => {
-                        event.dataTransfer.setData("application/ixo-asset-id", asset.id);
-                        event.dataTransfer.setData("application/ixo-asset", JSON.stringify({ id: asset.id, name: asset.name, type: asset.type }));
-                        event.dataTransfer.setData("text/ixo-asset-id", asset.id);
-                        event.dataTransfer.setData("text/plain", asset.name);
-                        event.dataTransfer.effectAllowed = "copy";
-                      }}
-                      title={isImageAsset(asset) ? "Canvas Builder로 끌어 이미지 UI를 만들 수 있습니다." : isIxoProjectAsset(asset) ? "Canvas Builder로 끌어 노드/UI를 붙여넣을 수 있습니다." : asset.name}
-                    >
-                      <span>{asset.name}<em>{getAssetKindLabel(asset)}</em></span>
-                      <button className="ghost-btn danger-lite" onClick={() => removeAsset(asset.id)}>{uiText.delete}</button>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <span className="field-hint">Export에는 사용 중인 파일만 포함되도록 정리할 수 있습니다.</span>
-              )}
-              <button className="ghost-btn" onClick={cleanupUnusedAssets}>{uiText.cleanUnused}</button>
-            </section>
-            ) : null}
 
             {selectedUiElement ? (
               <div className="property-form">
@@ -9195,6 +9868,22 @@ function EngineEditor() {
                     <label>
                       CSS
                       <textarea value={selectedUiElement.cssText || ""} onChange={(event) => updateUiField("cssText", event.target.value)} placeholder="box-shadow: 0 12px 36px rgba(0,0,0,.22); padding: 12px;" />
+                    </label>
+                    <label>
+                      {uiText.stylePreset}
+                      <select value={selectedUiElement.stylePreset || "none"} onChange={(event) => updateUiField("stylePreset", event.target.value)}>
+                        {Object.entries(UI_STYLE_PRESETS).map(([key, preset]) => (
+                          <option key={key} value={key}>{preset.label}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      {uiText.hoverCss}
+                      <textarea value={selectedUiElement.hoverCssText || ""} onChange={(event) => updateUiField("hoverCssText", event.target.value)} placeholder="transform: translateY(-2px); box-shadow: 0 18px 42px rgba(0,0,0,.28);" />
+                    </label>
+                    <label>
+                      {uiText.pressedCss}
+                      <textarea value={selectedUiElement.pressedCssText || ""} onChange={(event) => updateUiField("pressedCssText", event.target.value)} placeholder="transform: translateY(1px); opacity: .92;" />
                     </label>
                     {["custom-button", "vector"].includes(selectedUiElement.kind) ? (
                       <>
@@ -9394,19 +10083,19 @@ function EngineEditor() {
         <span>{uiText.nodes} {nodes.length} | {uiText.edges} {edges.length} | UI {uiElements.length} | Dirty {runtimeRevision.dirtyNodeIds.length} | Culled {uiRenderStats.culled} | {uiText.mode} {viewMode}</span>
       </footer>
 
-      <PrivacyPolicyModal
-        open={showPrivacyPolicy}
-        uiText={uiText}
-        language={language}
-        onClose={() => setShowPrivacyPolicy(false)}
-      />
-
       <NetworkConsentModal
         open={showNetworkConsentModal}
         uiText={uiText}
         onAllow={allowNetworkNodes}
         onDeny={denyNetworkNodes}
         onOpenPrivacyPolicy={() => setShowPrivacyPolicy(true)}
+      />
+
+      <PrivacyPolicyModal
+        open={showPrivacyPolicy}
+        uiText={uiText}
+        language={language}
+        onClose={() => setShowPrivacyPolicy(false)}
       />
 
       <ExportModal
@@ -9467,6 +10156,7 @@ function ExportRuntimeApp() {
   const builderCanvasRef = useRef(null);
   const inFlightExternalActionsRef = useRef(new Set());
   const lastActionSignatureRef = useRef("");
+  const creatorNetworkConsent = useMemo(() => hasCreatorNetworkConsent(project), [project]);
 
   useEffect(() => {
     let mounted = true;
@@ -9501,27 +10191,9 @@ function ExportRuntimeApp() {
   }, []);
 
   useEffect(() => {
-    let mounted = true;
-    const loadSecurityPreference = async () => {
-      try {
-        const preferences = await window.ixo?.getSecurityPreferences?.();
-        const startupPreference = preferences?.httpsNodesEnabled === null
-          ? await window.ixo?.promptStartupHttpsPreference?.()
-          : preferences;
-        if (mounted) {
-          setHttpsNodesEnabled(Boolean(startupPreference?.httpsNodesEnabled));
-        }
-      } catch {
-        if (mounted) {
-          setHttpsNodesEnabled(false);
-        }
-      }
-    };
-    loadSecurityPreference();
-    return () => {
-      mounted = false;
-    };
-  }, []);
+    if (!project) return;
+    setHttpsNodesEnabled(Boolean(creatorNetworkConsent));
+  }, [creatorNetworkConsent, project]);
 
   useEffect(() => {
     const handlePointerDown = (event) => {
@@ -9591,10 +10263,13 @@ function ExportRuntimeApp() {
   }, []);
 
   const requestSecurityApproval = useCallback(async (scope, context = {}) => {
+    if (creatorNetworkConsent && (scope === "external" || scope === "httpsNode")) {
+      return true;
+    }
     if (!window.ixo?.requestSecurityApproval) return false;
     const result = await window.ixo.requestSecurityApproval(scope, context);
     return Boolean(result?.approved);
-  }, []);
+  }, [creatorNetworkConsent]);
 
   const requestSecureHttps = useCallback(async (rawUrl) => {
     if (!httpsNodesEnabled) {
@@ -9635,7 +10310,7 @@ function ExportRuntimeApp() {
     [project, runtimeSceneNodeIds]
   );
   const runtimeVariableContext = useMemo(
-    () => getVariableContext(project?.variables || [], activeScene),
+    () => ({ ...getVariableContext(project?.variables || [], activeScene), __scene: normalizeSceneName(activeScene) }),
     [activeScene, project?.variables]
   );
 
