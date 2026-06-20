@@ -6,7 +6,7 @@ import ReactFlow, {
   Controls,
   Handle,
   MarkerType,
-  MiniMap,
+  MiniMap, 
   Panel,
   Position,
   ReactFlowProvider,
@@ -24,6 +24,7 @@ import { createCanvasRenderStats } from "./renderer/canvasRenderer";
 import { DEFAULT_EXPORT_SETTINGS, normalizeExportSettings } from "./utils/projectFiles";
 
 // [앱 공통] 에디터 전역에서 반복 사용하는 상수 모음입니다.
+// 코드를 보면 볼 수록 손코딩하기 진짜 진짜 싫어짐.
 const ACCENT = "#3ecf8e";
 const LOGO_FALLBACKS = [
   logoImage,
